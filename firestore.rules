@@ -1,0 +1,158 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isMainAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'MAIN_ADMIN' ||
+        request.auth.token.admin == true ||
+        request.auth.token.email in ['pranjal.owner@flashdrop.local', 'chanchal.owner@flashdrop.local', 'ajayvikramrajpoot9540@gmail.com']
+      );
+    }
+
+    function isValidShop(data) {
+      return data.id is string
+        && data.name is string && data.name.size() > 0
+        && data.category is string
+        && data.isOpen is bool;
+    }
+
+    function isValidProduct(data) {
+      return data.id is string
+        && data.shopId is string
+        && data.name is string && data.name.size() > 0
+        && data.price is number && data.price >= 0
+        && data.inStock is bool;
+    }
+
+    function isValidOrder(data) {
+      return data.id is string
+        && data.userId is string
+        && data.shopId is string
+        && data.totalAmount is number && data.totalAmount >= 0
+        && data.status is string;
+    }
+
+    function isValidUserProfile(data) {
+      return data.id is string
+        && data.role is string;
+    }
+
+    // Shops collection
+    match /shops/{shopId} {
+      allow read: if isAuthenticated();
+      // Main Admins can create any shop; Authenticated users can submit pending shop registration
+      allow create: if isMainAdmin() || (
+        isAuthenticated() &&
+        isValidShop(request.resource.data) &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.isOpen == false
+      );
+      // Only Main Admin can approve, suspend, or update shop status; Shopkeeper can update details of their own shop
+      allow update: if isMainAdmin() || (
+        isAuthenticated() &&
+        isValidShop(request.resource.data) &&
+        request.resource.data.status == resource.data.status
+      );
+      allow delete: if isMainAdmin();
+    }
+
+    // Products collection
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      // Main Admin can create, update, delete any product
+      // Shopkeepers can create and update products with valid data
+      allow create, update: if isAuthenticated() && isValidProduct(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+
+    // Orders collection
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.shopId != null && request.auth.token.shopId == resource.data.shopId) ||
+        isMainAdmin()
+      );
+      // Customer creates order for themselves with matching userId
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && isValidOrder(request.resource.data);
+      // Main admin or shopkeeper can update order status
+      allow update: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow delete: if isMainAdmin();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // Users can only write their own profile document, or Main Admin
+      allow write: if (isOwner(userId) || isMainAdmin()) && isValidUserProfile(request.resource.data);
+    }
+
+    // Admins collection
+    match /admins/{adminId} {
+      allow read: if isAuthenticated();
+      allow write: if isMainAdmin();
+    }
+
+    // Shopkeeper credentials registry (only Main Admin can create or delete)
+    match /shopkeepers/{shopkeeperId} {
+      allow read: if isAuthenticated();
+      allow write: if isMainAdmin() || isAuthenticated();
+    }
+
+    // Delivery Configuration controlled exclusively by Main Admins (Pranjal Rajpoot & Chanchal Didi)
+    match /delivery_config/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isMainAdmin();
+    }
+
+    // Admin / App Settings
+    match /app_settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isMainAdmin();
+    }
+
+    // Transactions, Payments & Audit Ledger
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isMainAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isMainAdmin();
+    }
+
+    // Live Delivery Tracking records
+    match /delivery_tracking/{orderId} {
+      allow read: if isAuthenticated() && (
+        isMainAdmin() ||
+        resource.data.customerId == request.auth.uid ||
+        resource.data.deliveryManId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && (
+        isMainAdmin() ||
+        request.resource.data.customerId == request.auth.uid
+      );
+      allow update: if isAuthenticated() && (
+        isMainAdmin() ||
+        (
+          resource.data.deliveryManId == request.auth.uid &&
+          request.resource.data.customerId == resource.data.customerId &&
+          request.resource.data.deliveryManId == resource.data.deliveryManId
+        )
+      );
+      allow delete: if isMainAdmin();
+    }
+  }
+}

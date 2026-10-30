@@ -1,0 +1,200 @@
+{
+  "entities": {
+    "Shop": {
+      "title": "Shop",
+      "description": "Local shop registered on FlashDrop in Mahoba",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "rating": { "type": "number" },
+        "ratingCount": { "type": "number" },
+        "distance": { "type": "string" },
+        "deliveryTime": { "type": "string" },
+        "deliveryAvailable": { "type": "boolean" },
+        "deliveryFee": { "type": "number" },
+        "minOrder": { "type": "number" },
+        "isOpen": { "type": "boolean" },
+        "description": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "category", "isOpen"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Product catalog item listed by a local shop",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "shopId": { "type": "string" },
+        "shopName": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "originalPrice": { "type": "number" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "unit": { "type": "string" },
+        "inStock": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "ratingCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "shopId", "name", "price", "inStock"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order placed to a local shop in Mahoba",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderNumber": { "type": "string" },
+        "userId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "deliveryAddress": { "type": "string" },
+        "locality": { "type": "string" },
+        "pinCode": { "type": "string" },
+        "shopId": { "type": "string" },
+        "shopName": { "type": "string" },
+        "itemsCount": { "type": "number" },
+        "subtotal": { "type": "number" },
+        "deliveryFee": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "deliveryMethod": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "shopId", "totalAmount", "status"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role (customer, shopkeeper, MAIN_ADMIN)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string" },
+        "loginId": { "type": "string" },
+        "shopId": { "type": "string" },
+        "shopName": { "type": "string" },
+        "address": { "type": "string" },
+        "locality": { "type": "string" },
+        "pinCode": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "role"]
+    },
+    "ShopkeeperAccount": {
+      "title": "ShopkeeperAccount",
+      "description": "Authorized shopkeeper credential account assigned by Main Admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "loginId": { "type": "string" },
+        "shopkeeperName": { "type": "string" },
+        "shopId": { "type": "string" },
+        "shopName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "assignedBy": { "type": "string" }
+      },
+      "required": ["id", "loginId", "shopId", "isActive"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial ledger transaction and payment record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "orderNumber": { "type": "string" },
+        "shopId": { "type": "string" },
+        "shopName": { "type": "string" },
+        "customerName": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "providerTxnId": { "type": "string" },
+        "referenceId": { "type": "string" },
+        "verificationProof": { "type": "string" }
+      },
+      "required": ["id", "orderId", "amount", "paymentMethod", "status"]
+    },
+    "DeliveryTracking": {
+      "title": "DeliveryTracking",
+      "description": "Live GPS tracking and delivery timeline record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerDeliveryAddress": { "type": "string" },
+        "customerLatitude": { "type": "number" },
+        "customerLongitude": { "type": "number" },
+        "shopId": { "type": "string" },
+        "shopName": { "type": "string" },
+        "shopLatitude": { "type": "number" },
+        "shopLongitude": { "type": "number" },
+        "deliveryManId": { "type": "string" },
+        "deliveryManName": { "type": "string" },
+        "deliveryManPhone": { "type": "string" },
+        "deliveryManVehicle": { "type": "string" },
+        "orderStatus": { "type": "string" },
+        "actualLatitude": { "type": ["number", "null"] },
+        "actualLongitude": { "type": ["number", "null"] },
+        "actualAccuracyMeters": { "type": ["number", "null"] },
+        "isGpsActive": { "type": "boolean" },
+        "remainingDistanceKm": { "type": ["number", "null"] },
+        "estimatedArrivalMinutes": { "type": ["number", "null"] }
+      },
+      "required": ["id", "orderId", "customerId", "orderStatus"]
+    }
+  },
+  "firestore": {
+    "/shops/{shopId}": {
+      "schema": { "$ref": "#/entities/Shop" },
+      "description": "Local shops directory"
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Products listed across shops"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Marketplace customer orders"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile information"
+    },
+    "/shopkeepers/{shopkeeperId}": {
+      "schema": { "$ref": "#/entities/ShopkeeperAccount" },
+      "description": "Registered shopkeeper accounts created by Main Admins"
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Payment transactions and verification ledger"
+    },
+    "/delivery_tracking/{orderId}": {
+      "schema": { "$ref": "#/entities/DeliveryTracking" },
+      "description": "Live GPS delivery tracking records"
+    }
+  }
+}

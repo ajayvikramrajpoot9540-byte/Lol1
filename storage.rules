@@ -1,0 +1,87 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isMainAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'MAIN_ADMIN' ||
+        request.auth.token.admin == true ||
+        request.auth.token.email in ['pranjal.owner@flashdrop.local', 'chanchal.owner@flashdrop.local', 'ajayvikramrajpoot9540@gmail.com']
+      );
+    }
+
+    function isValidImage() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp)')
+        && request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // Product photos isolated per shop: products/{shopId}/{fileName}
+    match /products/{shopId}/{fileName} {
+      // Any authenticated user can view product photos in customer catalogue & cart
+      allow read: if isAuthenticated();
+
+      // Only authenticated shopkeepers (or admins) uploading for their shop with valid image type and size <= 5MB
+      allow create, update: if isAuthenticated()
+        && isValidImage()
+        && (isMainAdmin() || request.auth.token.shopId == shopId || request.resource.metadata.shopId == shopId);
+
+      // Only the shop owner or admin can delete photos
+      allow delete: if isAuthenticated()
+        && (isMainAdmin() || request.auth.token.shopId == shopId);
+    }
+
+    // Printing documents: printing_docs/{shopId}/{userId}/{fileName}
+    match /printing_docs/{shopId}/{userId}/{fileName} {
+      // Access restricted to: customer who owns the order, authorized shopkeeper fulfilling it, and authorized Admins
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        request.auth.token.shopId == shopId ||
+        isMainAdmin()
+      );
+
+      // Only authenticated customer uploading for themselves with valid document types (PDF, JPG, JPEG, PNG) up to 150MB
+      allow create: if isAuthenticated()
+        && request.auth.uid == userId
+        && request.resource.size <= 150 * 1024 * 1024
+        && request.resource.contentType.matches('(application/pdf|image/(jpeg|png|jpg))');
+
+      allow delete: if isAuthenticated() && (request.auth.uid == userId || isMainAdmin());
+    }
+
+    // Customer profile photos: users/{userId}/{fileName}
+    match /users/{userId}/{fileName} {
+      allow read: if true;
+      allow create, update: if isAuthenticated()
+        && isValidImage()
+        && (request.auth.uid == userId || isMainAdmin());
+      allow delete: if isAuthenticated()
+        && (request.auth.uid == userId || isMainAdmin());
+    }
+
+    // Shop logos and banners: shops/{shopId}/{fileName}
+    match /shops/{shopId}/{fileName} {
+      allow read: if true;
+      allow create, update: if isAuthenticated()
+        && isValidImage()
+        && (isMainAdmin() || request.auth.token.shopId == shopId || request.resource.metadata.shopId == shopId);
+      allow delete: if isAuthenticated()
+        && (isMainAdmin() || request.auth.token.shopId == shopId);
+    }
+
+    // Main Admin profile photos: admins/{adminId}/{fileName}
+    match /admins/{adminId}/{fileName} {
+      allow read: if true;
+      allow create, update: if isMainAdmin() && isValidImage();
+      allow delete: if isMainAdmin();
+    }
+
+    // Fallback catch-all
+    match /{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isMainAdmin();
+    }
+  }
+}

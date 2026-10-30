@@ -1,0 +1,6 @@
+{
+  "name": "FlashDrop",
+  "description": "Local shopping marketplace for Mahoba, Uttar Pradesh - Click Karo, Ghar Mangao! with FlashDrop",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
