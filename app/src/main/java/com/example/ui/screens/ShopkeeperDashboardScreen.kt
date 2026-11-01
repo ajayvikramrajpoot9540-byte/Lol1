@@ -99,6 +99,7 @@ import com.example.data.model.Product
 import com.example.data.model.Shop
 import com.example.data.repository.FlashDropRepository
 import com.example.ui.components.FlashDropCompactLogo
+import com.example.ui.components.NotificationBellButton
 import com.example.ui.components.RoleSwitchBadge
 import com.example.ui.components.StatusBadge
 import com.example.ui.theme.BackgroundWarm
@@ -298,6 +299,12 @@ fun ShopkeeperDashboardScreen(
                     }
                 },
                 actions = {
+                    NotificationBellButton(
+                        repository = repository,
+                        role = "shopkeeper",
+                        shopId = currentShop?.id ?: "",
+                        tint = OrangeSecondary
+                    )
                     RoleSwitchBadge(
                         currentRole = "shopkeeper",
                         loginId = profile.loginId,

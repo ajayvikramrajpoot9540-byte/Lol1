@@ -237,4 +237,19 @@ class ProfileAndDataPersistenceTest {
         val persistedFile = File(context.filesDir, "test_photos/${persistedUri?.lastPathSegment}")
         assertTrue("Persisted file must physically exist in app internal storage", persistedFile.exists())
     }
+
+    @Test
+    fun testCartAndOrdersEmptyInitialStateForFreshCustomer() {
+        val repo = ApnaBazRepository(context)
+        // Verify cart is empty initially so floating cart pill is NOT displayed
+        assertEquals("Cart should start empty when customer chose nothing", 0, repo.cartItems.value.size)
+
+        // When customer chooses an item, it should display
+        val sampleProduct = repo.products.value.first()
+        repo.addToCart(sampleProduct)
+        assertEquals("Cart should contain 1 item when customer chooses something", 1, repo.cartItems.value.size)
+
+        // Verify orders is empty initially so Orders icon is hidden when nothing ordered
+        assertEquals("Orders should start empty when customer has not ordered anything", 0, repo.orders.value.size)
+    }
 }

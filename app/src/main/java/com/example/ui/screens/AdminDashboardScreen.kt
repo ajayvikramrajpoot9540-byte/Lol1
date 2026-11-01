@@ -91,6 +91,7 @@ import com.example.data.repository.FlashDropRepository
 import com.example.ui.screens.admin.DeliveryChargeSettingsSection
 import com.example.ui.screens.admin.ShopVerificationSettingsSection
 import com.example.ui.components.FlashDropCompactLogo
+import com.example.ui.components.NotificationBellButton
 import com.example.ui.components.RoleSwitchBadge
 import com.example.ui.components.StatusBadge
 import com.example.ui.theme.BackgroundWarm
@@ -177,6 +178,11 @@ fun AdminDashboardScreen(
                     }
                 },
                 actions = {
+                    NotificationBellButton(
+                        repository = repository,
+                        role = "admin",
+                        tint = Color(0xFF6D28D9)
+                    )
                     IconButton(
                         onClick = { onNavigate?.invoke(Screen.EditAdminProfile.route) },
                         modifier = Modifier.testTag("admin_portal_edit_profile_button")
@@ -859,7 +865,10 @@ fun AdminDashboardScreen(
                         }
 
                         items(shops) { shop ->
-                            val isPending = shop.status.equals("pending", ignoreCase = true)
+                            val isPending = shop.status.equals("pending", ignoreCase = true) ||
+                                    shop.status.equals("pending_review", ignoreCase = true) ||
+                                    shop.status.equals("pending_approval", ignoreCase = true) ||
+                                    (!shop.isOpen && !shop.status.equals("approved", ignoreCase = true) && !shop.status.equals("rejected", ignoreCase = true) && !shop.status.equals("suspended", ignoreCase = true))
 
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
@@ -940,9 +949,13 @@ fun AdminDashboardScreen(
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Button(
                                                 onClick = {
-                                                    repository.approveShop(shop.id)
+                                                    val success = repository.approveShop(shop.id)
                                                     coroutineScope.launch {
-                                                        snackbarHostState.showSnackbar("Shop ${shop.name} approved by $ownerName! Now active for customers.")
+                                                        if (success) {
+                                                            snackbarHostState.showSnackbar("Shop ${shop.name} approved by $ownerName! Now active for customers.")
+                                                        } else {
+                                                            snackbarHostState.showSnackbar("Failed to approve shop. Please check admin permissions.")
+                                                        }
                                                     }
                                                 },
                                                 colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),

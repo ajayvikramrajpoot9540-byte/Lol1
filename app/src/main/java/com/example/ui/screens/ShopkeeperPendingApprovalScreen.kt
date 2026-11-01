@@ -336,7 +336,8 @@ fun ShopkeeperPendingApprovalScreen(
                         isCheckingStatus = false
                         if (updatedShop != null) {
                             when {
-                                updatedShop.status.equals("approved", ignoreCase = true) -> {
+                                updatedShop.status.equals("approved", ignoreCase = true) || updatedShop.isOpen -> {
+                                    repository.activateShopkeeperSessionForShop(updatedShop)
                                     snackbarHostState.showSnackbar("Congratulations! Your shop has been approved!")
                                     delay(400)
                                     onApproved()

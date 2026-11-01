@@ -1,14 +1,14 @@
 package com.example.ui.components
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -28,7 +28,8 @@ import com.example.ui.theme.GreenPrimary
 fun BottomNavBar(
     currentRoute: String,
     onNavigate: (String) -> Unit,
-    activeOrdersCount: Int = 0
+    activeOrdersCount: Int = 0,
+    hasOrders: Boolean = (activeOrdersCount > 0)
 ) {
     NavigationBar(
         containerColor = Color.White,
@@ -72,33 +73,35 @@ fun BottomNavBar(
             )
         )
 
-        // Orders
-        NavigationBarItem(
-            modifier = Modifier.testTag("nav_orders"),
-            selected = currentRoute == Screen.Orders.route,
-            onClick = { onNavigate(Screen.Orders.route) },
-            icon = {
-                if (activeOrdersCount > 0) {
-                    BadgedBox(badge = { Badge { Text("$activeOrdersCount") } }) {
+        // Orders: Only display if the customer has placed an order (or is currently viewing the Orders screen)
+        if (hasOrders || currentRoute == Screen.Orders.route) {
+            NavigationBarItem(
+                modifier = Modifier.testTag("nav_orders"),
+                selected = currentRoute == Screen.Orders.route,
+                onClick = { onNavigate(Screen.Orders.route) },
+                icon = {
+                    if (activeOrdersCount > 0) {
+                        BadgedBox(badge = { Badge { Text("$activeOrdersCount") } }) {
+                            Icon(
+                                imageVector = if (currentRoute == Screen.Orders.route) Icons.AutoMirrored.Filled.ReceiptLong else Icons.AutoMirrored.Outlined.ReceiptLong,
+                                contentDescription = "Orders"
+                            )
+                        }
+                    } else {
                         Icon(
-                            imageVector = if (currentRoute == Screen.Orders.route) Icons.Filled.ReceiptLong else Icons.Outlined.ReceiptLong,
+                            imageVector = if (currentRoute == Screen.Orders.route) Icons.AutoMirrored.Filled.ReceiptLong else Icons.AutoMirrored.Outlined.ReceiptLong,
                             contentDescription = "Orders"
                         )
                     }
-                } else {
-                    Icon(
-                        imageVector = if (currentRoute == Screen.Orders.route) Icons.Filled.ReceiptLong else Icons.Outlined.ReceiptLong,
-                        contentDescription = "Orders"
-                    )
-                }
-            },
-            label = { Text("Orders") },
-            colors = NavigationBarItemDefaults.colors(
-                indicatorColor = GreenLight,
-                selectedIconColor = GreenPrimary,
-                selectedTextColor = GreenPrimary
+                },
+                label = { Text("Orders") },
+                colors = NavigationBarItemDefaults.colors(
+                    indicatorColor = GreenLight,
+                    selectedIconColor = GreenPrimary,
+                    selectedTextColor = GreenPrimary
+                )
             )
-        )
+        }
 
         // Profile
         NavigationBarItem(

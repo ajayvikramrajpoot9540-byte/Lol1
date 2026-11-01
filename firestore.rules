@@ -114,10 +114,22 @@ service cloud.firestore {
       allow write: if isMainAdmin();
     }
 
-    // Admin / App Settings
+    // Admin / App Settings (both camelCase and snake_case)
     match /app_settings/{docId} {
       allow read: if isAuthenticated();
       allow write: if isMainAdmin();
+    }
+
+    match /appSettings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isMainAdmin();
+    }
+
+    // Shop Verification Requests (3-Step Registration & Document Review)
+    match /shop_verification_requests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isMainAdmin() || isAuthenticated();
     }
 
     // Transactions, Payments & Audit Ledger

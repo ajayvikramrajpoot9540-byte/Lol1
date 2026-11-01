@@ -94,6 +94,7 @@ import com.example.data.model.Product
 import com.example.data.model.Shop
 import com.example.data.repository.ApnaBazRepository
 import com.example.ui.components.BottomNavBar
+import com.example.ui.components.NotificationBellButton
 import com.example.ui.components.RoleSwitchBadge
 import com.example.ui.navigation.Screen
 import com.example.ui.theme.BackgroundWarm
@@ -275,7 +276,16 @@ fun HomeScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        // Customer Notification Bell Button
+                        NotificationBellButton(
+                            repository = repository,
+                            role = "customer",
+                            tint = GreenPrimary
+                        )
+
+                        Spacer(modifier = Modifier.width(4.dp))
 
                         // Role switch pill
                         RoleSwitchBadge(
@@ -312,12 +322,15 @@ fun HomeScreen(
             }
         },
         bottomBar = {
+            val allOrders = repository.orders.collectAsState().value
+            val activeOrders = allOrders.count {
+                it.status in listOf("pending", "accepted", "preparing", "out_for_delivery")
+            }
             BottomNavBar(
                 currentRoute = Screen.Home.route,
                 onNavigate = onNavigate,
-                activeOrdersCount = repository.orders.collectAsState().value.count {
-                    it.status in listOf("pending", "accepted", "preparing", "out_for_delivery")
-                }
+                activeOrdersCount = activeOrders,
+                hasOrders = allOrders.isNotEmpty()
             )
         },
         floatingActionButton = {

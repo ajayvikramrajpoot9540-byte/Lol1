@@ -19,6 +19,7 @@ import com.example.data.model.ShopkeeperAccount
 import com.example.data.model.UserProfile
 import com.example.data.local.AppPersistenceManager
 import com.example.data.model.DeliveryAddress
+import com.example.data.model.NotificationItem
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -106,28 +107,10 @@ class FlashDropRepository(
     private val _products = MutableStateFlow<List<Product>>(SeedData.sampleProducts)
     val products: StateFlow<List<Product>> = _products.asStateFlow()
 
-    private val _orders = MutableStateFlow<List<Order>>(SeedData.sampleOrders)
+    private val _orders = MutableStateFlow<List<Order>>(emptyList())
     val orders: StateFlow<List<Order>> = _orders.asStateFlow()
 
-    private val _cartItems = MutableStateFlow<List<CartItem>>(
-        listOf(
-            CartItem(
-                product = SeedData.sampleProducts.find { it.id == "prod_atta" }
-                    ?: SeedData.sampleProducts.first(),
-                quantity = 1
-            ),
-            CartItem(
-                product = SeedData.sampleProducts.find { it.id == "prod_parle_g" }
-                    ?: SeedData.sampleProducts[1],
-                quantity = 2
-            ),
-            CartItem(
-                product = SeedData.sampleProducts.find { it.id == "prod_maggi" }
-                    ?: SeedData.sampleProducts[2],
-                quantity = 1
-            )
-        )
-    )
+    private val _cartItems = MutableStateFlow<List<CartItem>>(emptyList())
     val cartItems: StateFlow<List<CartItem>> = _cartItems.asStateFlow()
 
     private val _transactions = MutableStateFlow<List<com.example.data.model.Transaction>>(SeedData.sampleTransactions)
@@ -264,6 +247,114 @@ class FlashDropRepository(
     )
     val registeredUsers: StateFlow<List<RegisteredAccount>> = _registeredUsers.asStateFlow()
 
+    // Notification Center for Admin, Shopkeeper, and Customer
+    private val _notifications = MutableStateFlow<List<NotificationItem>>(
+        listOf(
+            NotificationItem(
+                id = "notif_admin_welcome",
+                title = "Admin Portal Active",
+                message = "Main Admins Pranjal Rajpoot (PR12) and Chanchal Didi (CD12) have equal administrative authority.",
+                timestamp = "Just now",
+                type = "admin",
+                targetRole = "admin",
+                isRead = false
+            ),
+            NotificationItem(
+                id = "notif_admin_shops",
+                title = "Merchant Verification Ready",
+                message = "Review pending shop registration applications and business documents in Admin Portal.",
+                timestamp = "10 mins ago",
+                type = "shop",
+                targetRole = "admin",
+                isRead = false
+            ),
+            NotificationItem(
+                id = "notif_sk_welcome",
+                title = "Shopkeeper Hub Ready",
+                message = "Manage your store catalog, incoming orders, and track your business earnings in Mahoba.",
+                timestamp = "Just now",
+                type = "shop",
+                targetRole = "shopkeeper",
+                isRead = false
+            ),
+            NotificationItem(
+                id = "notif_sk_orders",
+                title = "Order Dispatch System Active",
+                message = "New orders from Mahoba customers will appear in your 'My Orders' tab with instant alerts.",
+                timestamp = "15 mins ago",
+                type = "order",
+                targetRole = "shopkeeper",
+                isRead = false
+            ),
+            NotificationItem(
+                id = "notif_cust_welcome",
+                title = "Welcome to FlashDrop Mahoba! ⚡",
+                message = "Fast 20-30 minute doorstep delivery across Alha Chowk, Subhash Chowk, and Gandhi Nagar.",
+                timestamp = "Just now",
+                type = "promo",
+                targetRole = "customer",
+                isRead = false
+            ),
+            NotificationItem(
+                id = "notif_cust_gps",
+                title = "Live GPS Delivery Tracking 📍",
+                message = "Track your delivery rider with real-time location updates directly on Google Maps.",
+                timestamp = "1 hour ago",
+                type = "delivery",
+                targetRole = "customer",
+                isRead = false
+            )
+        )
+    )
+    val notifications: StateFlow<List<NotificationItem>> = _notifications.asStateFlow()
+
+    fun getNotificationsForRole(role: String, shopId: String = ""): List<NotificationItem> {
+        val current = _notifications.value
+        val normalizedRole = when (role.uppercase()) {
+            "MAIN_ADMIN", "ADMIN" -> "admin"
+            "SHOPKEEPER" -> "shopkeeper"
+            else -> "customer"
+        }
+        return current.filter {
+            it.targetRole == "all" || it.targetRole.equals(normalizedRole, ignoreCase = true) ||
+            (normalizedRole == "shopkeeper" && shopId.isNotBlank() && it.targetId == shopId)
+        }
+    }
+
+    fun markNotificationAsRead(id: String) {
+        _notifications.value = _notifications.value.map {
+            if (it.id == id) it.copy(isRead = true) else it
+        }
+    }
+
+    fun markAllNotificationsAsRead(role: String) {
+        val normalizedRole = when (role.uppercase()) {
+            "MAIN_ADMIN", "ADMIN" -> "admin"
+            "SHOPKEEPER" -> "shopkeeper"
+            else -> "customer"
+        }
+        _notifications.value = _notifications.value.map {
+            if (it.targetRole == "all" || it.targetRole.equals(normalizedRole, ignoreCase = true)) {
+                it.copy(isRead = true)
+            } else it
+        }
+    }
+
+    fun clearAllNotifications(role: String) {
+        val normalizedRole = when (role.uppercase()) {
+            "MAIN_ADMIN", "ADMIN" -> "admin"
+            "SHOPKEEPER" -> "shopkeeper"
+            else -> "customer"
+        }
+        _notifications.value = _notifications.value.filterNot {
+            it.targetRole == "all" || it.targetRole.equals(normalizedRole, ignoreCase = true)
+        }
+    }
+
+    fun addNotification(notification: NotificationItem) {
+        _notifications.value = listOf(notification) + _notifications.value
+    }
+
     // Profile loading indicator state
     private val _isProfileLoading = MutableStateFlow(false)
     val isProfileLoading: StateFlow<Boolean> = _isProfileLoading.asStateFlow()
@@ -369,14 +460,16 @@ class FlashDropRepository(
         repoScope.launch {
             _isProfileLoading.value = true
             try {
-                val isOwner1 = user.email == "pranjal.owner@flashdrop.local"
-                val isOwner2 = user.email == "chanchal.owner@flashdrop.local"
+                val userEmail = user.email ?: ""
+                val isOwner1 = userEmail.equals("pranjal.owner@flashdrop.local", ignoreCase = true) ||
+                        userEmail.equals("ajayvikramrajpoot9540@gmail.com", ignoreCase = true)
+                val isOwner2 = userEmail.equals("chanchal.owner@flashdrop.local", ignoreCase = true)
                 if (isOwner1 || isOwner2) {
                     val adminProfile = UserProfile(
                         id = user.uid,
                         name = if (isOwner1) "Pranjal Rajpoot" else "Chanchal Didi",
-                        email = user.email ?: "",
-                        phone = user.phoneNumber ?: "+91 98765 00012",
+                        email = user.email ?: (if (isOwner1) "pranjal.owner@flashdrop.local" else "chanchal.owner@flashdrop.local"),
+                        phone = user.phoneNumber ?: (if (isOwner1) "+91 98765 00012" else "+91 98765 00013"),
                         role = "MAIN_ADMIN",
                         loginId = if (isOwner1) "PR12" else "CD12",
                         ownerTitle = if (isOwner1) "Owner 1" else "Owner 2",
@@ -505,15 +598,28 @@ class FlashDropRepository(
             }
 
             val loadedOrders = persistence.loadOrders()
-            if (loadedOrders != null && loadedOrders.isNotEmpty()) {
-                _orders.value = loadedOrders
+            if (loadedOrders != null) {
+                // Filter out old demo sample orders if present
+                val nonDemoOrders = loadedOrders.filterNot { it.id.startsWith("ord_fd20261021") }
+                _orders.value = nonDemoOrders
+                persistence.saveOrders(nonDemoOrders)
             } else {
                 persistence.saveOrders(_orders.value)
             }
 
             val loadedCart = persistence.loadCart()
             if (loadedCart != null) {
-                _cartItems.value = loadedCart
+                // If loaded cart contains the old demo items, clear it
+                val isOldDemoCart = loadedCart.size == 3 &&
+                    loadedCart.any { it.product.id == "prod_atta" && it.quantity == 1 } &&
+                    loadedCart.any { it.product.id == "prod_parle_g" && it.quantity == 2 } &&
+                    loadedCart.any { it.product.id == "prod_maggi" && it.quantity == 1 }
+                if (isOldDemoCart) {
+                    _cartItems.value = emptyList()
+                    persistence.saveCart(emptyList())
+                } else {
+                    _cartItems.value = loadedCart
+                }
             } else {
                 persistence.saveCart(_cartItems.value)
             }
@@ -779,7 +885,8 @@ class FlashDropRepository(
         val isOwner1 = trimmedId.equals("PR12", ignoreCase = true) ||
                 trimmedId.equals("PR", ignoreCase = true) ||
                 trimmedId.equals("Pranjal Rajpoot", ignoreCase = true) ||
-                trimmedId.contains("Pranjal", ignoreCase = true)
+                trimmedId.contains("Pranjal", ignoreCase = true) ||
+                trimmedId.equals("ajayvikramrajpoot9540@gmail.com", ignoreCase = true)
 
         val isOwner2 = trimmedId.equals("CD12", ignoreCase = true) ||
                 trimmedId.equals("CD", ignoreCase = true) ||
@@ -792,8 +899,13 @@ class FlashDropRepository(
             )
         }
 
-        val expectedPassword = if (isOwner1) "PR12" else "CD12"
-        if (trimmedPass != expectedPassword) {
+        val isPasswordCorrect = if (isOwner1) {
+            trimmedPass.equals("PR12", ignoreCase = true) || trimmedPass.equals("PR", ignoreCase = true)
+        } else {
+            trimmedPass.equals("CD12", ignoreCase = true) || trimmedPass.equals("CD", ignoreCase = true)
+        }
+
+        if (!isPasswordCorrect) {
             return Result.failure(
                 IllegalArgumentException("Invalid Login ID or password. Access restricted to authorized Main Admins.")
             )
@@ -1196,6 +1308,7 @@ class FlashDropRepository(
             effectiveShop.status.equals("rejected", ignoreCase = true) || targetAccount?.status.equals("REJECTED", ignoreCase = true) -> "REJECTED"
             effectiveShop.status.equals("suspended", ignoreCase = true) || targetAccount?.status.equals("SUSPENDED", ignoreCase = true) -> "SUSPENDED"
             effectiveShop.status.equals("documents_required", ignoreCase = true) || targetAccount?.status.equals("DOCUMENTS_REQUIRED", ignoreCase = true) -> "DOCUMENTS_REQUIRED"
+            effectiveShop.status.equals("approved", ignoreCase = true) || effectiveShop.isOpen || targetAccount?.status.equals("APPROVED", ignoreCase = true) || targetAccount?.isActive == true -> "APPROVED"
             effectiveShop.status.equals("pending_review", ignoreCase = true) || targetAccount?.status.equals("PENDING_REVIEW", ignoreCase = true) -> "PENDING"
             effectiveShop.status.equals("pending", ignoreCase = true) || targetAccount?.status.equals("PENDING", ignoreCase = true) -> "PENDING"
             targetAccount != null && !targetAccount.isActive && !effectiveShop.isOpen -> "PENDING"
@@ -1462,7 +1575,15 @@ class FlashDropRepository(
     }
 
     fun isMainAdmin(): Boolean {
-        return (_currentProfile.value.role == "MAIN_ADMIN" || _currentProfile.value.role == "admin") && _currentProfile.value.isVerifiedAdmin
+        val prof = _currentProfile.value
+        val email = auth?.currentUser?.email ?: prof.email
+        val loginId = prof.loginId.uppercase().trim()
+        val isVerifiedEmail = email.equals("pranjal.owner@flashdrop.local", ignoreCase = true) ||
+                email.equals("chanchal.owner@flashdrop.local", ignoreCase = true) ||
+                email.equals("ajayvikramrajpoot9540@gmail.com", ignoreCase = true)
+        val isVerifiedLoginId = loginId == "PR12" || loginId == "CD12" || loginId == "PR" || loginId == "CD"
+        val isRoleAdmin = (prof.role.equals("MAIN_ADMIN", ignoreCase = true) || prof.role.equals("admin", ignoreCase = true)) && prof.isVerifiedAdmin
+        return isRoleAdmin || isVerifiedEmail || (prof.isAuthenticated && isVerifiedLoginId)
     }
 
     fun isShopkeeper(): Boolean {
@@ -1872,18 +1993,62 @@ class FlashDropRepository(
 
     fun approveShop(shopId: String): Boolean {
         if (!isMainAdmin()) return false
+        val targetShop = _shops.value.find { it.id == shopId }
+        val targetGst = targetShop?.gstNumber?.trim()?.uppercase() ?: ""
+
         _shops.value = _shops.value.map { shop ->
-            if (shop.id == shopId) {
+            val match = shop.id == shopId ||
+                    (targetGst.isNotBlank() && shop.gstNumber.trim().equals(targetGst, ignoreCase = true))
+            if (match) {
                 shop.copy(status = "approved", isOpen = true, rejectionReason = "", suspensionReason = "")
             } else shop
         }
+
         _shopkeepers.value = _shopkeepers.value.map { sk ->
-            if (sk.shopId == shopId) {
+            val match = sk.shopId == shopId ||
+                    (targetGst.isNotBlank() && sk.gstNumber.trim().equals(targetGst, ignoreCase = true))
+            if (match) {
                 sk.copy(isActive = true, status = "APPROVED", rejectionReason = "", suspensionReason = "")
             } else sk
         }
+
+        _shopVerificationRequests.value = _shopVerificationRequests.value.map { req ->
+            val match = req.shopId == shopId ||
+                    (targetGst.isNotBlank() && req.gstNumber.trim().equals(targetGst, ignoreCase = true))
+            if (match) {
+                req.copy(status = ShopVerificationRequest.STATUS_APPROVED, rejectionReason = "", documentsRequiredNotes = "")
+            } else req
+        }
+
+        // Guarantee an active ShopkeeperAccount exists so shopkeeper can log in
+        val existingAccount = _shopkeepers.value.find { sk ->
+            sk.shopId == shopId || (targetGst.isNotBlank() && sk.gstNumber.trim().equals(targetGst, ignoreCase = true))
+        }
+        if (existingAccount == null && targetShop != null) {
+            val skLoginId = "SK_" + targetShop.id.replace("-", "_").uppercase()
+            val createdSk = ShopkeeperAccount(
+                id = "sk_${targetShop.id.lowercase().replace("-", "_")}",
+                loginId = skLoginId,
+                shopkeeperName = targetShop.ownerName.ifBlank { targetShop.name },
+                shopId = targetShop.id,
+                shopName = targetShop.name,
+                phone = targetShop.phone,
+                email = "${skLoginId.lowercase()}@mahoba.local",
+                gstNumber = targetShop.gstNumber,
+                password = targetShop.password,
+                passwordHash = targetShop.passwordHash,
+                isActive = true,
+                status = "APPROVED",
+                assignedBy = _currentProfile.value.loginId.ifBlank { "PR12" },
+                createdAt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            )
+            _shopkeepers.value = listOf(createdSk) + _shopkeepers.value
+        }
+
         persistence.saveShops(_shops.value)
         persistence.saveShopkeepers(_shopkeepers.value)
+        persistence.saveShopVerificationRequests(_shopVerificationRequests.value)
+
         repoScope.launch {
             try {
                 firestore.collection("shops").document(shopId).update(
@@ -1894,17 +2059,39 @@ class FlashDropRepository(
                 ).await()
                 val sk = _shopkeepers.value.find { it.shopId == shopId }
                 if (sk != null) {
-                    firestore.collection("shopkeepers").document(sk.id).update(
-                        mapOf(
-                            "isActive" to true,
-                            "status" to "APPROVED"
-                        )
-                    ).await()
+                    firestore.collection("shopkeepers").document(sk.id).set(sk).await()
+                }
+                val req = _shopVerificationRequests.value.find { it.shopId == shopId }
+                if (req != null) {
+                    firestore.collection("shop_verification_requests").document(req.id).set(req).await()
                 }
             } catch (e: Exception) {
                 Log.w("FlashDropRepo", "Firestore approve shop error: ${e.message}")
             }
         }
+        val approvedShopName = targetShop?.name ?: "Shop"
+        addNotification(
+            NotificationItem(
+                id = "notif_appr_${shopId}_sk",
+                title = "Shop Approved! 🎉",
+                message = "$approvedShopName has been approved by FlashDrop Main Admin. Your store is now active for customers in Mahoba.",
+                timestamp = "Just now",
+                type = "shop",
+                targetRole = "shopkeeper",
+                targetId = shopId
+            )
+        )
+        addNotification(
+            NotificationItem(
+                id = "notif_appr_${shopId}_admin",
+                title = "Shop Approved: $approvedShopName",
+                message = "$approvedShopName was approved by ${_currentProfile.value.name.ifBlank { "Main Admin" }}.",
+                timestamp = "Just now",
+                type = "admin",
+                targetRole = "admin"
+            )
+        )
+
         return true
     }
 
@@ -2157,8 +2344,10 @@ class FlashDropRepository(
             return Result.failure(IllegalArgumentException("Please upload or capture a photo of your GST Registration Certificate."))
         }
 
+        val assignedShopId = if (existing.shopId.isNotBlank()) existing.shopId else generateUniqueShopId()
         val nowFormatted = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
         val updated = existing.copy(
+            shopId = assignedShopId,
             aadhaarNumberMasked = maskedAadhaar,
             aadhaarDocUri = aadhaarDocUri,
             panNumber = cleanPan,
@@ -2170,11 +2359,57 @@ class FlashDropRepository(
             submittedAtFormatted = nowFormatted
         )
 
+        val skLoginId = "SK_" + assignedShopId.replace("-", "_")
+        val provisionalShop = Shop(
+            id = assignedShopId,
+            name = existing.shopName,
+            ownerName = existing.ownerName,
+            phone = existing.phone,
+            category = existing.category,
+            address = existing.address,
+            gstNumber = existing.gstNumber,
+            password = "",
+            passwordHash = existing.passwordHash,
+            description = existing.description.ifEmpty { "${existing.shopName} in Mahoba on FlashDrop." },
+            isOpen = false,
+            status = "pending",
+            rating = 5.0,
+            ratingCount = 1,
+            distance = "1.0 km",
+            deliveryTime = "20-30 mins",
+            deliveryAvailable = true,
+            deliveryFee = 20.0,
+            minOrder = 100.0,
+            imageUrl = ""
+        )
+        val provisionalAccount = ShopkeeperAccount(
+            id = "sk_${assignedShopId.lowercase().replace("-", "_")}",
+            loginId = skLoginId,
+            shopkeeperName = existing.ownerName,
+            shopId = assignedShopId,
+            shopName = existing.shopName,
+            phone = existing.phone,
+            email = "${skLoginId.lowercase()}@flashdrop.local",
+            gstNumber = existing.gstNumber,
+            password = "",
+            passwordHash = existing.passwordHash,
+            isActive = false,
+            status = "PENDING",
+            assignedBy = "THREE_STEP_REG",
+            createdAt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        )
+
+        _shops.value = listOf(provisionalShop) + _shops.value.filter { it.id != assignedShopId && !it.gstNumber.equals(existing.gstNumber, ignoreCase = true) }
+        _shopkeepers.value = listOf(provisionalAccount) + _shopkeepers.value.filter { it.shopId != assignedShopId && !it.gstNumber.equals(existing.gstNumber, ignoreCase = true) }
         _shopVerificationRequests.value = listOf(updated) + _shopVerificationRequests.value.filter { it.id != requestId }
+        persistence.saveShops(_shops.value)
+        persistence.saveShopkeepers(_shopkeepers.value)
         persistence.saveShopVerificationRequests(_shopVerificationRequests.value)
 
         repoScope.launch {
             try {
+                firestore.collection("shops").document(provisionalShop.id).set(provisionalShop).await()
+                firestore.collection("shopkeepers").document(provisionalAccount.id).set(provisionalAccount).await()
                 firestore.collection("shop_verification_requests").document(requestId).set(updated).await()
             } catch (e: Exception) {
                 Log.w("FlashDropRepo", "ShopVerificationRequest Step 2 write deferred: ${e.message}")
@@ -2217,7 +2452,7 @@ class FlashDropRepository(
             passwordHash = request.passwordHash,
             description = request.description.ifEmpty { "${request.shopName} in Mahoba on FlashDrop." },
             isOpen = false, // Must be approved by Admin
-            status = "pending_review",
+            status = "pending",
             rating = 5.0,
             ratingCount = 1,
             distance = "1.0 km",
@@ -2240,7 +2475,7 @@ class FlashDropRepository(
             password = "",
             passwordHash = request.passwordHash,
             isActive = false, // Inactive until approved
-            status = "PENDING_REVIEW",
+            status = "PENDING",
             assignedBy = "THREE_STEP_REG",
             createdAt = nowFormatted
         )
@@ -2269,6 +2504,34 @@ class FlashDropRepository(
         }
 
         return Result.success(Pair(newShop, newAccount))
+    }
+
+    /**
+     * Activates shopkeeper profile session in memory and persistent storage for approved shop.
+     */
+    fun activateShopkeeperSessionForShop(shop: Shop): UserProfile {
+        val account = _shopkeepers.value.find { it.shopId == shop.id || (shop.gstNumber.isNotBlank() && it.gstNumber.equals(shop.gstNumber, ignoreCase = true)) }
+        val profile = UserProfile(
+            id = account?.id ?: "sk_${shop.id}",
+            name = account?.shopkeeperName ?: shop.ownerName.ifBlank { "Shop Owner" },
+            email = account?.email ?: "${shop.id.lowercase()}@flashdrop.local",
+            phone = account?.phone ?: shop.phone,
+            role = "shopkeeper",
+            loginId = account?.loginId ?: "SK_${shop.id.uppercase()}",
+            shopId = shop.id,
+            shopName = shop.name,
+            isVerifiedAdmin = false,
+            isVerifiedShopkeeper = true,
+            isAuthenticated = true,
+            address = shop.address,
+            locality = "Market Area",
+            pinCode = "210427",
+            city = "Mahoba",
+            state = "Uttar Pradesh"
+        )
+        _currentProfile.value = profile
+        saveSessionToPrefs(profile)
+        return profile
     }
 
     /**
@@ -3131,8 +3394,18 @@ class FlashDropRepository(
             return Result.failure(SecurityException("Unauthorized: Only authorized Main Admins can edit admin profile."))
         }
 
-        val currentLoginId = _currentProfile.value.loginId.uppercase()
-        if (currentLoginId != adminId.uppercase()) {
+        val currentLoginId = _currentProfile.value.loginId.uppercase().trim()
+        val normalizedCurrent = when (currentLoginId) {
+            "PR", "PR12" -> "PR12"
+            "CD", "CD12" -> "CD12"
+            else -> if (_currentProfile.value.email.equals("ajayvikramrajpoot9540@gmail.com", ignoreCase = true) || _currentProfile.value.name.contains("Pranjal", ignoreCase = true)) "PR12" else currentLoginId
+        }
+        val normalizedTarget = when (adminId.uppercase().trim()) {
+            "PR", "PR12" -> "PR12"
+            "CD", "CD12" -> "CD12"
+            else -> adminId.uppercase().trim()
+        }
+        if (normalizedCurrent != normalizedTarget) {
             return Result.failure(SecurityException("Unauthorized: You cannot edit another Main Admin's profile."))
         }
 
@@ -3381,6 +3654,40 @@ class FlashDropRepository(
             }
         }
 
+        val nowTimeFormatted = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+        addNotification(
+            NotificationItem(
+                id = "notif_ord_cust_${order.id}",
+                title = "Order ${order.orderNumber} Confirmed! 🛍️",
+                message = "Your order from ${order.shopName} for ₹${order.totalAmount.toInt()} has been placed and is being prepared.",
+                timestamp = nowTimeFormatted,
+                type = "order",
+                targetRole = "customer",
+                targetId = order.userId
+            )
+        )
+        addNotification(
+            NotificationItem(
+                id = "notif_ord_sk_${order.id}",
+                title = "New Order ${order.orderNumber}! 🔔",
+                message = "New order received from ${order.customerName} (${order.items.size} items, ₹${order.totalAmount.toInt()}).",
+                timestamp = nowTimeFormatted,
+                type = "order",
+                targetRole = "shopkeeper",
+                targetId = order.shopId
+            )
+        )
+        addNotification(
+            NotificationItem(
+                id = "notif_ord_admin_${order.id}",
+                title = "New Order Placed: ${order.orderNumber}",
+                message = "Customer ${order.customerName} placed order with ${order.shopName} (₹${order.totalAmount.toInt()} • ${order.paymentMethod.uppercase()}).",
+                timestamp = nowTimeFormatted,
+                type = "admin",
+                targetRole = "admin"
+            )
+        )
+
         return order
     }
 
@@ -3545,16 +3852,7 @@ class FlashDropRepository(
      * Enforces equal permissions and denies Customers and Shopkeepers.
      */
     fun isAuthorizedMainAdmin(): Boolean {
-        val prof = _currentProfile.value
-        if (!prof.isAuthenticated) return false
-        val email = auth?.currentUser?.email ?: prof.email
-        val loginId = prof.loginId.uppercase().trim()
-        val isVerifiedEmail = email == "pranjal.owner@flashdrop.local" ||
-                email == "chanchal.owner@flashdrop.local" ||
-                email == "ajayvikramrajpoot9540@gmail.com"
-        val isVerifiedLoginId = loginId == "PR12" || loginId == "CD12" || loginId == "PR" || loginId == "CD"
-        val isRoleAdmin = prof.role.uppercase() in listOf("MAIN_ADMIN", "ADMIN") && prof.isVerifiedAdmin
-        return (isVerifiedEmail || isVerifiedLoginId) && isRoleAdmin
+        return isMainAdmin()
     }
 
     /**

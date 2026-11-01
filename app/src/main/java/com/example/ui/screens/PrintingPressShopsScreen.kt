@@ -93,8 +93,10 @@ fun PrintingPressShopsScreen(
     val orders by repository.orders.collectAsState()
     val profile by repository.currentProfile.collectAsState()
 
-    val activeOrdersCount = remember(orders, profile) {
-        val userOrders = repository.getOrdersForCurrentUser(orders)
+    val userOrders = remember(orders, profile) {
+        repository.getOrdersForCurrentUser(orders)
+    }
+    val activeOrdersCount = remember(userOrders) {
         userOrders.count { it.status in listOf("pending", "accepted", "preparing", "out_for_delivery", "on_the_way", "order_confirmed") }
     }
 
@@ -165,7 +167,8 @@ fun PrintingPressShopsScreen(
             BottomNavBar(
                 currentRoute = Screen.Categories.route,
                 onNavigate = onNavigate,
-                activeOrdersCount = activeOrdersCount
+                activeOrdersCount = activeOrdersCount,
+                hasOrders = userOrders.isNotEmpty()
             )
         }
     ) { paddingValues ->

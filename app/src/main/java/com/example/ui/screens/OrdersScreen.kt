@@ -114,7 +114,8 @@ fun OrdersScreen(
             BottomNavBar(
                 currentRoute = Screen.Orders.route,
                 onNavigate = onNavigate,
-                activeOrdersCount = ongoingOrders.size
+                activeOrdersCount = ongoingOrders.size,
+                hasOrders = userOrders.isNotEmpty()
             )
         }
     ) { paddingValues ->

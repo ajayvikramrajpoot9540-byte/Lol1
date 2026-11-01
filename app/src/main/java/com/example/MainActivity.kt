@@ -211,7 +211,8 @@ fun FlashDropApp(repository: ApnaBazRepository) {
                         navigateTo(Screen.ProductList.route)
                     }
                 },
-                onBack = { navigateBack() }
+                onBack = { navigateBack() },
+                repository = repository
             )
         }
 

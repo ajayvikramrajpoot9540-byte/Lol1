@@ -239,7 +239,8 @@ fun ProfileScreen(
             BottomNavBar(
                 currentRoute = Screen.Profile.route,
                 onNavigate = onNavigate,
-                activeOrdersCount = activeOrdersCount
+                activeOrdersCount = activeOrdersCount,
+                hasOrders = userOrders.isNotEmpty()
             )
         }
     ) { paddingValues ->

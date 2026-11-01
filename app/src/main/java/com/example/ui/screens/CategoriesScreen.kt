@@ -41,6 +41,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import com.example.data.repository.ApnaBazRepository
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,7 +75,8 @@ data class CategoryTile(
 fun CategoriesScreen(
     onNavigate: (String) -> Unit,
     onCategorySelected: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    repository: ApnaBazRepository? = null
 ) {
     val categories = listOf(
         CategoryTile("Grocery", Icons.Default.ShoppingCart, GreenPrimary, GreenLight, "Kirana & Ration"),
@@ -112,9 +115,15 @@ fun CategoriesScreen(
             )
         },
         bottomBar = {
+            val allOrders = repository?.orders?.collectAsState()?.value.orEmpty()
+            val activeOrders = allOrders.count {
+                it.status in listOf("pending", "accepted", "preparing", "out_for_delivery")
+            }
             BottomNavBar(
                 currentRoute = Screen.Categories.route,
-                onNavigate = onNavigate
+                onNavigate = onNavigate,
+                activeOrdersCount = activeOrders,
+                hasOrders = allOrders.isNotEmpty()
             )
         }
     ) { paddingValues ->
