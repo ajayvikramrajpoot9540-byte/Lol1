@@ -448,7 +448,8 @@ class FlashDropRepository(
                 locality = prefs.getString("user_locality", "Alha Chowk") ?: "Alha Chowk",
                 pinCode = prefs.getString("user_pin_code", "210427") ?: "210427",
                 city = prefs.getString("user_city", "Mahoba") ?: "Mahoba",
-                state = prefs.getString("user_state", "Uttar Pradesh") ?: "Uttar Pradesh"
+                state = prefs.getString("user_state", "Uttar Pradesh") ?: "Uttar Pradesh",
+                savedAddresses = fromFile?.savedAddresses ?: emptyList()
             )
         } catch (e: Exception) {
             Log.w("FlashDropRepo", "Error restoring session prefs: ${e.message}")
@@ -3181,7 +3182,7 @@ class FlashDropRepository(
      * If marked as default or if first address, automatically sets as default and synchronizes root profile fields.
      */
     fun saveDeliveryAddress(address: DeliveryAddress): Result<UserProfile> {
-        if (address.houseNumber.isBlank() && address.street.isBlank() && address.area.isBlank()) {
+        if (address.houseNumber.isBlank() && address.street.isBlank() && address.area.isBlank() && address.buildingBlock.isBlank()) {
             return Result.failure(IllegalArgumentException("Please enter house number, street, or area."))
         }
 
@@ -3190,7 +3191,13 @@ class FlashDropRepository(
         val index = list.indexOfFirst { it.id == address.id }
 
         val shouldBeDefault = address.isDefault || list.isEmpty()
-        val adjustedAddress = address.copy(isDefault = shouldBeDefault)
+        val adjustedAddress = address.copy(
+            isDefault = shouldBeDefault,
+            name = address.name.trim(),
+            phone = address.phone.trim(),
+            countryCode = address.countryCode.ifBlank { "+91" },
+            label = address.label.ifBlank { "Home" }
+        )
 
         if (shouldBeDefault) {
             for (i in list.indices) {
@@ -3207,6 +3214,12 @@ class FlashDropRepository(
         val activeDefault = list.find { it.isDefault } ?: list.first()
         val updated = current.copy(
             savedAddresses = list,
+            name = if (current.name.isBlank() || current.name.equals("Guest", ignoreCase = true)) {
+                adjustedAddress.name.ifBlank { current.name }
+            } else current.name,
+            phone = if (current.phone.isBlank()) {
+                adjustedAddress.phone.ifBlank { current.phone }
+            } else current.phone,
             address = activeDefault.formatDisplay(),
             locality = activeDefault.area.ifBlank { activeDefault.landmark }.ifBlank { "Subhash Chowk" },
             pinCode = activeDefault.pinCode.ifBlank { "210427" },
@@ -3515,6 +3528,15 @@ class FlashDropRepository(
         val items = _cartItems.value
         require(items.isNotEmpty()) { "Cart is empty" }
 
+        // Enforce that customers cannot order out-of-stock products, even through an old cart entry
+        val outOfStockItem = items.firstOrNull { cartItem ->
+            val liveProd = _products.value.find { it.id == cartItem.product.id }
+            !(liveProd?.inStock ?: cartItem.product.inStock)
+        }
+        if (outOfStockItem != null) {
+            throw IllegalStateException("\"${outOfStockItem.product.name}\" is currently out of stock. Please remove it from your cart to proceed.")
+        }
+
         val billResult = calculateDeliveryBill(items, deliveryMethod)
         if (!billResult.isCheckoutAllowed && deliveryMethod == "shop_delivery") {
             throw IllegalStateException(billResult.checkoutBlockedReason ?: "One or more shops exceed the maximum permitted delivery distance.")
@@ -3741,19 +3763,29 @@ class FlashDropRepository(
 
     // Cart operations
     fun addToCart(product: Product) {
+        val liveProd = _products.value.find { it.id == product.id } ?: product
+        if (!liveProd.inStock) {
+            Log.w("FlashDropRepo", "Cannot add out-of-stock product ${product.id} to cart")
+            return
+        }
         val current = _cartItems.value.toMutableList()
         val index = current.indexOfFirst { it.product.id == product.id }
         if (index >= 0) {
             val item = current[index]
             current[index] = item.copy(quantity = item.quantity + 1)
         } else {
-            current.add(CartItem(product = product, quantity = 1))
+            current.add(CartItem(product = liveProd, quantity = 1))
         }
         _cartItems.value = current
         persistence.saveCart(_cartItems.value)
     }
 
     fun updateCartQuantity(productId: String, delta: Int) {
+        val liveProd = _products.value.find { it.id == productId }
+        if (delta > 0 && liveProd != null && !liveProd.inStock) {
+            Log.w("FlashDropRepo", "Cannot increment quantity of out-of-stock product $productId")
+            return
+        }
         val current = _cartItems.value.toMutableList()
         val index = current.indexOfFirst { it.product.id == productId }
         if (index >= 0) {

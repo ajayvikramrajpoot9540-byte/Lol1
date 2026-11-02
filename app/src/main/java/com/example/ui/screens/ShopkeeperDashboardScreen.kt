@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -98,10 +99,13 @@ import com.example.data.model.Order
 import com.example.data.model.Product
 import com.example.data.model.Shop
 import com.example.data.repository.FlashDropRepository
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.ui.components.FlashDropCompactLogo
 import com.example.ui.components.NotificationBellButton
 import com.example.ui.components.RoleSwitchBadge
 import com.example.ui.components.StatusBadge
+import com.example.ui.components.StockToggleRow
+import com.example.ui.components.StockToggleSwitch
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.BorderLight
 import com.example.ui.theme.GreenLight
@@ -258,6 +262,7 @@ fun ShopkeeperDashboardScreen(
 
     var showProductDialog by remember { mutableStateOf(false) }
     var editingProduct by remember { mutableStateOf<Product?>(null) }
+    var lastNewProductInStock by rememberSaveable { mutableStateOf(true) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -439,10 +444,87 @@ fun ShopkeeperDashboardScreen(
                             }
                         }
 
+                        val isPrintingPressShop = remember(currentShop) {
+                            currentShop?.category?.trim()?.replace("\\s+".toRegex(), " ")?.equals("Printing Press", ignoreCase = true) == true
+                        }
+
                         LazyColumn(
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
+                            // Printing Press Special Services & Pricing Section
+                            if (isPrintingPressShop) {
+                                item {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = CardDefaults.cardColors(containerColor = GreenLight.copy(alpha = 0.55f)),
+                                        border = BorderStroke(1.dp, GreenPrimary.copy(alpha = 0.3f))
+                                    ) {
+                                        Column(modifier = Modifier.padding(14.dp)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Default.Print, contentDescription = null, tint = GreenPrimary, modifier = Modifier.size(20.dp))
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    "Printing Press Services & Pricing",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp,
+                                                    color = GreenPrimary
+                                                )
+                                            }
+                                            Text(
+                                                "Manage Black & White and Colour printing rates for Mahoba customers. All services automatically inherit the Printing Press category.",
+                                                fontSize = 12.sp,
+                                                color = TextDark,
+                                                modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+                                            )
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        editingProduct = Product(
+                                                            name = "A4 Black & White Document Print",
+                                                            price = 1.0,
+                                                            originalPrice = 2.0,
+                                                            unit = "1 Print",
+                                                            description = "High quality A4 Black & White laser printing on 75 GSM paper.",
+                                                            inStock = true,
+                                                            category = "Printing Press"
+                                                        )
+                                                        showProductDialog = true
+                                                    },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text("+ A4 B&W (₹1)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                                }
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        editingProduct = Product(
+                                                            name = "A4 Colour Document Print",
+                                                            price = 7.0,
+                                                            originalPrice = 10.0,
+                                                            unit = "1 Print",
+                                                            description = "Vibrant colour laser printing on 75 GSM paper.",
+                                                            inStock = true,
+                                                            category = "Printing Press"
+                                                        )
+                                                        showProductDialog = true
+                                                    },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text("+ A4 Colour (₹7)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             items(myShopProducts) { prod ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth().testTag("product_card_${prod.id}"),
@@ -554,10 +636,10 @@ fun ShopkeeperDashboardScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text("Shop Open for Orders in Mahoba", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                            Switch(
+                                            StockToggleSwitch(
                                                 checked = currentShop.isOpen,
                                                 onCheckedChange = { repository.toggleShopStatus(currentShop.id) },
-                                                colors = SwitchDefaults.colors(checkedThumbColor = GreenPrimary)
+                                                modifier = Modifier.testTag("shopkeeper_open_status_switch")
                                             )
                                         }
 
@@ -681,11 +763,14 @@ fun ShopkeeperDashboardScreen(
         val context = LocalContext.current
         var name by remember { mutableStateOf(editingProduct?.name ?: "") }
         var description by remember { mutableStateOf(editingProduct?.description ?: "") }
-        var selectedCategory by remember { mutableStateOf(editingProduct?.category ?: currentShop.category) }
+        val inheritedCategory = currentShop.category.ifBlank { editingProduct?.category ?: "General" }
+        val isPrintingPressShop = remember(currentShop) {
+            currentShop.category.trim().replace("\\s+".toRegex(), " ").equals("Printing Press", ignoreCase = true)
+        }
         var priceText by remember { mutableStateOf(editingProduct?.price?.let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() } ?: "100") }
         var originalPriceText by remember { mutableStateOf(editingProduct?.originalPrice?.let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() } ?: "120") }
-        var unit by remember { mutableStateOf(editingProduct?.unit ?: "1 pc") }
-        var inStock by remember { mutableStateOf(editingProduct?.inStock ?: true) }
+        var unit by remember { mutableStateOf(editingProduct?.unit ?: if (isPrintingPressShop) "1 Print" else "1 pc") }
+        var inStock by remember(editingProduct) { mutableStateOf(editingProduct?.inStock ?: lastNewProductInStock) }
 
         // Photo Upload State
         var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -695,10 +780,6 @@ fun ShopkeeperDashboardScreen(
         var uploadProgressText by remember { mutableStateOf("") }
         var uploadError by remember { mutableStateOf<String?>(null) }
         var showValidationErrors by remember { mutableStateOf(false) }
-
-        val availableCategories = remember {
-            listOf("Grocery", "Dairy & Bakery", "Fruits & Vegetables", "Snacks", "Beverages", "Personal Care", "Household", "Sweets & Mithai")
-        }
 
         // Photo Picker launcher (zero runtime storage permissions on Android 13+)
         val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -746,10 +827,10 @@ fun ShopkeeperDashboardScreen(
                             shopId = currentShop.id,
                             shopName = currentShop.name,
                             name = name.trim(),
-                            category = selectedCategory,
+                            category = inheritedCategory,
                             price = parsedPrice ?: 100.0,
                             originalPrice = parsedOriginal,
-                            unit = unit.trim().ifBlank { "1 pc" },
+                            unit = unit.trim().ifBlank { if (isPrintingPressShop) "1 Print" else "1 pc" },
                             description = description.trim(),
                             inStock = inStock,
                             imageUrl = uploadedUrl
@@ -775,10 +856,10 @@ fun ShopkeeperDashboardScreen(
                     shopId = currentShop.id,
                     shopName = currentShop.name,
                     name = name.trim(),
-                    category = selectedCategory,
+                    category = inheritedCategory,
                     price = parsedPrice ?: 100.0,
                     originalPrice = parsedOriginal,
-                    unit = unit.trim().ifBlank { "1 pc" },
+                    unit = unit.trim().ifBlank { if (isPrintingPressShop) "1 Print" else "1 pc" },
                     description = description.trim(),
                     inStock = inStock,
                     imageUrl = finalImageUrl
@@ -802,13 +883,17 @@ fun ShopkeeperDashboardScreen(
             title = {
                 Column {
                     Text(
-                        if (editingProduct == null) "Add New Product" else "Edit Product",
+                        if (isPrintingPressShop) {
+                            if (editingProduct == null) "Add Printing Service / Product" else "Edit Printing Service"
+                        } else {
+                            if (editingProduct == null) "Add New Product" else "Edit Product"
+                        },
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = TextDark
                     )
                     Text(
-                        "Shop: ${currentShop.name}",
+                        "Shop: ${currentShop.name} (${inheritedCategory})",
                         fontSize = 12.sp,
                         color = GreenPrimary,
                         fontWeight = FontWeight.Medium
@@ -1025,16 +1110,18 @@ fun ShopkeeperDashboardScreen(
                     HorizontalDivider(color = BorderLight)
 
                     // SECTION 2: PRODUCT DETAILS
-                    // Product Name
+                    // Product Name / Service Name
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("Product Name *") },
-                        placeholder = { Text("e.g. Fortune Mustard Oil 1L") },
+                        label = { Text(if (isPrintingPressShop) "Service / Item Name *" else "Product Name *") },
+                        placeholder = {
+                            Text(if (isPrintingPressShop) "e.g. A4 Black & White Document Print, A4 Colour Print" else "e.g. Fortune Mustard Oil 1L")
+                        },
                         isError = showValidationErrors && !isNameValid,
                         supportingText = {
                             if (showValidationErrors && !isNameValid) {
-                                Text("Product name cannot be empty", color = Color.Red, fontSize = 11.sp)
+                                Text("Name cannot be empty", color = Color.Red, fontSize = 11.sp)
                             }
                         },
                         modifier = Modifier
@@ -1043,33 +1130,14 @@ fun ShopkeeperDashboardScreen(
                         shape = RoundedCornerShape(10.dp)
                     )
 
-                    // Category Selector
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Category", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextDark)
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(availableCategories) { cat ->
-                                FilterChip(
-                                    selected = (selectedCategory == cat),
-                                    onClick = { selectedCategory = cat },
-                                    label = { Text(cat, fontSize = 11.sp) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = GreenPrimary.copy(alpha = 0.15f),
-                                        selectedLabelColor = GreenPrimary
-                                    )
-                                )
-                            }
-                        }
-                    }
-
                     // Product Description
                     OutlinedTextField(
                         value = description,
                         onValueChange = { description = it },
                         label = { Text("Product Description (Optional)") },
-                        placeholder = { Text("Key ingredients, fresh origin, package details...") },
+                        placeholder = {
+                            Text(if (isPrintingPressShop) "Paper GSM, B&W or colour, single/double sided, binding..." else "Key ingredients, fresh origin, package details...")
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("product_description_input"),
@@ -1112,36 +1180,23 @@ fun ShopkeeperDashboardScreen(
                     OutlinedTextField(
                         value = unit,
                         onValueChange = { unit = it },
-                        label = { Text("Unit (e.g. 1kg, 500g, Pack of 2)") },
+                        label = { Text(if (isPrintingPressShop) "Unit (e.g. 1 Print, Per Page, Pack of 50)" else "Unit (e.g. 1kg, 500g, Pack of 2)") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("product_unit_input"),
                         shape = RoundedCornerShape(10.dp)
                     )
 
-                    // Stock Switch
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(BackgroundWarm, RoundedCornerShape(10.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text("Available in Stock", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = TextDark)
-                            Text(
-                                if (inStock) "Customers can order this product" else "Marked out of stock for customers",
-                                fontSize = 11.sp,
-                                color = if (inStock) GreenPrimary else Color.Red
-                            )
+                    // Stock Availability Toggle
+                    StockToggleRow(
+                        inStock = inStock,
+                        onStockChange = { newValue ->
+                            inStock = newValue
+                            if (editingProduct == null) {
+                                lastNewProductInStock = newValue
+                            }
                         }
-                        Switch(
-                            checked = inStock,
-                            onCheckedChange = { inStock = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = GreenPrimary)
-                        )
-                    }
+                    )
                 }
             },
             confirmButton = {

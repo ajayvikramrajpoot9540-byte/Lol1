@@ -92,6 +92,8 @@ import com.example.ui.screens.admin.DeliveryChargeSettingsSection
 import com.example.ui.screens.admin.ShopVerificationSettingsSection
 import com.example.ui.components.FlashDropCompactLogo
 import com.example.ui.components.NotificationBellButton
+import com.example.ui.components.StockToggleRow
+import com.example.ui.components.StockToggleSwitch
 import com.example.ui.components.RoleSwitchBadge
 import com.example.ui.components.StatusBadge
 import com.example.ui.theme.BackgroundWarm
@@ -918,10 +920,11 @@ fun AdminDashboardScreen(
                                                     fontWeight = FontWeight.Bold,
                                                     color = if (shop.isOpen) GreenPrimary else Color.Red
                                                 )
-                                                Switch(
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                StockToggleSwitch(
                                                     checked = shop.isOpen,
                                                     onCheckedChange = { repository.toggleShopStatus(shop.id) },
-                                                    colors = SwitchDefaults.colors(checkedThumbColor = GreenPrimary)
+                                                    modifier = Modifier.testTag("admin_shop_status_switch_${shop.id}")
                                                 )
                                             }
                                         }
@@ -1249,10 +1252,11 @@ fun AdminDashboardScreen(
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (sk.isActive) GreenPrimary else Color.Red
                                             )
-                                            Switch(
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            StockToggleSwitch(
                                                 checked = sk.isActive,
                                                 onCheckedChange = { repository.toggleShopkeeperStatus(sk.id) },
-                                                colors = SwitchDefaults.colors(checkedThumbColor = GreenPrimary)
+                                                modifier = Modifier.testTag("admin_shopkeeper_status_switch_${sk.id}")
                                             )
                                         }
                                     }
@@ -1420,14 +1424,10 @@ fun AdminDashboardScreen(
                         label = { Text("Price (₹)") },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("In Stock Availability")
-                        Switch(checked = inStock, onCheckedChange = { inStock = it })
-                    }
+                    StockToggleRow(
+                        inStock = inStock,
+                        onStockChange = { inStock = it }
+                    )
                 }
             },
             confirmButton = {

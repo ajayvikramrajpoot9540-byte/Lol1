@@ -48,6 +48,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
+import com.example.ui.components.AddressManagementDialog
 import com.example.ui.components.GoogleMapLocationPickerDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -123,21 +124,30 @@ fun CheckoutScreen(
         }
     }
 
-    LaunchedEffect(profile.id, profile.name, profile.phone, profile.address, profile.locality, profile.pinCode) {
-        if (profile.name.isNotBlank() && !profile.name.equals("Guest", ignoreCase = true)) {
-            customerName = profile.name
-        }
-        if (profile.phone.isNotBlank()) {
-            customerPhone = profile.phone
-        }
-        if (profile.address.isNotBlank()) {
-            customerAddress = profile.address
-        }
-        if (profile.locality.isNotBlank()) {
-            customerLocality = profile.locality
-        }
-        if (profile.pinCode.isNotBlank()) {
-            customerPinCode = profile.pinCode
+    LaunchedEffect(profile.id, profile.name, profile.phone, profile.address, profile.locality, profile.pinCode, profile.savedAddresses) {
+        val defaultAddr = profile.savedAddresses.find { it.isDefault } ?: profile.savedAddresses.firstOrNull()
+        if (defaultAddr != null) {
+            customerAddress = defaultAddr.formatDisplay()
+            customerLocality = defaultAddr.area.ifBlank { "Subhash Chowk" }
+            customerPinCode = defaultAddr.pinCode.ifBlank { "210427" }
+            if (defaultAddr.name.isNotBlank()) customerName = defaultAddr.name
+            if (defaultAddr.phone.isNotBlank()) customerPhone = defaultAddr.phone
+        } else {
+            if (profile.name.isNotBlank() && !profile.name.equals("Guest", ignoreCase = true)) {
+                customerName = profile.name
+            }
+            if (profile.phone.isNotBlank()) {
+                customerPhone = profile.phone
+            }
+            if (profile.address.isNotBlank()) {
+                customerAddress = profile.address
+            }
+            if (profile.locality.isNotBlank()) {
+                customerLocality = profile.locality
+            }
+            if (profile.pinCode.isNotBlank()) {
+                customerPinCode = profile.pinCode
+            }
         }
     }
 
@@ -241,21 +251,20 @@ fun CheckoutScreen(
     }
 
     if (showAddressDialog) {
-        AddressEditDialog(
-            initialAddress = customerAddress,
-            initialLocality = customerLocality,
-            initialPin = customerPinCode,
-            supportedAreas = deliveryConfig.supportedAreas,
+        AddressManagementDialog(
+            repository = repository,
             onDismiss = { showAddressDialog = false },
-            onSave = { addr, loc, pin ->
-                customerAddress = addr
-                customerLocality = loc
-                customerPinCode = pin
-                repository.updateAddress(addr, loc, pin)
-                showAddressDialog = false
-            },
             onOpenMap = {
+                showAddressDialog = false
                 showMapLocationPicker = true
+            },
+            onAddressSelected = { selected ->
+                customerAddress = selected.formatDisplay()
+                customerLocality = selected.area.ifBlank { "Subhash Chowk" }
+                customerPinCode = selected.pinCode.ifBlank { "210427" }
+                if (selected.name.isNotBlank()) customerName = selected.name
+                if (selected.phone.isNotBlank()) customerPhone = selected.phone
+                showAddressDialog = false
             }
         )
     }

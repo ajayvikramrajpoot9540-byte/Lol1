@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -75,9 +76,17 @@ fun CartScreen(
     onBack: () -> Unit
 ) {
     val cartItems by repository.cartItems.collectAsState()
+    val products by repository.products.collectAsState()
     val deliveryConfig by repository.deliveryConfig.collectAsState()
     val profile by repository.currentProfile.collectAsState()
     var showSignInPrompt by remember { mutableStateOf(false) }
+
+    val hasOutOfStockItems = remember(cartItems, products) {
+        cartItems.any { item ->
+            val liveProd = products.find { it.id == item.product.id }
+            !(liveProd?.inStock ?: item.product.inStock)
+        }
+    }
 
     val billResult = androidx.compose.runtime.remember(cartItems, deliveryConfig) {
         repository.calculateDeliveryBill(cartItems)
@@ -167,19 +176,29 @@ fun CartScreen(
                             }
                             Button(
                                 onClick = {
+                                    if (hasOutOfStockItems) return@Button
                                     if (repository.isUserSignedIn()) {
                                         onNavigate(Screen.Checkout.route)
                                     } else {
                                         showSignInPrompt = true
                                     }
                                 },
+                                enabled = !hasOutOfStockItems,
                                 modifier = Modifier
                                     .height(48.dp)
                                     .testTag("proceed_to_checkout_button"),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = GreenPrimary,
+                                    disabledContainerColor = Color(0xFFCBD5E1),
+                                    disabledContentColor = Color(0xFF64748B)
+                                )
                             ) {
-                                Text("Proceed to Checkout", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (hasOutOfStockItems) "Items Out of Stock" else "Proceed to Checkout",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -253,6 +272,31 @@ fun CartScreen(
                                 color = GreenPrimary,
                                 fontWeight = FontWeight.Medium
                             )
+                        }
+                    }
+                }
+
+                // Out of stock warning banner if applicable
+                if (hasOutOfStockItems) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Some items in your cart are currently out of stock. Please remove them to proceed to checkout.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFD32F2F),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
@@ -465,11 +509,24 @@ fun CartScreen(
                                         color = TextMuted
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
+                                    val liveProd = products.find { it.id == item.product.id }
+                                    val isItemAvailable = liveProd?.inStock ?: item.product.inStock
+                                    if (!isItemAvailable) {
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(bottom = 3.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(Color(0xFFFFEBEE))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("Out of Stock", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                                        }
+                                    }
                                     Text(
                                         text = "₹${"%.2f".format(item.totalPrice)}",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 15.sp,
-                                        color = GreenPrimary
+                                        color = if (isItemAvailable) GreenPrimary else Color(0xFF94A3B8)
                                     )
                                 }
 

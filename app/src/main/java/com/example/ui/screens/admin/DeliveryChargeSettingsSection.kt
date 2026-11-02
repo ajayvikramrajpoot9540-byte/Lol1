@@ -68,6 +68,7 @@ import com.example.ui.theme.GreenLight
 import com.example.ui.theme.GreenPrimary
 import com.example.ui.theme.OrangeLight
 import com.example.ui.theme.OrangeSecondary
+import com.example.ui.components.StockToggleSwitch
 import com.example.ui.theme.TextDark
 import com.example.ui.theme.TextMuted
 import kotlinx.coroutines.launch
@@ -360,14 +361,10 @@ fun DeliveryChargeSettingsSection(
                                         color = TextMuted
                                     )
                                 }
-                                Switch(
+                                StockToggleSwitch(
                                     checked = isManualFreeDeliverySwitchOn,
                                     onCheckedChange = { isManualFreeDeliverySwitchOn = it },
                                     enabled = isMainAdmin,
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = GreenPrimary
-                                    ),
                                     modifier = Modifier.testTag("manual_free_delivery_switch")
                                 )
                             }

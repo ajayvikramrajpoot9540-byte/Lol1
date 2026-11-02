@@ -82,6 +82,7 @@ import coil.compose.AsyncImage
 import com.example.util.rememberCameraManager
 import com.example.data.model.DeliveryAddress
 import com.example.data.repository.ApnaBazRepository
+import com.example.ui.components.AddNewAddressDialog
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.BorderLight
 import com.example.ui.theme.GreenLight
@@ -628,8 +629,10 @@ fun EditCustomerProfileScreen(
 
     // Dialog for Adding or Editing Delivery Address
     if (showAddressDialog) {
-        DeliveryAddressDialog(
+        AddNewAddressDialog(
             initialAddress = editingAddress,
+            initialName = profile.name.takeIf { !it.equals("Guest", ignoreCase = true) } ?: "",
+            initialPhone = profile.phone,
             onDismiss = { showAddressDialog = false },
             onSave = { newOrUpdatedAddress ->
                 repository.saveDeliveryAddress(newOrUpdatedAddress)

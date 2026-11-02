@@ -144,6 +144,81 @@ class EditProfileTest {
     }
 
     @Test
+    fun testAddNewAddressFormFieldsAndPersistence() {
+        repository.setRole("customer", "", "CUST")
+
+        val workAddress = DeliveryAddress(
+            id = "addr_work",
+            name = "Ajay Rajput",
+            phone = "9876543210",
+            countryCode = "+91",
+            label = "Work",
+            houseNumber = "Office 302",
+            buildingBlock = "Trade Center Block B",
+            street = "Station Road",
+            area = "Civil Lines",
+            city = "Mahoba",
+            state = "Uttar Pradesh",
+            pinCode = "210427",
+            landmark = "Near Head Post Office",
+            isDefault = true
+        )
+
+        val saveResult = repository.saveDeliveryAddress(workAddress)
+        assertTrue("Saving full address with new fields should succeed", saveResult.isSuccess)
+
+        val profile = repository.currentProfile.value
+        val saved = profile.savedAddresses.find { it.id == "addr_work" }
+        assertNotNull(saved)
+        assertEquals("Ajay Rajput", saved!!.name)
+        assertEquals("9876543210", saved.phone)
+        assertEquals("+91", saved.countryCode)
+        assertEquals("Work", saved.label)
+        assertEquals("Office 302", saved.houseNumber)
+        assertEquals("Trade Center Block B", saved.buildingBlock)
+        assertEquals("Near Head Post Office", saved.landmark)
+        assertEquals("Civil Lines", saved.area)
+        assertTrue(saved.isDefault)
+
+        // Contact and display format helpers
+        assertEquals("Ajay Rajput • +91 9876543210", saved.fullContact())
+        assertTrue(saved.formatDisplay().contains("Office 302"))
+        assertTrue(saved.formatDisplay().contains("Trade Center Block B"))
+        assertTrue(saved.formatDisplay().contains("Near Head Post Office"))
+
+        // Add second address with "Friend/Parent's Home" label
+        val parentAddress = DeliveryAddress(
+            id = "addr_parent",
+            name = "Ramlal Rajput",
+            phone = "9123456789",
+            countryCode = "+91",
+            label = "Friend/Parent's Home",
+            houseNumber = "House 18",
+            buildingBlock = "",
+            street = "Bhatipura Lane 2",
+            area = "Bhatipura",
+            city = "Mahoba",
+            state = "Uttar Pradesh",
+            pinCode = "210427",
+            landmark = "Opposite Primary School",
+            isDefault = true
+        )
+
+        val saveParent = repository.saveDeliveryAddress(parentAddress)
+        assertTrue(saveParent.isSuccess)
+
+        val updatedProfile = repository.currentProfile.value
+        assertEquals(2, updatedProfile.savedAddresses.size)
+        val parentSaved = updatedProfile.savedAddresses.find { it.id == "addr_parent" }
+        val workSaved = updatedProfile.savedAddresses.find { it.id == "addr_work" }
+        assertNotNull(parentSaved)
+        assertNotNull(workSaved)
+        assertTrue("Newest default should be active", parentSaved!!.isDefault)
+        assertFalse("Previous address should no longer be default", workSaved!!.isDefault)
+        assertEquals("Bhatipura", updatedProfile.locality)
+    }
+
+    @Test
     fun testShopProfileUpdate_ByShopkeeper() {
         // Log in as verified shopkeeper of sharma_general
         repository.setRole("shopkeeper", "sharma_general", "SK_SHARMA")

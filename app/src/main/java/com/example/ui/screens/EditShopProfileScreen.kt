@@ -430,35 +430,17 @@ fun EditShopProfileScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Category Dropdown
-                        ExposedDropdownMenuBox(
-                            expanded = isCategoryDropdownExpanded,
-                            onExpandedChange = { isCategoryDropdownExpanded = !isCategoryDropdownExpanded }
-                        ) {
-                            OutlinedTextField(
-                                value = selectedCategory,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Shop Category *") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCategoryDropdownExpanded) },
-                                modifier = Modifier.menuAnchor().fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                            ExposedDropdownMenu(
-                                expanded = isCategoryDropdownExpanded,
-                                onDismissRequest = { isCategoryDropdownExpanded = false }
-                            ) {
-                                categories.forEach { cat ->
-                                    DropdownMenuItem(
-                                        text = { Text(cat) },
-                                        onClick = {
-                                            selectedCategory = cat
-                                            isCategoryDropdownExpanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
+                        // Registered Shop Category (Fixed / Inherited from Registration)
+                        OutlinedTextField(
+                            value = currentShop.category,
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = false,
+                            label = { Text("Registered Shop Category") },
+                            trailingIcon = { Icon(Icons.Default.Lock, contentDescription = "Locked", tint = TextMuted) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        )
 
                         Spacer(modifier = Modifier.height(8.dp))
 

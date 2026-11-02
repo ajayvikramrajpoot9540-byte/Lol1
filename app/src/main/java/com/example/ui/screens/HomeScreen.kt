@@ -68,6 +68,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import com.example.ui.components.AddressManagementDialog
 import com.example.ui.components.FlashDropCompactLogo
 import com.example.ui.components.GoogleMapLocationPickerDialog
 import androidx.compose.runtime.getValue
@@ -124,8 +125,15 @@ fun HomeScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedLocality by remember { mutableStateOf(profile.locality) }
+    var showAddressManagementDialog by remember { mutableStateOf(false) }
     var locationMenuExpanded by remember { mutableStateOf(false) }
     var showMapLocationPicker by remember { mutableStateOf(false) }
+
+    LaunchedEffect(profile.locality) {
+        if (profile.locality.isNotBlank()) {
+            selectedLocality = profile.locality
+        }
+    }
 
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -194,7 +202,7 @@ fun HomeScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .testTag("location_selector")
-                                    .clickable { locationMenuExpanded = true }
+                                    .clickable { showAddressManagementDialog = true }
                                     .padding(vertical = 4.dp, horizontal = 4.dp)
                             ) {
                                 Icon(
@@ -602,6 +610,17 @@ fun HomeScreen(
             }
         )
     }
+
+    if (showAddressManagementDialog) {
+        AddressManagementDialog(
+            repository = repository,
+            onDismiss = { showAddressManagementDialog = false },
+            onOpenMap = { showMapLocationPicker = true },
+            onAddressSelected = { selected ->
+                selectedLocality = selected.area.ifBlank { "Mahoba" }
+            }
+        )
+    }
 }
 
 @Composable
@@ -762,17 +781,46 @@ fun HomeProductRowItem(
                         )
                     }
                 }
+                if (!product.inStock) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 3.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFFFFEBEE))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("Out of Stock", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                    }
+                }
             }
-            Button(
-                onClick = onAddToCart,
-                modifier = Modifier
-                    .testTag("add_to_cart_${product.id}")
-                    .height(36.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
-            ) {
-                Text("Add", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            if (product.inStock) {
+                Button(
+                    onClick = onAddToCart,
+                    modifier = Modifier
+                        .testTag("add_to_cart_${product.id}")
+                        .height(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+                ) {
+                    Text("Add", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Button(
+                    onClick = {},
+                    enabled = false,
+                    modifier = Modifier
+                        .testTag("add_to_cart_${product.id}")
+                        .height(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        disabledContainerColor = Color(0xFFF1F5F9),
+                        disabledContentColor = Color(0xFF94A3B8)
+                    ),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                ) {
+                    Text("Out of Stock", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }

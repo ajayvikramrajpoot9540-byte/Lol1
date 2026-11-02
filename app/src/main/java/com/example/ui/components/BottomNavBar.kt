@@ -73,35 +73,33 @@ fun BottomNavBar(
             )
         )
 
-        // Orders: Only display if the customer has placed an order (or is currently viewing the Orders screen)
-        if (hasOrders || currentRoute == Screen.Orders.route) {
-            NavigationBarItem(
-                modifier = Modifier.testTag("nav_orders"),
-                selected = currentRoute == Screen.Orders.route,
-                onClick = { onNavigate(Screen.Orders.route) },
-                icon = {
-                    if (activeOrdersCount > 0) {
-                        BadgedBox(badge = { Badge { Text("$activeOrdersCount") } }) {
-                            Icon(
-                                imageVector = if (currentRoute == Screen.Orders.route) Icons.AutoMirrored.Filled.ReceiptLong else Icons.AutoMirrored.Outlined.ReceiptLong,
-                                contentDescription = "Orders"
-                            )
-                        }
-                    } else {
+        // Orders
+        NavigationBarItem(
+            modifier = Modifier.testTag("nav_orders"),
+            selected = currentRoute == Screen.Orders.route,
+            onClick = { onNavigate(Screen.Orders.route) },
+            icon = {
+                if (activeOrdersCount > 0) {
+                    BadgedBox(badge = { Badge { Text("$activeOrdersCount") } }) {
                         Icon(
                             imageVector = if (currentRoute == Screen.Orders.route) Icons.AutoMirrored.Filled.ReceiptLong else Icons.AutoMirrored.Outlined.ReceiptLong,
                             contentDescription = "Orders"
                         )
                     }
-                },
-                label = { Text("Orders") },
-                colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = GreenLight,
-                    selectedIconColor = GreenPrimary,
-                    selectedTextColor = GreenPrimary
-                )
+                } else {
+                    Icon(
+                        imageVector = if (currentRoute == Screen.Orders.route) Icons.AutoMirrored.Filled.ReceiptLong else Icons.AutoMirrored.Outlined.ReceiptLong,
+                        contentDescription = "Orders"
+                    )
+                }
+            },
+            label = { Text("Orders") },
+            colors = NavigationBarItemDefaults.colors(
+                indicatorColor = GreenLight,
+                selectedIconColor = GreenPrimary,
+                selectedTextColor = GreenPrimary
             )
-        }
+        )
 
         // Profile
         NavigationBarItem(

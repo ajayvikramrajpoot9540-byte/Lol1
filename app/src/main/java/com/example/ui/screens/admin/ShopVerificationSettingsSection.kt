@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.ShopVerificationRequest
 import com.example.data.repository.FlashDropRepository
+import com.example.ui.components.StockToggleSwitch
 import com.example.ui.theme.BorderLight
 import com.example.ui.theme.GreenLight
 import com.example.ui.theme.GreenPrimary
@@ -177,7 +178,7 @@ fun ShopVerificationSettingsSection(
                                 color = PurplePrimary
                             )
                         } else {
-                            Switch(
+                            StockToggleSwitch(
                                 checked = registrationConfig.threeStepEnabled,
                                 onCheckedChange = { newState ->
                                     isTogglingSetting = true
@@ -192,12 +193,6 @@ fun ShopVerificationSettingsSection(
                                         }
                                     }
                                 },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = GreenPrimary,
-                                    uncheckedThumbColor = Color.White,
-                                    uncheckedTrackColor = Color(0xFFD1D5DB)
-                                ),
                                 modifier = Modifier.testTag("three_step_registration_switch")
                             )
                         }

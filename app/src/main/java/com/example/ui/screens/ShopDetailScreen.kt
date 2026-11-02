@@ -358,9 +358,34 @@ fun ShopDetailScreen(
                                         Text("₹${product.originalPrice.toInt()}", fontSize = 12.sp, color = TextMuted, textDecoration = TextDecoration.LineThrough)
                                     }
                                 }
+                                if (!product.inStock) {
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(top = 3.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(Color(0xFFFFEBEE))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("Out of Stock", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                                    }
+                                }
                             }
 
-                            if (inCart != null) {
+                            if (!product.inStock) {
+                                Button(
+                                    onClick = {},
+                                    enabled = false,
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        disabledContainerColor = Color(0xFFF1F5F9),
+                                        disabledContentColor = Color(0xFF94A3B8)
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Text("Out of Stock", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            } else if (inCart != null) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier

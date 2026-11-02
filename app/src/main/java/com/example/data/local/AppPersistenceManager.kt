@@ -127,7 +127,12 @@ class AppPersistenceManager(private val context: Context) {
                 profile.savedAddresses.forEach { addr ->
                     addrArray.put(JSONObject().apply {
                         put("id", addr.id)
+                        put("name", addr.name)
+                        put("phone", addr.phone)
+                        put("countryCode", addr.countryCode)
+                        put("label", addr.label)
                         put("houseNumber", addr.houseNumber)
+                        put("buildingBlock", addr.buildingBlock)
                         put("street", addr.street)
                         put("area", addr.area)
                         put("city", addr.city)
@@ -157,7 +162,12 @@ class AppPersistenceManager(private val context: Context) {
                     addrList.add(
                         DeliveryAddress(
                             id = a.optString("id"),
+                            name = a.optString("name", json.optString("name", "")),
+                            phone = a.optString("phone", json.optString("phone", "")),
+                            countryCode = a.optString("countryCode", "+91"),
+                            label = a.optString("label", "Home"),
                             houseNumber = a.optString("houseNumber"),
+                            buildingBlock = a.optString("buildingBlock"),
                             street = a.optString("street"),
                             area = a.optString("area", "Subhash Chowk"),
                             city = a.optString("city", "Mahoba"),

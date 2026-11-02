@@ -147,6 +147,21 @@ fun ProductDetailScreen(
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Upload Documents ➔", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
+                        } else if (!product.inStock) {
+                            Button(
+                                onClick = {},
+                                enabled = false,
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .testTag("detail_add_to_cart_button"),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    disabledContainerColor = Color(0xFFF1F5F9),
+                                    disabledContentColor = Color(0xFF94A3B8)
+                                )
+                            ) {
+                                Text("Currently Out of Stock", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            }
                         } else {
                             Button(
                                 onClick = {
@@ -245,6 +260,17 @@ fun ProductDetailScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = GreenPrimary
                             )
+                        }
+                        if (!product.inStock) {
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFFFEBEE))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text("Out of Stock", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                            }
                         }
                     }
 
