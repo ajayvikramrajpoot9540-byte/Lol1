@@ -20,6 +20,10 @@ import com.example.data.model.UserProfile
 import com.example.data.local.AppPersistenceManager
 import com.example.data.model.DeliveryAddress
 import com.example.data.model.NotificationItem
+import com.example.data.model.DaySchedule
+import com.example.data.model.WeeklySchedule
+import com.example.data.model.ShopLiveStatus
+import com.example.data.model.ShopScheduleUtils
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -118,6 +122,10 @@ class FlashDropRepository(
 
     private val _deliveryConfig = MutableStateFlow(DeliveryConfig())
     val deliveryConfig: StateFlow<DeliveryConfig> = _deliveryConfig.asStateFlow()
+
+    // Weekly opening/closing schedules for shops in Mahoba (IST evaluated)
+    private val _shopSchedules = MutableStateFlow<Map<String, WeeklySchedule>>(emptyMap())
+    val shopSchedules: StateFlow<Map<String, WeeklySchedule>> = _shopSchedules.asStateFlow()
 
     // Global Shop Registration Mode Configuration (Admin-Controlled 3-Step System)
     // Persistently stored at appSettings/shopRegistration/threeStepEnabled
@@ -666,6 +674,16 @@ class FlashDropRepository(
             } else {
                 persistence.saveRegisteredUsers(_registeredUsers.value)
             }
+
+            val loadedSchedules = persistence.loadShopSchedules()
+            if (loadedSchedules != null && loadedSchedules.isNotEmpty()) {
+                _shopSchedules.value = loadedSchedules
+            } else {
+                val initMap = _shops.value.associate { it.id to WeeklySchedule(shopId = it.id, days = WeeklySchedule.defaultDays()) }
+                _shopSchedules.value = initMap
+                persistence.saveShopSchedules(initMap)
+            }
+            syncShopOpeningStatusesWithIstSchedule()
         } catch (e: Exception) {
             Log.e("FlashDropRepo", "Local data initialization error: ${e.message}", e)
         }
@@ -2785,10 +2803,121 @@ class FlashDropRepository(
     }
 
     fun toggleShopStatus(shopId: String) {
+        val currentShop = _shops.value.find { it.id == shopId } ?: return
+        val newIsOpen = !currentShop.isOpen
         _shops.value = _shops.value.map { shop ->
-            if (shop.id == shopId) shop.copy(isOpen = !shop.isOpen) else shop
+            if (shop.id == shopId) shop.copy(isOpen = newIsOpen) else shop
         }
         persistence.saveShops(_shops.value)
+
+        // Maintain manual override in weekly schedule without permanently overwriting day timetable
+        val schedule = getShopSchedule(shopId)
+        val updatedSchedule = schedule.copy(
+            manualOverride = newIsOpen,
+            lastManualOverrideTimestamp = System.currentTimeMillis()
+        )
+        val map = _shopSchedules.value.toMutableMap()
+        map[shopId] = updatedSchedule
+        _shopSchedules.value = map
+        persistence.saveShopSchedules(map)
+    }
+
+    // ==========================================
+    // SHOP TIMING & WEEKLY SCHEDULE (IST)
+    // ==========================================
+
+    fun getShopSchedule(shopId: String): WeeklySchedule {
+        val existing = _shopSchedules.value[shopId]
+        if (existing != null) return existing
+
+        val defaultSched = WeeklySchedule(
+            shopId = shopId,
+            days = WeeklySchedule.defaultDays(),
+            autoScheduleEnabled = true
+        )
+        val updated = _shopSchedules.value + (shopId to defaultSched)
+        _shopSchedules.value = updated
+        persistence.saveShopSchedules(updated)
+        return defaultSched
+    }
+
+    fun saveShopSchedule(schedule: WeeklySchedule): Boolean {
+        val current = _shopSchedules.value.toMutableMap()
+        current[schedule.shopId] = schedule
+        _shopSchedules.value = current
+        persistence.saveShopSchedules(current)
+
+        // Immediately evaluate live shop status in Indian Standard Time (IST)
+        val liveStatus = ShopScheduleUtils.evaluateLiveStatus(schedule)
+        _shops.value = _shops.value.map { shop ->
+            if (shop.id == schedule.shopId) {
+                shop.copy(
+                    isOpen = liveStatus.isOpen,
+                    openingHours = "${schedule.days.firstOrNull()?.openingTime ?: "10:00 AM"} - ${schedule.days.firstOrNull()?.closingTime ?: "10:00 PM"}"
+                )
+            } else shop
+        }
+        persistence.saveShops(_shops.value)
+        return true
+    }
+
+    fun getShopLiveStatus(shopId: String): ShopLiveStatus {
+        val schedule = getShopSchedule(shopId)
+        return ShopScheduleUtils.evaluateLiveStatus(schedule)
+    }
+
+    fun syncShopOpeningStatusesWithIstSchedule() {
+        val schedules = _shopSchedules.value
+        _shops.value = _shops.value.map { shop ->
+            val schedule = schedules[shop.id] ?: WeeklySchedule(shopId = shop.id, days = WeeklySchedule.defaultDays())
+            val live = ShopScheduleUtils.evaluateLiveStatus(schedule)
+            shop.copy(isOpen = live.isOpen)
+        }
+        persistence.saveShops(_shops.value)
+    }
+
+    fun confirmLateNightOrder(
+        orderId: String,
+        deliverToday: Boolean,
+        expectedDeliveryTime: String
+    ): Boolean {
+        val currentOrders = _orders.value
+        val target = currentOrders.find { it.id == orderId } ?: return false
+        val formattedExpectedTime = expectedDeliveryTime.trim().ifBlank {
+            if (deliverToday) "Today, 10:30 PM" else "Tomorrow, 10:00 AM"
+        }
+        val updatedOrder = target.copy(
+            isNearClosingTime = false,
+            lateNightDecision = if (deliverToday) "DELIVER_TODAY" else "DELIVER_TOMORROW",
+            confirmedDeliveryTime = formattedExpectedTime,
+            expectedDeliverySlot = formattedExpectedTime,
+            scheduledForTomorrow = !deliverToday,
+            status = if (target.status == "pending") "accepted" else target.status,
+            statusNote = if (deliverToday) {
+                "Shopkeeper confirmed: Delivering Today by $formattedExpectedTime"
+            } else {
+                "Order scheduled for tomorrow. Delivery: $formattedExpectedTime"
+            }
+        )
+        _orders.value = currentOrders.map { if (it.id == orderId) updatedOrder else it }
+        persistence.saveOrders(_orders.value)
+
+        addNotification(
+            NotificationItem(
+                id = "notif_${UUID.randomUUID().toString().take(8)}",
+                title = if (deliverToday) "Late-Night Order Confirmed" else "Order Scheduled for Tomorrow",
+                message = if (deliverToday) {
+                    "Shopkeeper confirmed order #${target.orderNumber}. Expected delivery: $formattedExpectedTime."
+                } else {
+                    "Shopkeeper confirmed order #${target.orderNumber} for tomorrow. Expected delivery: $formattedExpectedTime."
+                },
+                timestamp = "Just now",
+                type = "order",
+                targetRole = "customer",
+                targetId = target.userId
+            )
+        )
+        return true
     }
 
     /**
@@ -3549,6 +3678,19 @@ class FlashDropRepository(
         val total = billResult.finalPayableAmount
         val distinctShops = items.map { it.product.shopId }.distinct()
         val firstShop = _shops.value.find { it.id == items.first().product.shopId }
+
+        // Automatic Shop Status Check: Closed shops must not accept new orders
+        for (shopId in distinctShops) {
+            val liveStatus = getShopLiveStatus(shopId)
+            if (!liveStatus.isOpen) {
+                val sName = _shops.value.find { it.id == shopId }?.name ?: "Shop"
+                throw IllegalStateException("Cannot place order: $sName is currently closed (${liveStatus.statusLabel}).")
+            }
+        }
+
+        val firstShopStatus = getShopLiveStatus(firstShop?.id ?: "sharma_general")
+        val isNearClosing = firstShopStatus.isNearClosingTime
+
         val resolvedShopName = if (distinctShops.size > 1) {
             val names = items.map { it.product.shopName }.distinct().joinToString(" + ")
             "Multi-Shop ($names)"
@@ -3609,6 +3751,11 @@ class FlashDropRepository(
             paymentStatus = resolvedPaymentStatus,
             transactionId = resolvedTxnId,
             paymentReference = resolvedRef,
+            expectedDeliverySlot = if (isNearClosing) "Awaiting Late-Night Confirmation" else "Today, 4:30 PM - 6:30 PM",
+            isNearClosingTime = isNearClosing,
+            lateNightDecision = if (isNearClosing) "PENDING" else "",
+            confirmedDeliveryTime = "",
+            scheduledForTomorrow = false,
             status = "pending",
             statusNote = if (fee == 0.0) "Order confirmed with Free Delivery" else "Order confirmed. Delivery charge: ₹${fee.toInt()}",
             billingSnapshot = billResult.snapshot
@@ -3616,6 +3763,20 @@ class FlashDropRepository(
 
         _orders.value = listOf(order) + _orders.value
         persistence.saveOrders(_orders.value)
+
+        if (isNearClosing) {
+            addNotification(
+                NotificationItem(
+                    id = "notif_late_${UUID.randomUUID().toString().take(8)}",
+                    title = "Near Closing Order Alert",
+                    message = "A new order ($orderNum) has arrived near closing time. Can you deliver it today?",
+                    timestamp = "Just now",
+                    type = "order",
+                    targetRole = "shopkeeper",
+                    targetId = firstShop?.id ?: ""
+                )
+            )
+        }
 
         val newTxn = com.example.data.model.Transaction(
             id = "txn_${UUID.randomUUID().toString().take(8)}",

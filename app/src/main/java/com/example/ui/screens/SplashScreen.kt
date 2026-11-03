@@ -70,8 +70,7 @@ fun SplashScreen(
             verticalArrangement = Arrangement.Center
         ) {
             FlashDropLogo(
-                iconSize = 150.dp,
-                showTagline = true
+                useTransparentBackground = true
             )
 
             Spacer(modifier = Modifier.height(32.dp))

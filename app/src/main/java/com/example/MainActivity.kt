@@ -351,6 +351,7 @@ fun FlashDropApp(repository: ApnaBazRepository) {
                 totalAmount = order?.totalAmount ?: selectedOrderAmount,
                 paymentMethod = methodLabel,
                 paymentStatus = status,
+                expectedDeliverySlot = order?.confirmedDeliveryTime?.ifBlank { order.expectedDeliverySlot } ?: "Today, 4:30 PM - 6:30 PM",
                 onTrackOrder = {
                     navigateTo(Screen.OrderDetail.route)
                 },
@@ -555,6 +556,13 @@ fun FlashDropApp(repository: ApnaBazRepository) {
                 onShopCreated = { shop, account ->
                     navigateTo(Screen.AdminDashboard.route, clearBackStack = true)
                 },
+                onBack = { navigateBack() }
+            )
+        }
+
+        Screen.ShopTimingSchedule.route -> {
+            com.example.ui.screens.ShopTimingScheduleScreen(
+                repository = repository,
                 onBack = { navigateBack() }
             )
         }

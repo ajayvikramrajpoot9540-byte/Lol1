@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -93,11 +94,14 @@ import coil.compose.AsyncImage
 import com.example.data.model.CartItem
 import com.example.data.model.Product
 import com.example.data.model.Shop
+import com.example.data.model.ShopLiveStatus
 import com.example.data.repository.ApnaBazRepository
 import com.example.ui.components.BottomNavBar
 import com.example.ui.components.NotificationBellButton
 import com.example.ui.components.RoleSwitchBadge
 import com.example.ui.navigation.Screen
+import com.example.ui.util.ScreenType
+import com.example.ui.util.rememberScreenType
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.BorderLight
 import com.example.ui.theme.GoldRating
@@ -176,6 +180,10 @@ fun HomeScreen(
         }
     }
 
+    val screenType = rememberScreenType()
+    val isSmallMobile = screenType == ScreenType.SMALL_MOBILE
+    val isTablet = screenType == ScreenType.TABLET || screenType == ScreenType.LARGE_TABLET
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -183,57 +191,68 @@ fun HomeScreen(
                 color = Color.White,
                 shadowElevation = 1.dp
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    FlashDropCompactLogo(
-                        size = 32.dp,
-                        showText = true,
-                        modifier = Modifier.testTag("home_top_bar_logo")
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 1000.dp)
+                            .padding(
+                                horizontal = if (isSmallMobile) 10.dp else 16.dp,
+                                vertical = if (isSmallMobile) 6.dp else 10.dp
+                            ),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FlashDropCompactLogo(
+                            showText = true,
+                            modifier = Modifier.testTag("home_top_bar_logo")
+                        )
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .testTag("location_selector")
-                                    .clickable { showAddressManagementDialog = true }
-                                    .padding(vertical = 4.dp, horizontal = 4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = GreenPrimary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = selectedLocality.ifBlank { "Mahoba" },
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
-                                            color = TextDark
-                                        )
-                                        Icon(
-                                            imageVector = Icons.Default.KeyboardArrowDown,
-                                            contentDescription = "Change Locality",
-                                            tint = TextMuted,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                    Text(
-                                        text = "Uttar Pradesh",
-                                        fontSize = 10.sp,
-                                        color = TextMuted
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .testTag("location_selector")
+                                        .clickable { showAddressManagementDialog = true }
+                                        .padding(vertical = 4.dp, horizontal = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        tint = GreenPrimary,
+                                        modifier = Modifier.size(if (isSmallMobile) 15.dp else 18.dp)
                                     )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Column {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = selectedLocality.ifBlank { "Mahoba" },
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = if (isSmallMobile) 11.sp else 13.sp,
+                                                color = TextDark,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Icon(
+                                                imageVector = Icons.Default.KeyboardArrowDown,
+                                                contentDescription = "Change Locality",
+                                                tint = TextMuted,
+                                                modifier = Modifier.size(if (isSmallMobile) 13.dp else 16.dp)
+                                            )
+                                        }
+                                        if (!isSmallMobile) {
+                                            Text(
+                                                text = "Uttar Pradesh",
+                                                fontSize = 10.sp,
+                                                color = TextMuted
+                                            )
+                                        }
+                                    }
                                 }
-                            }
 
                             DropdownMenu(
                                 expanded = locationMenuExpanded,
@@ -353,13 +372,19 @@ fun HomeScreen(
             }
         }
     ) { paddingValues ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
                 .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 80.dp)
+            contentAlignment = Alignment.TopCenter
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 1000.dp),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
             // Search Bar
             item {
                 OutlinedTextField(
@@ -544,8 +569,10 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     items(filteredShops) { shop ->
+                        val liveStatus = repository.getShopLiveStatus(shop.id)
                         ShopCardItem(
                             shop = shop,
+                            liveStatus = liveStatus,
                             onClick = { onShopSelected(shop.id) }
                         )
                     }
@@ -580,20 +607,51 @@ fun HomeScreen(
             }
 
             // Recommended Products List
-            items(filteredProducts) { product ->
-                HomeProductRowItem(
-                    product = product,
-                    onItemClick = { onProductSelected(product.id) },
-                    onAddToCart = {
-                        repository.addToCart(product)
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Added ${product.name} to cart")
+            if (isTablet) {
+                val productPairs = remember(filteredProducts) { filteredProducts.chunked(2) }
+                items(productPairs) { pair ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        pair.forEach { product ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                HomeProductRowItem(
+                                    product = product,
+                                    onItemClick = { onProductSelected(product.id) },
+                                    onAddToCart = {
+                                        repository.addToCart(product)
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Added ${product.name} to cart")
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                        if (pair.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
-                )
+                }
+            } else {
+                items(filteredProducts) { product ->
+                    HomeProductRowItem(
+                        product = product,
+                        onItemClick = { onProductSelected(product.id) },
+                        onAddToCart = {
+                            repository.addToCart(product)
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Added ${product.name} to cart")
+                            }
+                        }
+                    )
+                }
             }
         }
     }
+}
 
     if (showMapLocationPicker) {
         GoogleMapLocationPickerDialog(
@@ -626,6 +684,7 @@ fun HomeScreen(
 @Composable
 fun ShopCardItem(
     shop: Shop,
+    liveStatus: ShopLiveStatus,
     onClick: () -> Unit
 ) {
     Card(
@@ -697,20 +756,12 @@ fun ShopCardItem(
                         color = TextDark
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    if (shop.isOpen) {
-                        Text(
-                            text = "Open",
-                            color = GreenPrimary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    } else {
-                        Text(
-                            text = "Closed",
-                            color = Color.Gray,
-                            fontSize = 11.sp
-                        )
-                    }
+                    Text(
+                        text = if (liveStatus.isOpen) "Open" else "Closed",
+                        color = if (liveStatus.isOpen) GreenPrimary else Color(0xFFDC2626),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }

@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -225,8 +225,7 @@ fun ShopRegistrationScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             FlashDropLogo(
-                iconSize = 80.dp,
-                showTagline = true,
+                useTransparentBackground = true,
                 modifier = Modifier.padding(vertical = 4.dp)
             )
 
@@ -239,6 +238,7 @@ fun ShopRegistrationScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .widthIn(max = 640.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(GreenLight.copy(alpha = 0.8f))
                         .padding(12.dp)
@@ -257,6 +257,7 @@ fun ShopRegistrationScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .widthIn(max = 640.dp)
                     .testTag("shop_registration_form_card"),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),

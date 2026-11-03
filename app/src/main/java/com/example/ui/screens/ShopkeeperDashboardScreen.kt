@@ -28,6 +28,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import com.example.ui.util.ScreenType
+import com.example.ui.util.rememberScreenType
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -38,6 +41,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CheckCircle
@@ -131,7 +135,7 @@ fun ShopkeeperDashboardScreen(
     val profile by repository.currentProfile.collectAsState()
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("My Orders", "My Products", "Shop Profile", "Earnings")
+    val tabs = listOf("My Orders", "My Products", "Timing & Schedule", "Shop Profile", "Earnings")
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -264,37 +268,47 @@ fun ShopkeeperDashboardScreen(
     var editingProduct by remember { mutableStateOf<Product?>(null) }
     var lastNewProductInStock by rememberSaveable { mutableStateOf(true) }
 
+    val screenType = rememberScreenType()
+    val isSmallMobile = screenType == ScreenType.SMALL_MOBILE
+    val isTablet = screenType == ScreenType.TABLET || screenType == ScreenType.LARGE_TABLET
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        FlashDropCompactLogo(size = 32.dp, showText = false)
-                        Spacer(modifier = Modifier.width(8.dp))
+                        FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(6.dp))
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Shopkeeper Portal",
+                                    text = if (isSmallMobile) "Shopkeeper" else "Shopkeeper Portal",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = TextDark
+                                    fontSize = if (isSmallMobile) 13.sp else 16.sp,
+                                    color = TextDark,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Box(
                                     modifier = Modifier
                                         .background(OrangeLight, RoundedCornerShape(6.dp))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .padding(horizontal = 5.dp, vertical = 2.dp)
                                 ) {
-                                    Text(profile.loginId.ifBlank { "SK" }, fontSize = 11.sp, color = OrangeSecondary, fontWeight = FontWeight.Bold)
+                                    Text(profile.loginId.ifBlank { "SK" }, fontSize = 10.sp, color = OrangeSecondary, fontWeight = FontWeight.Bold)
                                 }
                             }
-                            Text(
-                                text = "${currentShop?.name ?: "Local Shop"} • Restricted Access",
-                                fontSize = 12.sp,
-                                color = OrangeSecondary,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            if (!isSmallMobile) {
+                                Text(
+                                    text = "${currentShop?.name ?: "Local Shop"} • Restricted Access",
+                                    fontSize = 11.sp,
+                                    color = OrangeSecondary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 },
@@ -316,19 +330,25 @@ fun ShopkeeperDashboardScreen(
                         onRoleSelected = { role, shopId, loginId ->
                             repository.setRole(role, shopId, loginId)
                         },
-                        modifier = Modifier.padding(end = 8.dp)
+                        modifier = Modifier.padding(end = 4.dp)
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 1000.dp)
+            ) {
             // Metrics Banner (Revenue & Order Counts for this shop only)
             val deliveredSales = myShopOrders.filter { it.status == "delivered" }.sumOf { it.totalAmount }
             val pendingOrders = myShopOrders.count { it.status in listOf("pending", "accepted", "preparing", "out_for_delivery") }
@@ -410,6 +430,13 @@ fun ShopkeeperDashboardScreen(
                                         repository.updateOrderStatus(order.id, nextStatus)
                                         coroutineScope.launch {
                                             snackbarHostState.showSnackbar("Order ${order.orderNumber} updated to $nextStatus")
+                                        }
+                                    },
+                                    onConfirmLateNight = { deliverToday, time ->
+                                        repository.confirmLateNightOrder(order.id, deliverToday, time)
+                                        coroutineScope.launch {
+                                            val msg = if (deliverToday) "Confirmed: Delivering today by $time" else "Order scheduled for tomorrow ($time)"
+                                            snackbarHostState.showSnackbar(msg)
                                         }
                                     }
                                 )
@@ -608,7 +635,16 @@ fun ShopkeeperDashboardScreen(
                 }
 
                 2 -> {
-                    // TAB 2: SHOP PROFILE (Timings, Phone, Open/Closed)
+                    // TAB 2: SHOP TIMING & SCHEDULE
+                    ShopTimingScheduleScreen(
+                        repository = repository,
+                        shopIdOverride = currentShop?.id,
+                        onBack = { selectedTabIndex = 0 }
+                    )
+                }
+
+                3 -> {
+                    // TAB 3: SHOP PROFILE (Timings, Phone, Open/Closed)
                     if (currentShop != null) {
                         var phoneInput by remember { mutableStateOf(currentShop.phone) }
                         var addressInput by remember { mutableStateOf(currentShop.address) }
@@ -656,6 +692,20 @@ fun ShopkeeperDashboardScreen(
                                             Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text("Edit Shop Profile & Branding (Logo, Banner, GST)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        OutlinedButton(
+                                            onClick = { selectedTabIndex = 2 },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = GreenPrimary),
+                                            shape = RoundedCornerShape(10.dp),
+                                            border = BorderStroke(1.5.dp, GreenPrimary)
+                                        ) {
+                                            Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Shop Timing & Schedule (Weekly Timetable)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -728,8 +778,8 @@ fun ShopkeeperDashboardScreen(
                     }
                 }
 
-                3 -> {
-                    // TAB 3: EARNINGS & PAYOUTS
+                4 -> {
+                    // TAB 4: EARNINGS & PAYOUTS
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -757,6 +807,7 @@ fun ShopkeeperDashboardScreen(
             }
         }
     }
+}
 
     // Dialog: Add / Edit Product for this shop with Photo Upload support
     if (showProductDialog && currentShop != null) {
@@ -1245,8 +1296,13 @@ fun ShopkeeperDashboardScreen(
 @Composable
 fun ShopkeeperOrderCard(
     order: Order,
-    onUpdateStatus: (String) -> Unit
+    onUpdateStatus: (String) -> Unit,
+    onConfirmLateNight: (Boolean, String) -> Unit = { _, _ -> }
 ) {
+    var showLateNightTimeDialog by remember { mutableStateOf(false) }
+    var isDeliveringTodayChoice by remember { mutableStateOf(true) }
+    var customExpectedTime by remember { mutableStateOf("") }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -1268,6 +1324,93 @@ fun ShopkeeperOrderCard(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            // SPECIAL LATE-NIGHT ORDER CONFIRMATION
+            if (order.isNearClosingTime && (order.lateNightDecision.isBlank() || order.lateNightDecision.equals("PENDING", ignoreCase = true))) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                    border = BorderStroke(1.dp, Color(0xFFF59E0B))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFD97706),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Late-Night Order Alert",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = Color(0xFFB45309)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "A new order has arrived near closing time. Can you deliver it today?",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF92400E)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    isDeliveringTodayChoice = true
+                                    customExpectedTime = "Today, 10:30 PM"
+                                    showLateNightTimeDialog = true
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
+                            ) {
+                                Text("YES, Deliver Today", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    isDeliveringTodayChoice = false
+                                    customExpectedTime = "Tomorrow, 10:00 AM"
+                                    showLateNightTimeDialog = true
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color(0xFFD97706)),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
+                            ) {
+                                Text("NO, Deliver Tomorrow", fontSize = 11.sp, color = Color(0xFFB45309), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            } else if (order.lateNightDecision.isNotBlank()) {
+                val isToday = order.lateNightDecision.equals("DELIVER_TODAY", ignoreCase = true)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isToday) GreenLight else Color(0xFFEFF6FF))
+                        .border(1.dp, if (isToday) GreenPrimary else Color(0xFF3B82F6), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = if (isToday) "✓ Confirmed: Delivering Today by ${order.confirmedDeliveryTime}" else "📅 Scheduled for Tomorrow. Expected Delivery: ${order.confirmedDeliveryTime}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isToday) GreenPrimary else Color(0xFF1D4ED8)
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             val printingItem = order.items.find { it.isPrintingOrder }
             if (printingItem != null) {
@@ -1377,5 +1520,82 @@ fun ShopkeeperOrderCard(
                 }
             }
         }
+    }
+
+    if (showLateNightTimeDialog) {
+        AlertDialog(
+            onDismissRequest = { showLateNightTimeDialog = false },
+            title = {
+                Text(
+                    text = if (isDeliveringTodayChoice) "Confirm Delivery Time Today" else "Schedule Delivery Tomorrow",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = TextDark
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = if (isDeliveringTodayChoice) {
+                            "Customer will be notified of this confirmed delivery time tonight in Mahoba:"
+                        } else {
+                            "This order will be automatically scheduled for tomorrow. Customer will receive this updated delivery schedule:"
+                        },
+                        fontSize = 12.sp,
+                        color = TextMuted
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = customExpectedTime,
+                        onValueChange = { customExpectedTime = it },
+                        label = { Text("Expected Delivery Slot / Time") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text("Quick Suggestions:", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    val suggestions = if (isDeliveringTodayChoice) {
+                        listOf("Today, 10:15 PM", "Today, 10:30 PM", "Today, 11:00 PM")
+                    } else {
+                        listOf("Tomorrow, 10:00 AM", "Tomorrow, 11:30 AM", "Tomorrow, 1:00 PM")
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        suggestions.forEach { slot ->
+                            FilterChip(
+                                selected = customExpectedTime == slot,
+                                onClick = { customExpectedTime = slot },
+                                label = { Text(slot, fontSize = 10.sp) },
+                                shape = RoundedCornerShape(6.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onConfirmLateNight(isDeliveringTodayChoice, customExpectedTime)
+                        showLateNightTimeDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isDeliveringTodayChoice) GreenPrimary else OrangeSecondary),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Confirm Delivery Schedule", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLateNightTimeDialog = false }) {
+                    Text("Cancel", color = TextMuted)
+                }
+            }
+        )
     }
 }

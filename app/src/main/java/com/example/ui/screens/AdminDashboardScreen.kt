@@ -26,6 +26,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import com.example.ui.util.ScreenType
+import com.example.ui.util.rememberScreenType
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -144,33 +147,47 @@ fun AdminDashboardScreen(
     val ownerId = if (currentProfile.loginId == "CD12") "CD12" else "PR12"
     val ownerTitle = if (currentProfile.loginId == "CD12") "Owner 2" else "Owner 1"
 
+    val screenType = rememberScreenType()
+    val isSmallMobile = screenType == ScreenType.SMALL_MOBILE
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        FlashDropCompactLogo(size = 32.dp, showText = false)
-                        Spacer(modifier = Modifier.width(8.dp))
+                        FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(6.dp))
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Main Admin Portal", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isSmallMobile) "Admin Portal" else "Main Admin Portal",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = if (isSmallMobile) 13.sp else 16.sp,
+                                    color = TextDark,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(Color(0xFFEDE9FE))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .padding(horizontal = 5.dp, vertical = 2.dp)
                                 ) {
-                                    Text(ownerTitle, fontSize = 11.sp, color = Color(0xFF6D28D9), fontWeight = FontWeight.Bold)
+                                    Text(ownerTitle, fontSize = 10.sp, color = Color(0xFF6D28D9), fontWeight = FontWeight.Bold)
                                 }
                             }
-                            Text(
-                                text = "$ownerName ($ownerId) • Equal Main Admin",
-                                fontSize = 12.sp,
-                                color = Color(0xFF6D28D9),
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            if (!isSmallMobile) {
+                                Text(
+                                    text = "$ownerName ($ownerId) • Equal Main Admin",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF6D28D9),
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 },
@@ -197,19 +214,25 @@ fun AdminDashboardScreen(
                         onRoleSelected = { role, shopId, loginId ->
                             repository.setRole(role, shopId, loginId)
                         },
-                        modifier = Modifier.padding(end = 8.dp)
+                        modifier = Modifier.padding(end = 4.dp)
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 1000.dp)
+            ) {
             // Scrollable Tabs
             ScrollableTabRow(
                 selectedTabIndex = selectedTabIndex,
@@ -1288,6 +1311,7 @@ fun AdminDashboardScreen(
             }
         }
     }
+}
 
     // Dialog: Add Shopkeeper
     if (showAddShopkeeperDialog) {

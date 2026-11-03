@@ -19,7 +19,9 @@ import com.example.data.model.ShopRegistrationConfig
 import com.example.data.model.ShopVerificationRequest
 import com.example.data.model.ShopkeeperAccount
 import com.example.data.model.Transaction
+import com.example.data.model.DaySchedule
 import com.example.data.model.UserProfile
+import com.example.data.model.WeeklySchedule
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -64,6 +66,7 @@ class AppPersistenceManager(private val context: Context) {
         private const val FILE_TRANSACTIONS = "transactions.json"
         private const val FILE_DELIVERY_TRACKING = "delivery_tracking.json"
         private const val FILE_REGISTERED_USERS = "registered_users.json"
+        private const val FILE_SHOP_SCHEDULES = "shop_schedules.json"
     }
 
     private fun writeJsonFile(fileName: String, content: String) {
@@ -389,6 +392,10 @@ class AppPersistenceManager(private val context: Context) {
                     put("transactionId", o.transactionId)
                     put("paymentReference", o.paymentReference)
                     put("expectedDeliverySlot", o.expectedDeliverySlot)
+                    put("isNearClosingTime", o.isNearClosingTime)
+                    put("lateNightDecision", o.lateNightDecision)
+                    put("confirmedDeliveryTime", o.confirmedDeliveryTime)
+                    put("scheduledForTomorrow", o.scheduledForTomorrow)
                     put("status", o.status)
                     put("statusNote", o.statusNote)
 
@@ -520,7 +527,11 @@ class AppPersistenceManager(private val context: Context) {
                         paymentStatus = o.optString("paymentStatus", "pending"),
                         transactionId = o.optString("transactionId"),
                         paymentReference = o.optString("paymentReference"),
-                        expectedDeliverySlot = o.optString("expectedDeliverySlot"),
+                        expectedDeliverySlot = o.optString("expectedDeliverySlot", "Today, 4:30 PM - 6:30 PM"),
+                        isNearClosingTime = o.optBoolean("isNearClosingTime", false),
+                        lateNightDecision = o.optString("lateNightDecision", ""),
+                        confirmedDeliveryTime = o.optString("confirmedDeliveryTime", ""),
+                        scheduledForTomorrow = o.optBoolean("scheduledForTomorrow", false),
                         status = o.optString("status", "pending"),
                         statusNote = o.optString("statusNote"),
                         billingSnapshot = snapshot
@@ -982,6 +993,78 @@ class AppPersistenceManager(private val context: Context) {
             list
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse transactions: ${e.message}", e)
+            null
+        }
+    }
+
+    // ==========================================
+    // 13. Shop Weekly Schedules (IST)
+    // ==========================================
+    fun saveShopSchedules(schedules: Map<String, WeeklySchedule>) {
+        try {
+            val root = JSONObject()
+            schedules.forEach { (shopId, sched) ->
+                val sObj = JSONObject()
+                sObj.put("shopId", sched.shopId)
+                sObj.put("autoScheduleEnabled", sched.autoScheduleEnabled)
+                if (sched.manualOverride != null) {
+                    sObj.put("manualOverride", sched.manualOverride)
+                }
+                sObj.put("lastManualOverrideTimestamp", sched.lastManualOverrideTimestamp)
+                val daysArr = JSONArray()
+                sched.days.forEach { d ->
+                    daysArr.put(JSONObject().apply {
+                        put("dayOfWeek", d.dayOfWeek)
+                        put("openingTime", d.openingTime)
+                        put("closingTime", d.closingTime)
+                        put("isOpen", d.isOpen)
+                    })
+                }
+                sObj.put("days", daysArr)
+                root.put(shopId, sObj)
+            }
+            writeJsonFile(FILE_SHOP_SCHEDULES, root.toString())
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save shop schedules: ${e.message}", e)
+        }
+    }
+
+    fun loadShopSchedules(): Map<String, WeeklySchedule>? {
+        val raw = readJsonFile(FILE_SHOP_SCHEDULES) ?: return null
+        return try {
+            val root = JSONObject(raw)
+            val map = mutableMapOf<String, WeeklySchedule>()
+            val keys = root.keys()
+            while (keys.hasNext()) {
+                val shopId = keys.next()
+                val sObj = root.getJSONObject(shopId)
+                val daysArr = sObj.optJSONArray("days")
+                val daysList = mutableListOf<DaySchedule>()
+                if (daysArr != null) {
+                    for (i in 0 until daysArr.length()) {
+                        val dObj = daysArr.getJSONObject(i)
+                        daysList.add(
+                            DaySchedule(
+                                dayOfWeek = dObj.optString("dayOfWeek", "Monday"),
+                                openingTime = dObj.optString("openingTime", "10:00 AM"),
+                                closingTime = dObj.optString("closingTime", "10:00 PM"),
+                                isOpen = dObj.optBoolean("isOpen", true)
+                            )
+                        )
+                    }
+                }
+                val manualOverride = if (sObj.has("manualOverride")) sObj.getBoolean("manualOverride") else null
+                map[shopId] = WeeklySchedule(
+                    shopId = shopId,
+                    days = if (daysList.isNotEmpty()) daysList else WeeklySchedule.defaultDays(),
+                    autoScheduleEnabled = sObj.optBoolean("autoScheduleEnabled", true),
+                    manualOverride = manualOverride,
+                    lastManualOverrideTimestamp = sObj.optLong("lastManualOverrideTimestamp", 0L)
+                )
+            }
+            map
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load shop schedules: ${e.message}", e)
             null
         }
     }

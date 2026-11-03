@@ -87,6 +87,10 @@ data class Order(
     val transactionId: String = "",
     val paymentReference: String = "",
     val expectedDeliverySlot: String = "Today, 4:30 PM - 6:30 PM",
+    val isNearClosingTime: Boolean = false,
+    val lateNightDecision: String = "", // "PENDING", "DELIVER_TODAY", "DELIVER_TOMORROW"
+    val confirmedDeliveryTime: String = "",
+    val scheduledForTomorrow: Boolean = false,
     val status: String = "pending", // "pending", "accepted", "preparing", "out_for_delivery", "delivered", "cancelled", "rejected"
     val statusNote: String = "Order received by shopkeeper",
     // Immutable snapshot of applied delivery charges & billing calculation

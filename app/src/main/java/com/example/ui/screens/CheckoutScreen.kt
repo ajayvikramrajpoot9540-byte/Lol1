@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DeliveryDining
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MyLocation
@@ -55,6 +56,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -66,6 +69,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,6 +87,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.CartItem
 import com.example.data.repository.ApnaBazRepository
+import kotlinx.coroutines.launch
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.BorderLight
 import com.example.ui.theme.GreenLight
@@ -117,6 +122,8 @@ fun CheckoutScreen(
     var showMapLocationPicker by remember { mutableStateOf(false) }
     var showSignInPrompt by remember { mutableStateOf(false) }
     var pendingOrderAfterSignIn by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         if (!repository.isUserSignedIn()) {
@@ -183,8 +190,18 @@ fun CheckoutScreen(
     val isFreeDelivery = billResult.isFreeDeliveryEligible
     val isCheckoutAllowed = billResult.isCheckoutAllowed
 
+    val closedShopItem = remember(cartItems) {
+        cartItems.firstOrNull { item ->
+            val live = repository.getShopLiveStatus(item.product.shopId)
+            !live.isOpen
+        }
+    }
+    val closedShopStatus = remember(closedShopItem) {
+        closedShopItem?.let { repository.getShopLiveStatus(it.product.shopId) }
+    }
+
     fun executeOrderPlacement() {
-        if (cartItems.isEmpty() || isPlacingOrder || !isCheckoutAllowed) return
+        if (cartItems.isEmpty() || isPlacingOrder || !isCheckoutAllowed || closedShopItem != null) return
         if (!repository.isUserSignedIn()) {
             pendingOrderAfterSignIn = true
             showSignInPrompt = true
@@ -223,6 +240,11 @@ fun CheckoutScreen(
             isPlacingOrder = false
             pendingOrderAfterSignIn = true
             showSignInPrompt = true
+        } catch (e: IllegalStateException) {
+            isPlacingOrder = false
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(e.message ?: "Cannot place order: Shop is currently closed.")
+            }
         }
     }
 
@@ -286,6 +308,7 @@ fun CheckoutScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Checkout", fontWeight = FontWeight.Bold, color = TextDark) },
@@ -335,6 +358,7 @@ fun CheckoutScreen(
                         }
 
                         val (buttonText, buttonColor) = when {
+                            closedShopItem != null -> "Shop is Closed (${closedShopStatus?.statusLabel ?: "Closed"})" to Color.Gray
                             !isCheckoutAllowed -> "Exceeds Delivery Distance" to Color.Gray
                             !repository.isUserSignedIn() -> "Sign In to Place Order" to OrangeSecondary
                             selectedPaymentMethod == "upi" -> "Pay ₹${"%.2f".format(totalAmount)} via UPI ➔" to OrangeSecondary
@@ -349,7 +373,7 @@ fun CheckoutScreen(
                                 .testTag("place_order_button"),
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                            enabled = cartItems.isNotEmpty() && !isPlacingOrder && isCheckoutAllowed
+                            enabled = cartItems.isNotEmpty() && !isPlacingOrder && isCheckoutAllowed && closedShopItem == null
                         ) {
                             if (isPlacingOrder) {
                                 CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
@@ -371,6 +395,28 @@ fun CheckoutScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (closedShopItem != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFCA5A5))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "${closedShopItem.product.shopName} is currently closed (${closedShopStatus?.statusLabel}). Orders cannot be placed at this time.",
+                            fontSize = 12.sp,
+                            color = Color(0xFFB91C1C),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
             // Guest alert banner if navigating directly to checkout while signed out
             if (!repository.isUserSignedIn()) {
                 Card(

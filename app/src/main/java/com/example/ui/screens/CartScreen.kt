@@ -88,6 +88,16 @@ fun CartScreen(
         }
     }
 
+    val closedShopItem = remember(cartItems) {
+        cartItems.firstOrNull { item ->
+            val live = repository.getShopLiveStatus(item.product.shopId)
+            !live.isOpen
+        }
+    }
+    val closedShopStatus = remember(closedShopItem) {
+        closedShopItem?.let { repository.getShopLiveStatus(it.product.shopId) }
+    }
+
     val billResult = androidx.compose.runtime.remember(cartItems, deliveryConfig) {
         repository.calculateDeliveryBill(cartItems)
     }
@@ -183,7 +193,7 @@ fun CartScreen(
                                         showSignInPrompt = true
                                     }
                                 },
-                                enabled = !hasOutOfStockItems,
+                                enabled = !hasOutOfStockItems && closedShopItem == null,
                                 modifier = Modifier
                                     .height(48.dp)
                                     .testTag("proceed_to_checkout_button"),
@@ -195,8 +205,12 @@ fun CartScreen(
                                 )
                             ) {
                                 Text(
-                                    if (hasOutOfStockItems) "Items Out of Stock" else "Proceed to Checkout",
-                                    fontSize = 15.sp,
+                                    when {
+                                        closedShopItem != null -> "Shop is Closed (${closedShopStatus?.statusLabel ?: "Closed"})"
+                                        hasOutOfStockItems -> "Items Out of Stock"
+                                        else -> "Proceed to Checkout"
+                                    },
+                                    fontSize = if (closedShopItem != null) 12.sp else 15.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -253,6 +267,31 @@ fun CartScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                if (closedShopItem != null) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFEE2E2)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFCA5A5))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "${closedShopItem.product.shopName} is currently closed (${closedShopStatus?.statusLabel}). Orders cannot be placed when shop is closed.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFB91C1C),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Info Banner
                 item {
                     Card(

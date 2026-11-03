@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -188,17 +189,39 @@ fun ShopDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(shop.name, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark)
+                                val liveStatus = remember(shop.id, repository) {
+                                    repository.getShopLiveStatus(shop.id)
+                                }
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(if (shop.isOpen) GreenLight else Color(0xFFFEE2E2))
+                                        .background(if (liveStatus.isOpen) GreenLight else Color(0xFFFEE2E2))
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Text(
-                                        text = if (shop.isOpen) "Open Now" else "Closed",
-                                        color = if (shop.isOpen) GreenPrimary else Color.Red,
-                                        fontSize = 12.sp,
+                                        text = liveStatus.statusLabel,
+                                        color = if (liveStatus.isOpen) GreenPrimary else Color(0xFFDC2626),
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            if (!repository.getShopLiveStatus(shop.id).isOpen) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFFEF2F2))
+                                        .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(8.dp))
+                                        .padding(8.dp)
+                                ) {
+                                    Text(
+                                        text = "Orders are closed: ${repository.getShopLiveStatus(shop.id).statusLabel}",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFFB91C1C),
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                 }
                             }

@@ -576,16 +576,7 @@ fun Screen6OrderConfirmationView(onTrackOrder: () -> Unit = {}) {
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text("Order Items (3)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextDark, modifier = Modifier.fillMaxWidth())
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            OrderItemCompact("Aashirvaad Atta (5kg)", "₹245", "×1")
-            OrderItemCompact("Parle-G Biscuits", "₹20", "×2")
-            OrderItemCompact("Maggi Noodles", "₹15", "×1")
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         Button(
             onClick = onTrackOrder,

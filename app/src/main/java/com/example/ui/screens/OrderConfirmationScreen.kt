@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,6 +59,7 @@ fun OrderConfirmationScreen(
     totalAmount: Double = 315.0,
     paymentMethod: String = "UPI",
     paymentStatus: String = "paid",
+    expectedDeliverySlot: String = "Today, 4:30 PM - 6:30 PM",
     onTrackOrder: () -> Unit,
     onBackToHome: () -> Unit
 ) {
@@ -66,7 +67,7 @@ fun OrderConfirmationScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    FlashDropCompactLogo(size = 28.dp, showText = true)
+                    FlashDropCompactLogo(showText = true)
                 },
                 actions = {
                     IconButton(onClick = onBackToHome) {
@@ -77,16 +78,22 @@ fun OrderConfirmationScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 14.dp)
-                .testTag("order_confirmation_screen"),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 14.dp)
+                    .testTag("order_confirmation_screen"),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             Spacer(modifier = Modifier.height(12.dp))
 
             // Large Checkmark
@@ -208,35 +215,13 @@ fun OrderConfirmationScreen(
                             color = TextMuted
                         )
                         Text(
-                            text = "Today, 4:30 PM - 6:30 PM",
+                            text = expectedDeliverySlot,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextDark
                         )
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Order Items (3) Preview
-            Text(
-                text = "Order Items (3)",
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = TextDark,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ConfirmationItemRow("🍞", "Aashirvaad Atta (5kg)", "₹245", "×1")
-                ConfirmationItemRow("🍪", "Parle-G Biscuits", "₹20", "×2")
-                ConfirmationItemRow("🍜", "Maggi Noodles", "₹15", "×1")
             }
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -275,30 +260,6 @@ fun OrderConfirmationScreen(
                     fontWeight = FontWeight.SemiBold
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun ConfirmationItemRow(emoji: String, title: String, price: String, qty: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(BackgroundWarm)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(emoji, fontSize = 16.sp)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(title, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = TextDark)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(price, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextDark)
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(qty, fontSize = 11.sp, color = TextMuted)
         }
     }
 }

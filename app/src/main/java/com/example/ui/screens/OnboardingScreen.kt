@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import com.example.ui.util.ScreenType
+import com.example.ui.util.rememberScreenType
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
@@ -100,6 +102,9 @@ fun OnboardingScreen(
         )
     }
 
+    val screenType = rememberScreenType()
+    val isSmallMobile = screenType == ScreenType.SMALL_MOBILE
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -108,20 +113,21 @@ fun OnboardingScreen(
             .navigationBarsPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = 20.dp, vertical = if (isSmallMobile) 6.dp else 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(modifier = Modifier.height(16.dp))
-            FlashDropLogo(iconSize = 130.dp, showTagline = true)
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(if (isSmallMobile) 6.dp else 12.dp))
+            FlashDropLogo(useTransparentBackground = true)
+            Spacer(modifier = Modifier.height(if (isSmallMobile) 8.dp else 14.dp))
 
             // Hero Graphic Card: Local shop & scooter delivery
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(210.dp),
+                    .widthIn(max = 520.dp)
+                    .height(if (isSmallMobile) 160.dp else 200.dp),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -251,6 +257,7 @@ fun OnboardingScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .widthIn(max = 520.dp)
                     .testTag("auth_section_card"),
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),

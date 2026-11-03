@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import com.example.ui.util.ScreenType
+import com.example.ui.util.rememberScreenType
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -165,24 +167,29 @@ fun ShopkeeperSignInScreen(
         }
     }
 
+    val screenType = rememberScreenType()
+    val isSmallMobile = screenType == ScreenType.SMALL_MOBILE
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(WarmBackground)
+            .background(WarmBackground),
+        contentAlignment = Alignment.TopCenter
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .widthIn(max = 520.dp)
                 .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(horizontal = if (isSmallMobile) 16.dp else 24.dp, vertical = if (isSmallMobile) 10.dp else 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header Bar: Back Button, FlashDrop Logo, SHOPKEEPER Badge
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp, bottom = 20.dp),
+                    .padding(top = 4.dp, bottom = if (isSmallMobile) 12.dp else 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -190,7 +197,7 @@ fun ShopkeeperSignInScreen(
                     IconButton(
                         onClick = onBack,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(38.dp)
                             .testTag("shopkeeper_sign_in_back_btn")
                     ) {
                         Icon(
@@ -200,7 +207,7 @@ fun ShopkeeperSignInScreen(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    FlashDropCompactLogo(size = 34.dp, showText = true)
+                    FlashDropCompactLogo(showText = true)
                 }
 
                 // SHOPKEEPER pill badge matching screenshot
@@ -208,11 +215,11 @@ fun ShopkeeperSignInScreen(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .background(PeachContainer)
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                        .padding(horizontal = if (isSmallMobile) 10.dp else 14.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = "SHOPKEEPER",
-                        fontSize = 11.sp,
+                        fontSize = if (isSmallMobile) 10.sp else 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = OrangeDark,
                         letterSpacing = 0.8.sp
@@ -220,12 +227,12 @@ fun ShopkeeperSignInScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(if (isSmallMobile) 6.dp else 10.dp))
 
             // Center Circular Store Icon Badge
             Box(
                 modifier = Modifier
-                    .size(92.dp)
+                    .size(if (isSmallMobile) 64.dp else 84.dp)
                     .clip(CircleShape)
                     .background(PeachContainer),
                 contentAlignment = Alignment.Center
@@ -234,7 +241,7 @@ fun ShopkeeperSignInScreen(
                     imageVector = Icons.Default.Storefront,
                     contentDescription = "Shopkeeper Store",
                     tint = OrangePrimary,
-                    modifier = Modifier.size(50.dp)
+                    modifier = Modifier.size(if (isSmallMobile) 36.dp else 46.dp)
                 )
             }
 

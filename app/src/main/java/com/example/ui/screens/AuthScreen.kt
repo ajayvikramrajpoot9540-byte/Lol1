@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -196,15 +197,15 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             FlashDropLogo(
-                iconSize = 90.dp,
-                showTagline = true,
-                modifier = Modifier.padding(vertical = 8.dp)
+                useTransparentBackground = true,
+                modifier = Modifier.padding(vertical = 6.dp)
             )
 
             // Auth Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .widthIn(max = 480.dp)
                     .testTag("auth_form_card"),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
