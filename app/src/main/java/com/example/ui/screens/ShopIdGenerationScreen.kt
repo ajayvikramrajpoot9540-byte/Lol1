@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -159,26 +160,36 @@ fun ShopIdGenerationScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = if (isCountdownComplete && generatedShop != null) "Shop Registration Completed" else "Generating Your FlashDrop Shop ID",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = TextDark
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isCountdownComplete && generatedShop != null) "Shop Registration Completed" else "Generating Your FlashDrop Shop ID",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = TextDark
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 640.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             // STEP PROGRESS HEADER
             RegistrationProgressHeader(currentStep = 3)
 
@@ -203,12 +214,12 @@ fun ShopIdGenerationScreen(
                         Box(
                             modifier = Modifier
                                 .scale(pulseScale)
-                                .size(90.dp)
+                                .size(80.dp)
                                 .clip(CircleShape)
                                 .background(OrangeLight),
                             contentAlignment = Alignment.Center
                         ) {
-                            FlashDropLogo(iconSize = 64.dp, showTagline = false)
+                            FlashDropLogo(iconSize = 48.dp, showTagline = false)
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
@@ -536,6 +547,7 @@ fun ShopIdGenerationScreen(
             }
         }
     }
+}
 }
 
 @Composable

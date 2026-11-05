@@ -77,6 +77,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -102,6 +103,8 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.Order
 import com.example.data.model.Product
 import com.example.data.model.Shop
+import com.example.data.model.ShopScheduleUtils
+import com.example.data.model.WeeklySchedule
 import com.example.data.repository.FlashDropRepository
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.ui.components.FlashDropCompactLogo
@@ -133,9 +136,16 @@ fun ShopkeeperDashboardScreen(
     val products by repository.products.collectAsState()
     val orders by repository.orders.collectAsState()
     val profile by repository.currentProfile.collectAsState()
+    val schedules by repository.shopSchedules.collectAsState()
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("My Orders", "My Products", "Timing & Schedule", "Shop Profile", "Earnings")
+    val tabs = listOf(
+        "My Orders",
+        "My Products",
+        "Shop Schedule & Auto Opening/Closing",
+        "Shop Profile",
+        "Earnings"
+    )
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -349,45 +359,135 @@ fun ShopkeeperDashboardScreen(
                     .fillMaxWidth()
                     .widthIn(max = 1000.dp)
             ) {
+            val currentShopSchedule = remember(schedules, currentShop) {
+                val sid = currentShop?.id ?: assignedShopId
+                schedules[sid] ?: ShopScheduleUtils.createDefaultWeeklySchedule(sid)
+            }
+            val currentShopLiveStatus = remember(currentShopSchedule) {
+                ShopScheduleUtils.evaluateLiveStatus(currentShopSchedule)
+            }
+
             // Metrics Banner (Revenue & Order Counts for this shop only)
             val deliveredSales = myShopOrders.filter { it.status == "delivered" }.sumOf { it.totalAmount }
             val pendingOrders = myShopOrders.count { it.status in listOf("pending", "accepted", "preparing", "out_for_delivery") }
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = OrangeLight),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Row(
+            if (selectedTabIndex != 2) {
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = OrangeLight),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Active Orders", fontSize = 12.sp, color = TextDark)
-                        Text("$pendingOrders", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = OrangeSecondary)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Active Orders", fontSize = 11.sp, color = TextDark)
+                            Text("$pendingOrders", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = OrangeSecondary)
+                        }
+                        Box(modifier = Modifier.width(1.dp).height(34.dp).background(BorderLight))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Delivered Sales", fontSize = 11.sp, color = TextDark)
+                            Text("₹${deliveredSales.toInt()}", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = GreenPrimary)
+                        }
+                        Box(modifier = Modifier.width(1.dp).height(34.dp).background(BorderLight))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("My Products", fontSize = 11.sp, color = TextDark)
+                            Text("${myShopProducts.size}", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark)
+                        }
                     }
-                    Box(modifier = Modifier.width(1.dp).height(40.dp).background(BorderLight))
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Delivered Sales", fontSize = 12.sp, color = TextDark)
-                        Text("₹${deliveredSales.toInt()}", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = GreenPrimary)
-                    }
-                    Box(modifier = Modifier.width(1.dp).height(40.dp).background(BorderLight))
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("My Products", fontSize = 12.sp, color = TextDark)
-                        Text("${myShopProducts.size}", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark)
+                }
+
+                // Prominent Dashboard Card: Shop Schedule & Auto Opening/Closing
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 8.dp)
+                        .testTag("dashboard_shop_schedule_card"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (currentShopLiveStatus.isOpen) GreenLight.copy(alpha = 0.55f) else Color(0xFFFEF2F2)
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        if (currentShopLiveStatus.isOpen) GreenPrimary.copy(alpha = 0.35f) else Color(0xFFFCA5A5)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.AccessTime,
+                                    contentDescription = null,
+                                    tint = if (currentShopLiveStatus.isOpen) GreenPrimary else Color(0xFFDC2626),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Shop Schedule & Auto Opening/Closing",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = TextDark
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (currentShopLiveStatus.isOpen) GreenPrimary else Color(0xFFDC2626))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = if (currentShopLiveStatus.isOpen) "OPEN" else "CLOSED",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 9.sp
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Hours: ${currentShopSchedule.defaultOpeningTime} – ${currentShopSchedule.defaultClosingTime} • Auto Open: ${if (currentShopSchedule.autoOpeningEnabled) "ON" else "OFF"} • Auto Close: ${if (currentShopSchedule.autoClosingEnabled) "ON" else "OFF"}",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+                            Text(
+                                text = "Est. Delivery: ${currentShopLiveStatus.expectedDeliveryEstimate}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (currentShopLiveStatus.isOpen) GreenPrimary else Color(0xFFB45309)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = { selectedTabIndex = 2 },
+                            colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.testTag("open_shop_schedule_tab_btn")
+                        ) {
+                            Text("Manage", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
 
-            // Tab Row
-            TabRow(
+            // Scrollable Tab Row so all 5 tabs fit cleanly on small & large screens
+            ScrollableTabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color.White,
+                edgePadding = 12.dp,
                 indicator = { tabPositions ->
                     TabRowDefaults.SecondaryIndicator(
                         Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
@@ -426,6 +526,7 @@ fun ShopkeeperDashboardScreen(
                             items(myShopOrders) { order ->
                                 ShopkeeperOrderCard(
                                     order = order,
+                                    shopSchedule = currentShopSchedule,
                                     onUpdateStatus = { nextStatus ->
                                         repository.updateOrderStatus(order.id, nextStatus)
                                         coroutineScope.launch {
@@ -435,7 +536,7 @@ fun ShopkeeperDashboardScreen(
                                     onConfirmLateNight = { deliverToday, time ->
                                         repository.confirmLateNightOrder(order.id, deliverToday, time)
                                         coroutineScope.launch {
-                                            val msg = if (deliverToday) "Confirmed: Delivering today by $time" else "Order scheduled for tomorrow ($time)"
+                                            val msg = if (deliverToday) "Confirmed: Delivering today by $time" else "Order scheduled for next working day ($time)"
                                             snackbarHostState.showSnackbar(msg)
                                         }
                                     }
@@ -1296,12 +1397,26 @@ fun ShopkeeperDashboardScreen(
 @Composable
 fun ShopkeeperOrderCard(
     order: Order,
+    shopSchedule: WeeklySchedule = ShopScheduleUtils.createDefaultWeeklySchedule(order.shopId),
     onUpdateStatus: (String) -> Unit,
     onConfirmLateNight: (Boolean, String) -> Unit = { _, _ -> }
 ) {
     var showLateNightTimeDialog by remember { mutableStateOf(false) }
     var isDeliveringTodayChoice by remember { mutableStateOf(true) }
     var customExpectedTime by remember { mutableStateOf("") }
+    var timeValidationError by remember { mutableStateOf<String?>(null) }
+
+    val defaultTodayEstimate = remember(shopSchedule) {
+        val est = ShopScheduleUtils.calculateExact30MinForward()
+        if (ShopScheduleUtils.isTimeWithinTodayOperatingHours(est, shopSchedule)) {
+            est
+        } else {
+            "Today, ${shopSchedule.defaultClosingTime}"
+        }
+    }
+    val nextWorkingDayEstimate = remember(shopSchedule) {
+        ShopScheduleUtils.calculateNextWorkingDayDeliveryEstimate(shopSchedule).formattedEstimate
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1319,13 +1434,19 @@ fun ShopkeeperOrderCard(
                     Text(order.orderNumber, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Text("Customer: ${order.customerName} (${order.customerPhone})", fontSize = 12.sp, color = TextMuted)
                     Text("Delivery: ${order.deliveryAddress}", fontSize = 12.sp, color = TextDark)
+                    Text(
+                        text = "Expected Delivery: ${order.confirmedDeliveryTime.ifBlank { order.expectedDeliverySlot }}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = GreenPrimary
+                    )
                 }
                 StatusBadge(status = order.status)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // SPECIAL LATE-NIGHT ORDER CONFIRMATION
+            // SECTION 4: INTELLIGENT LATE-NIGHT ORDER MANAGEMENT (within 30 mins before closing)
             if (order.isNearClosingTime && (order.lateNightDecision.isBlank() || order.lateNightDecision.equals("PENDING", ignoreCase = true))) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -1343,7 +1464,7 @@ fun ShopkeeperOrderCard(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Late-Night Order Alert",
+                                text = "Late-Night Order Alert (Near Closing Time: ${shopSchedule.defaultClosingTime})",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
                                 color = Color(0xFFB45309)
@@ -1351,10 +1472,17 @@ fun ShopkeeperOrderCard(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "A new order has arrived near closing time. Can you deliver it today?",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            text = "Can you deliver this order today?",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color(0xFF92400E)
+                        )
+                        Text(
+                            text = "• DELIVER TODAY: Confirm delivery within today's closing time (${shopSchedule.defaultClosingTime}).\n• DELIVER TOMORROW: Automatically schedules for $nextWorkingDayEstimate (Opening + 30 mins).",
+                            fontSize = 11.sp,
+                            color = Color(0xFF92400E),
+                            lineHeight = 15.sp,
+                            modifier = Modifier.padding(top = 2.dp)
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Row(
@@ -1364,29 +1492,35 @@ fun ShopkeeperOrderCard(
                             Button(
                                 onClick = {
                                     isDeliveringTodayChoice = true
-                                    customExpectedTime = "Today, 10:30 PM"
+                                    customExpectedTime = defaultTodayEstimate
+                                    timeValidationError = null
                                     showLateNightTimeDialog = true
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
                                 shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("late_night_deliver_today_${order.id}"),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
                             ) {
-                                Text("YES, Deliver Today", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("DELIVER TODAY", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
 
                             OutlinedButton(
                                 onClick = {
                                     isDeliveringTodayChoice = false
-                                    customExpectedTime = "Tomorrow, 10:00 AM"
+                                    customExpectedTime = nextWorkingDayEstimate
+                                    timeValidationError = null
                                     showLateNightTimeDialog = true
                                 },
                                 shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, Color(0xFFD97706)),
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
+                                border = BorderStroke(1.5.dp, Color(0xFFD97706)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("late_night_deliver_tomorrow_${order.id}"),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
                             ) {
-                                Text("NO, Deliver Tomorrow", fontSize = 11.sp, color = Color(0xFFB45309), fontWeight = FontWeight.Bold)
+                                Text("DELIVER TOMORROW", fontSize = 11.sp, color = Color(0xFFB45309), fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1403,7 +1537,11 @@ fun ShopkeeperOrderCard(
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = if (isToday) "✓ Confirmed: Delivering Today by ${order.confirmedDeliveryTime}" else "📅 Scheduled for Tomorrow. Expected Delivery: ${order.confirmedDeliveryTime}",
+                        text = if (isToday) {
+                            "✓ DELIVER TODAY Confirmed: Expected Delivery by ${order.confirmedDeliveryTime}"
+                        } else {
+                            "📅 DELIVER TOMORROW Scheduled: Expected Delivery ${order.confirmedDeliveryTime}"
+                        },
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isToday) GreenPrimary else Color(0xFF1D4ED8)
@@ -1527,7 +1665,7 @@ fun ShopkeeperOrderCard(
             onDismissRequest = { showLateNightTimeDialog = false },
             title = {
                 Text(
-                    text = if (isDeliveringTodayChoice) "Confirm Delivery Time Today" else "Schedule Delivery Tomorrow",
+                    text = if (isDeliveringTodayChoice) "Confirm Delivery Today" else "Schedule Delivery for Next Working Day",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     color = TextDark
@@ -1537,9 +1675,9 @@ fun ShopkeeperOrderCard(
                 Column {
                     Text(
                         text = if (isDeliveringTodayChoice) {
-                            "Customer will be notified of this confirmed delivery time tonight in Mahoba:"
+                            "Confirm expected delivery time within your shop's working hours today (${shopSchedule.defaultOpeningTime} – ${shopSchedule.defaultClosingTime}):"
                         } else {
-                            "This order will be automatically scheduled for tomorrow. Customer will receive this updated delivery schedule:"
+                            "This order will be automatically scheduled for the next working day (Opening Time + 30 minutes) and displayed to the customer:"
                         },
                         fontSize = 12.sp,
                         color = TextMuted
@@ -1548,21 +1686,35 @@ fun ShopkeeperOrderCard(
 
                     OutlinedTextField(
                         value = customExpectedTime,
-                        onValueChange = { customExpectedTime = it },
-                        label = { Text("Expected Delivery Slot / Time") },
+                        onValueChange = {
+                            customExpectedTime = it
+                            timeValidationError = null
+                        },
+                        label = { Text("Expected Delivery Time") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
-                        singleLine = true
+                        singleLine = true,
+                        isError = timeValidationError != null
                     )
+
+                    if (timeValidationError != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = timeValidationError!!,
+                            fontSize = 11.sp,
+                            color = Color(0xFFDC2626),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Text("Quick Suggestions:", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
+                    Text("Recommended Schedule Options:", fontSize = 11.sp, color = TextMuted, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(4.dp))
                     val suggestions = if (isDeliveringTodayChoice) {
-                        listOf("Today, 10:15 PM", "Today, 10:30 PM", "Today, 11:00 PM")
+                        listOf(defaultTodayEstimate, "Today, ${shopSchedule.defaultClosingTime}").distinct()
                     } else {
-                        listOf("Tomorrow, 10:00 AM", "Tomorrow, 11:30 AM", "Tomorrow, 1:00 PM")
+                        listOf(nextWorkingDayEstimate)
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1571,7 +1723,10 @@ fun ShopkeeperOrderCard(
                         suggestions.forEach { slot ->
                             FilterChip(
                                 selected = customExpectedTime == slot,
-                                onClick = { customExpectedTime = slot },
+                                onClick = {
+                                    customExpectedTime = slot
+                                    timeValidationError = null
+                                },
                                 label = { Text(slot, fontSize = 10.sp) },
                                 shape = RoundedCornerShape(6.dp)
                             )
@@ -1582,13 +1737,21 @@ fun ShopkeeperOrderCard(
             confirmButton = {
                 Button(
                     onClick = {
+                        if (isDeliveringTodayChoice && !ShopScheduleUtils.isTimeWithinTodayOperatingHours(customExpectedTime, shopSchedule)) {
+                            timeValidationError = "Delivery time must fall within today's operating hours (${shopSchedule.defaultOpeningTime} – ${shopSchedule.defaultClosingTime})."
+                            return@Button
+                        }
                         onConfirmLateNight(isDeliveringTodayChoice, customExpectedTime)
                         showLateNightTimeDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = if (isDeliveringTodayChoice) GreenPrimary else OrangeSecondary),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Confirm Delivery Schedule", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(
+                        text = if (isDeliveringTodayChoice) "Confirm DELIVER TODAY" else "Confirm DELIVER TOMORROW",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
                 }
             },
             dismissButton = {

@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -156,20 +157,7 @@ fun AdminAddShopScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(OrangeLight),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Storefront,
-                                contentDescription = null,
-                                tint = OrangeSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
@@ -202,16 +190,22 @@ fun AdminAddShopScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 680.dp)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             // Main Admin Authorization Card
             Card(
                 modifier = Modifier
@@ -829,6 +823,7 @@ fun AdminAddShopScreen(
             }
         }
     }
+}
 }
 
 @Composable

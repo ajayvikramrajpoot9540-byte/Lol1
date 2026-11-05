@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -91,17 +92,28 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import com.example.data.model.CartItem
 import com.example.data.model.Product
 import com.example.data.model.Shop
 import com.example.data.model.ShopLiveStatus
 import com.example.data.repository.ApnaBazRepository
 import com.example.ui.components.BottomNavBar
+import com.example.ui.components.CameraVisualSearchEngine
+import com.example.ui.components.LowestPriceFirstBadge
 import com.example.ui.components.NotificationBellButton
 import com.example.ui.components.RoleSwitchBadge
+import com.example.ui.components.SearchBarCameraTrailingActions
+import com.example.ui.components.VisualSearchStatusBanner
+import com.example.ui.components.VisualSearchUiState
 import com.example.ui.navigation.Screen
 import com.example.ui.util.ScreenType
 import com.example.ui.util.rememberScreenType
+import com.example.util.rememberCameraManager
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.BorderLight
 import com.example.ui.theme.GoldRating
@@ -126,8 +138,12 @@ fun HomeScreen(
     val cartItems by repository.cartItems.collectAsState()
     val profile by repository.currentProfile.collectAsState()
     val deliveryConfig by repository.deliveryConfig.collectAsState()
+    val schedules by repository.shopSchedules.collectAsState()
+    val context = LocalContext.current
 
     var searchQuery by remember { mutableStateOf("") }
+    var visualSearchState by remember { mutableStateOf<VisualSearchUiState>(VisualSearchUiState.Idle) }
+    var lastCapturedSearchUri by remember { mutableStateOf<Uri?>(null) }
     var selectedLocality by remember { mutableStateOf(profile.locality) }
     var showAddressManagementDialog by remember { mutableStateOf(false) }
     var locationMenuExpanded by remember { mutableStateOf(false) }
@@ -141,6 +157,43 @@ fun HomeScreen(
 
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    fun triggerVisualProductSearch(uri: Uri) {
+        lastCapturedSearchUri = uri
+        visualSearchState = VisualSearchUiState.Loading(uri)
+        coroutineScope.launch {
+            val state = CameraVisualSearchEngine.analyzeProductPhoto(
+                context = context,
+                imageUri = uri,
+                catalogProducts = products
+            )
+            visualSearchState = state
+            if (state is VisualSearchUiState.Success) {
+                if (state.matchedProductsSortedByLowestPrice.isNotEmpty()) {
+                    searchQuery = state.searchQuery
+                } else {
+                    searchQuery = state.detectedItemName
+                }
+            }
+        }
+    }
+
+    val searchCameraManager = rememberCameraManager(
+        onImageCaptured = { uri ->
+            triggerVisualProductSearch(uri)
+        },
+        onError = { err ->
+            visualSearchState = VisualSearchUiState.Error(lastCapturedSearchUri, err)
+        }
+    )
+
+    val searchGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            triggerVisualProductSearch(uri)
+        }
+    }
 
     var dynamicApprovedCount by remember { mutableStateOf<Int?>(null) }
     var isLoadingShopCount by remember { mutableStateOf(true) }
@@ -172,11 +225,25 @@ fun HomeScreen(
         }
     }
 
-    val filteredProducts = remember(products, searchQuery) {
-        if (searchQuery.isBlank()) products.take(8)
-        else products.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.category.contains(searchQuery, ignoreCase = true)
+    val isSearchOrPhotoActive = searchQuery.isNotBlank() || visualSearchState is VisualSearchUiState.Success
+
+    val filteredProducts = remember(products, searchQuery, visualSearchState) {
+        if (!isSearchOrPhotoActive) {
+            products.take(8)
+        } else {
+            CameraVisualSearchEngine.filterAndRankByLowestPrice(
+                allProducts = products,
+                query = searchQuery,
+                visualState = visualSearchState
+            )
+        }
+    }
+
+    val lowestPriceProductId = remember(filteredProducts, isSearchOrPhotoActive) {
+        if (isSearchOrPhotoActive) {
+            filteredProducts.firstOrNull { it.inStock }?.id ?: filteredProducts.firstOrNull()?.id
+        } else {
+            null
         }
     }
 
@@ -192,7 +259,9 @@ fun HomeScreen(
                 shadowElevation = 1.dp
             ) {
                 Box(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding(),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
@@ -200,8 +269,8 @@ fun HomeScreen(
                             .fillMaxWidth()
                             .widthIn(max = 1000.dp)
                             .padding(
-                                horizontal = if (isSmallMobile) 10.dp else 16.dp,
-                                vertical = if (isSmallMobile) 6.dp else 10.dp
+                                horizontal = if (isSmallMobile) 12.dp else 16.dp,
+                                vertical = if (isSmallMobile) 8.dp else 10.dp
                             ),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -347,7 +416,8 @@ fun HomeScreen(
                     }
                 }
             }
-        },
+        }
+    },
         bottomBar = {
             val allOrders = repository.orders.collectAsState().value
             val activeOrders = allOrders.count {
@@ -385,20 +455,27 @@ fun HomeScreen(
                     .widthIn(max = 1000.dp),
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
-            // Search Bar
+            // Search Bar with Camera Photo Search
             item {
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    onValueChange = {
+                        searchQuery = it
+                        if (it.isBlank() && visualSearchState is VisualSearchUiState.Success) {
+                            visualSearchState = VisualSearchUiState.Idle
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp)
                         .testTag("home_search_input"),
                     placeholder = {
                         Text(
-                            "Search for products or shops in Mahoba...",
+                            "Search or click camera photo of product...",
                             color = TextMuted,
-                            fontSize = 14.sp
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     },
                     leadingIcon = {
@@ -406,6 +483,24 @@ fun HomeScreen(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
                             tint = GreenPrimary
+                        )
+                    },
+                    trailingIcon = {
+                        SearchBarCameraTrailingActions(
+                            hasActiveQueryOrPhoto = searchQuery.isNotBlank() || visualSearchState !is VisualSearchUiState.Idle,
+                            isAnalyzingPhoto = visualSearchState is VisualSearchUiState.Loading,
+                            onClear = {
+                                searchQuery = ""
+                                visualSearchState = VisualSearchUiState.Idle
+                            },
+                            onLaunchCamera = {
+                                searchCameraManager.launchCamera()
+                            },
+                            onPickFromGallery = {
+                                searchGalleryLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
                         )
                     },
                     shape = RoundedCornerShape(16.dp),
@@ -417,6 +512,79 @@ fun HomeScreen(
                     ),
                     singleLine = true
                 )
+
+                VisualSearchStatusBanner(
+                    state = visualSearchState,
+                    onClear = {
+                        visualSearchState = VisualSearchUiState.Idle
+                        searchQuery = ""
+                    },
+                    onRetry = {
+                        lastCapturedSearchUri?.let { triggerVisualProductSearch(it) }
+                    }
+                )
+            }
+
+            // Immediate Lowest-Price-First Search Results right below Search Bar when user searches or clicks a photo
+            if (isSearchOrPhotoActive) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (visualSearchState is VisualSearchUiState.Success) {
+                                    "Available Matches (Least Price First)"
+                                } else {
+                                    "Search Results (Least Price First)"
+                                },
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark
+                            )
+                            Text(
+                                text = if (filteredProducts.isNotEmpty()) {
+                                    "Sorted by lowest rate first • Cheapest available at the top"
+                                } else {
+                                    "No matching product available in store right now"
+                                },
+                                fontSize = 11.sp,
+                                color = if (filteredProducts.isNotEmpty()) GreenPrimary else Color(0xFFB45309),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
+                items(filteredProducts) { product ->
+                    val shopLive = remember(schedules, product.shopId) {
+                        repository.getShopLiveStatus(product.shopId)
+                    }
+                    HomeProductRowItem(
+                        product = product,
+                        isShopOpen = shopLive.isOpen,
+                        shopStatusLabel = shopLive.statusLabel,
+                        expectedDelivery = shopLive.expectedDeliveryEstimate,
+                        isLowestPriceHighlight = product.id == lowestPriceProductId,
+                        onItemClick = { onProductSelected(product.id) },
+                        onAddToCart = {
+                            if (shopLive.isOpen) {
+                                repository.addToCart(product)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Added ${product.name} to cart")
+                                }
+                            } else {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Shop is currently CLOSED (${shopLive.nextOpeningTime})")
+                                }
+                            }
+                        }
+                    )
+                }
             }
 
             // Promotional Banner matching layout.png
@@ -608,7 +776,7 @@ fun HomeScreen(
 
             // Recommended Products List
             if (isTablet) {
-                val productPairs = remember(filteredProducts) { filteredProducts.chunked(2) }
+                val productPairs = filteredProducts.chunked(2)
                 items(productPairs) { pair ->
                     Row(
                         modifier = Modifier
@@ -617,14 +785,27 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         pair.forEach { product ->
+                            val shopLive = remember(schedules, product.shopId) {
+                                repository.getShopLiveStatus(product.shopId)
+                            }
                             Box(modifier = Modifier.weight(1f)) {
                                 HomeProductRowItem(
                                     product = product,
+                                    isShopOpen = shopLive.isOpen,
+                                    shopStatusLabel = shopLive.statusLabel,
+                                    expectedDelivery = shopLive.expectedDeliveryEstimate,
+                                    isLowestPriceHighlight = product.id == lowestPriceProductId,
                                     onItemClick = { onProductSelected(product.id) },
                                     onAddToCart = {
-                                        repository.addToCart(product)
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Added ${product.name} to cart")
+                                        if (shopLive.isOpen) {
+                                            repository.addToCart(product)
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("Added ${product.name} to cart")
+                                            }
+                                        } else {
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("Shop is currently CLOSED (${shopLive.nextOpeningTime})")
+                                            }
                                         }
                                     }
                                 )
@@ -637,13 +818,26 @@ fun HomeScreen(
                 }
             } else {
                 items(filteredProducts) { product ->
+                    val shopLive = remember(schedules, product.shopId) {
+                        repository.getShopLiveStatus(product.shopId)
+                    }
                     HomeProductRowItem(
                         product = product,
+                        isShopOpen = shopLive.isOpen,
+                        shopStatusLabel = shopLive.statusLabel,
+                        expectedDelivery = shopLive.expectedDeliveryEstimate,
+                        isLowestPriceHighlight = product.id == lowestPriceProductId,
                         onItemClick = { onProductSelected(product.id) },
                         onAddToCart = {
-                            repository.addToCart(product)
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Added ${product.name} to cart")
+                            if (shopLive.isOpen) {
+                                repository.addToCart(product)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Added ${product.name} to cart")
+                                }
+                            } else {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Shop is currently CLOSED (${shopLive.nextOpeningTime})")
+                                }
                             }
                         }
                     )
@@ -689,7 +883,7 @@ fun ShopCardItem(
 ) {
     Card(
         modifier = Modifier
-            .width(200.dp)
+            .width(210.dp)
             .clickable(onClick = onClick)
             .testTag("shop_card_${shop.id}"),
         shape = RoundedCornerShape(16.dp),
@@ -708,20 +902,38 @@ fun ShopCardItem(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
+                // GREEN OPEN / RED CLOSED badge
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (liveStatus.isOpen) GreenPrimary else Color(0xFFDC2626))
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = if (liveStatus.isOpen) "OPEN" else "CLOSED",
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
                 // Delivery time badge
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(6.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color.Black.copy(alpha = 0.7f))
+                        .background(Color.Black.copy(alpha = 0.72f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = shop.deliveryTime,
+                        text = liveStatus.expectedDeliveryEstimate.ifBlank { shop.deliveryTime },
                         color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -757,12 +969,25 @@ fun ShopCardItem(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (liveStatus.isOpen) "Open" else "Closed",
+                        text = if (liveStatus.isOpen) "OPEN" else "CLOSED",
                         color = if (liveStatus.isOpen) GreenPrimary else Color(0xFFDC2626),
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = if (liveStatus.isOpen) {
+                        "Closes: ${liveStatus.closingTimeToday}"
+                    } else {
+                        "Opens: ${liveStatus.nextOpeningTime}"
+                    },
+                    fontSize = 10.sp,
+                    color = if (liveStatus.isOpen) GreenPrimary else Color(0xFFDC2626),
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -771,6 +996,10 @@ fun ShopCardItem(
 @Composable
 fun HomeProductRowItem(
     product: Product,
+    isShopOpen: Boolean = true,
+    shopStatusLabel: String = "",
+    expectedDelivery: String = "",
+    isLowestPriceHighlight: Boolean = false,
     onItemClick: () -> Unit,
     onAddToCart: () -> Unit
 ) {
@@ -781,8 +1010,11 @@ fun HomeProductRowItem(
             .clickable(onClick = onItemClick)
             .testTag("product_item_${product.id}"),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isLowestPriceHighlight) Color(0xFFF0FDF4) else Color.White
+        ),
+        border = if (isLowestPriceHighlight) androidx.compose.foundation.BorderStroke(1.5.dp, GreenPrimary) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isLowestPriceHighlight) 2.dp else 1.dp)
     ) {
         Row(
             modifier = Modifier
@@ -800,6 +1032,9 @@ fun HomeProductRowItem(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
+                if (isLowestPriceHighlight) {
+                    LowestPriceFirstBadge(modifier = Modifier.padding(bottom = 3.dp))
+                }
                 Text(
                     text = product.name,
                     fontWeight = FontWeight.Bold,
@@ -808,12 +1043,40 @@ fun HomeProductRowItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = "${product.shopName} • ${product.unit}",
-                    fontSize = 12.sp,
-                    color = TextMuted,
-                    maxLines = 1
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${product.shopName} • ${product.unit}",
+                        fontSize = 11.sp,
+                        color = TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (isShopOpen) GreenLight else Color(0xFFFEE2E2))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = if (isShopOpen) "OPEN" else "CLOSED",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isShopOpen) GreenPrimary else Color(0xFFDC2626)
+                        )
+                    }
+                }
+                if (expectedDelivery.isNotBlank()) {
+                    Text(
+                        text = if (isShopOpen) "Est. Delivery: $expectedDelivery" else "$shopStatusLabel",
+                        fontSize = 10.sp,
+                        color = if (isShopOpen) GreenPrimary else Color(0xFFDC2626),
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -844,7 +1107,23 @@ fun HomeProductRowItem(
                     }
                 }
             }
-            if (product.inStock) {
+            if (!isShopOpen) {
+                Button(
+                    onClick = {},
+                    enabled = false,
+                    modifier = Modifier
+                        .testTag("add_to_cart_${product.id}")
+                        .height(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        disabledContainerColor = Color(0xFFFEE2E2),
+                        disabledContentColor = Color(0xFFDC2626)
+                    ),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                ) {
+                    Text("Closed", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            } else if (product.inStock) {
                 Button(
                     onClick = onAddToCart,
                     modifier = Modifier

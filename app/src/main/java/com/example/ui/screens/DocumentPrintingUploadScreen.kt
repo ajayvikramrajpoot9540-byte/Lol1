@@ -385,12 +385,16 @@ fun DocumentPrintingUploadScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Document Printing",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = TextDark
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Document Printing",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = TextDark
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(

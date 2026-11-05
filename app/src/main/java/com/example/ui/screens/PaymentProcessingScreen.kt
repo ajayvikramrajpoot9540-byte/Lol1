@@ -18,9 +18,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -85,6 +88,8 @@ fun PaymentProcessingScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(24.dp)
             .testTag("payment_processing_screen"),
         contentAlignment = Alignment.Center
@@ -92,12 +97,13 @@ fun PaymentProcessingScreen(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 520.dp)
         ) {
             FlashDropLogo(
-                iconSize = 76.dp,
-                showTagline = true,
-                modifier = Modifier.padding(bottom = 36.dp)
+                useTransparentBackground = true,
+                modifier = Modifier.padding(bottom = 24.dp)
             )
 
             // Dynamic Gradient Circular Loader

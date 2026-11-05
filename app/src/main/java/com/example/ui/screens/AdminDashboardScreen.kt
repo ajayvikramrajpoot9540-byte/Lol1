@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -89,7 +90,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Product
 import com.example.data.model.Shop
+import com.example.data.model.ShopScheduleUtils
 import com.example.data.model.ShopkeeperAccount
+import com.example.data.model.WeeklySchedule
 import com.example.data.repository.FlashDropRepository
 import com.example.ui.screens.admin.DeliveryChargeSettingsSection
 import com.example.ui.screens.admin.ShopVerificationSettingsSection
@@ -124,6 +127,7 @@ fun AdminDashboardScreen(
     val currentProfile by repository.currentProfile.collectAsState()
     val shopkeepers by repository.shopkeepers.collectAsState()
     val pendingActions by repository.pendingAdminActions.collectAsState()
+    val shopSchedules by repository.shopSchedules.collectAsState()
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Payments", "Delivery Settings", "Shop Verification & Settings", "Overview", "All Shops", "All Products", "All Orders", "Shopkeepers & Security")
@@ -136,6 +140,7 @@ fun AdminDashboardScreen(
     var showAddShopDialog by remember { mutableStateOf(false) }
     var showEditProductDialog by remember { mutableStateOf<Product?>(null) }
     var showTwoOwnerSafeguardDialog by remember { mutableStateOf(false) }
+    var viewingShopSchedule by remember { mutableStateOf<Pair<Shop, WeeklySchedule>?>(null) }
 
     // Delivery settings inputs
     var feeInput by remember { mutableStateOf(deliveryConfig.defaultDeliveryFee.toInt().toString()) }
@@ -895,6 +900,13 @@ fun AdminDashboardScreen(
                                     shop.status.equals("pending_approval", ignoreCase = true) ||
                                     (!shop.isOpen && !shop.status.equals("approved", ignoreCase = true) && !shop.status.equals("rejected", ignoreCase = true) && !shop.status.equals("suspended", ignoreCase = true))
 
+                            val schedule = remember(shopSchedules, shop.id) {
+                                shopSchedules[shop.id] ?: ShopScheduleUtils.createDefaultWeeklySchedule(shop.id)
+                            }
+                            val liveStatus = remember(schedule) {
+                                ShopScheduleUtils.evaluateLiveStatus(schedule)
+                            }
+
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(14.dp),
@@ -913,8 +925,8 @@ fun AdminDashboardScreen(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Text(shop.name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextDark)
+                                                Spacer(modifier = Modifier.width(6.dp))
                                                 if (isPending) {
-                                                    Spacer(modifier = Modifier.width(6.dp))
                                                     Box(
                                                         modifier = Modifier
                                                             .clip(RoundedCornerShape(6.dp))
@@ -922,6 +934,20 @@ fun AdminDashboardScreen(
                                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                                     ) {
                                                         Text("Pending Review", fontSize = 10.sp, color = OrangeSecondary, fontWeight = FontWeight.Bold)
+                                                    }
+                                                } else {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(6.dp))
+                                                            .background(if (liveStatus.isOpen) GreenPrimary else Color(0xFFDC2626))
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = if (liveStatus.isOpen) "OPEN" else "CLOSED",
+                                                            fontSize = 9.sp,
+                                                            color = Color.White,
+                                                            fontWeight = FontWeight.ExtraBold
+                                                        )
                                                     }
                                                 }
                                             }
@@ -938,17 +964,87 @@ fun AdminDashboardScreen(
                                         if (!isPending) {
                                             Column(horizontalAlignment = Alignment.End) {
                                                 Text(
-                                                    text = if (shop.isOpen) "Open" else "Suspended",
-                                                    fontSize = 11.sp,
+                                                    text = if (schedule.isTemporarilyClosed) "Temp. Disabled" else if (liveStatus.isOpen) "Active (Open)" else "Closed by Schedule",
+                                                    fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = if (shop.isOpen) GreenPrimary else Color.Red
+                                                    color = if (schedule.isTemporarilyClosed) Color.Red else if (liveStatus.isOpen) GreenPrimary else Color(0xFFD97706)
                                                 )
                                                 Spacer(modifier = Modifier.height(4.dp))
                                                 StockToggleSwitch(
-                                                    checked = shop.isOpen,
-                                                    onCheckedChange = { repository.toggleShopStatus(shop.id) },
+                                                    checked = !schedule.isTemporarilyClosed && shop.isOpen,
+                                                    onCheckedChange = { shouldEnable ->
+                                                        // Temporarily disable/enable without overwriting shopkeeper's custom weekly schedule
+                                                        repository.setTemporaryShopClosure(shop.id, !shouldEnable)
+                                                        coroutineScope.launch {
+                                                            val msg = if (shouldEnable) {
+                                                                "${shop.name} re-enabled (custom schedule preserved)"
+                                                            } else {
+                                                                "${shop.name} temporarily disabled (custom schedule preserved)"
+                                                            }
+                                                            snackbarHostState.showSnackbar(msg)
+                                                        }
+                                                    },
                                                     modifier = Modifier.testTag("admin_shop_status_switch_${shop.id}")
                                                 )
+                                            }
+                                        }
+                                    }
+
+                                    // SECTION 7: ADMIN SCHEDULE & AUTO OPENING/CLOSING OVERVIEW
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(BackgroundWarm)
+                                            .border(1.dp, BorderLight, RoundedCornerShape(10.dp))
+                                            .padding(10.dp)
+                                    ) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Schedule: ${schedule.defaultOpeningTime} – ${schedule.defaultClosingTime}",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = TextDark
+                                                )
+                                                Text(
+                                                    text = "Auto Open: ${if (schedule.autoOpeningEnabled) "ON" else "OFF"} • Auto Close: ${if (schedule.autoClosingEnabled) "ON" else "OFF"}",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = GreenPrimary
+                                                )
+                                            }
+                                            Text(
+                                                text = "Availability: ${liveStatus.statusLabel} • Est. Delivery: ${liveStatus.expectedDeliveryEstimate}",
+                                                fontSize = 11.sp,
+                                                color = TextDark
+                                            )
+                                            Text(
+                                                text = "Next Open: ${liveStatus.nextOpeningTime} • Next Close: ${liveStatus.nextClosingTime}",
+                                                fontSize = 10.sp,
+                                                color = TextMuted
+                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Updated by: ${schedule.updatedBy.ifBlank { "system" }}",
+                                                    fontSize = 10.sp,
+                                                    color = TextMuted
+                                                )
+                                                TextButton(
+                                                    onClick = { viewingShopSchedule = shop to schedule },
+                                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                                                ) {
+                                                    Text("View Weekly Schedule", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = OrangeSecondary)
+                                                }
                                             }
                                         }
                                     }
@@ -1013,6 +1109,85 @@ fun AdminDashboardScreen(
                                 }
                             }
                         }
+                    }
+
+                    // Admin Weekly Schedule Viewer Dialog (Read-only schedule inspection + non-destructive temporary toggle)
+                    viewingShopSchedule?.let { (inspectedShop, inspectedSchedule) ->
+                        val inspectedLive = ShopScheduleUtils.evaluateLiveStatus(inspectedSchedule)
+                        AlertDialog(
+                            onDismissRequest = { viewingShopSchedule = null },
+                            title = {
+                                Column {
+                                    Text(
+                                        text = "${inspectedShop.name} – Schedule Details",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        color = TextDark
+                                    )
+                                    Text(
+                                        text = "Shopkeeper's custom schedule is protected from accidental overwrite",
+                                        fontSize = 11.sp,
+                                        color = GreenPrimary
+                                    )
+                                }
+                            },
+                            text = {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "Default Hours: ${inspectedSchedule.defaultOpeningTime} – ${inspectedSchedule.defaultClosingTime}",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextDark
+                                    )
+                                    Text(
+                                        text = "Auto Opening: ${if (inspectedSchedule.autoOpeningEnabled) "ON" else "OFF"} • Auto Closing: ${if (inspectedSchedule.autoClosingEnabled) "ON" else "OFF"}",
+                                        fontSize = 12.sp,
+                                        color = TextDark
+                                    )
+                                    Text(
+                                        text = "Manual Mode: ${inspectedSchedule.manualOverride} • Temp Closed: ${if (inspectedSchedule.isTemporarilyClosed) "YES" else "NO"}",
+                                        fontSize = 12.sp,
+                                        color = TextMuted
+                                    )
+                                    Text(
+                                        text = "Current Live Status: ${if (inspectedLive.isOpen) "OPEN" else "CLOSED"} (${inspectedLive.statusLabel})",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (inspectedLive.isOpen) GreenPrimary else Color(0xFFDC2626)
+                                    )
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = BorderLight)
+                                    Text("7-Day Custom Weekly Schedule:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextDark)
+                                    inspectedSchedule.days.forEach { d ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(d.dayOfWeek, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = TextDark)
+                                            Text(
+                                                text = if (d.isOpen) "${d.openingTime} – ${d.closingTime} (ON)" else "Closed / Holiday (OFF)",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = if (d.isOpen) GreenPrimary else Color(0xFFDC2626)
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = { viewingShopSchedule = null },
+                                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Close", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        )
                     }
                 }
 

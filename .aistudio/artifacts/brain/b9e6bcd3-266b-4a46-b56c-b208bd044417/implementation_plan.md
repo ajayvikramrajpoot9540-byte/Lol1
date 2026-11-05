@@ -1,153 +1,171 @@
-# FlashDrop: Admin-Controlled Multi-Shop Delivery Charge & Free Delivery System
+# FlashDrop – Advanced Smart Delivery & Shop Schedule Management System
 
-Comprehensive implementation plan for the delivery charge management system in the FlashDrop Android application, controlled exclusively and equally by Main Admins **Pranjal Rajpoot** and **Chanchal Didi**.
+Comprehensive plan to implement the advanced delivery time calculation, shopkeeper-controlled opening/closing schedule, 7-day custom weekly timetable, late-night order flow, and customer availability gating across the FlashDrop Android application, strictly adhering to the 6-page specification PDF.
 
 ---
 
 ### User Review & Critical Decisions
 
 > [!IMPORTANT]
-> **Equal Main Admin Authorization**: Access to and modification of the Delivery Charge Settings section is strictly restricted to verified Main Admins (Pranjal Rajpoot and Chanchal Didi). Backend verification in `ApnaBazRepository` and `firestore.rules` ensures neither Customers nor Shopkeepers can alter delivery rules or fee structures.
+> **Confirmed Choices from Phase 1 Clarification**:
+> - **Late-Night Trigger Window**: Orders placed within **30 minutes before shop closing** (e.g., 9:30 PM for a 10:00 PM closing) will trigger the late-night delivery prompt (*"Can you deliver this order today?"*) in the Shopkeeper Dashboard.
+> - **Navigation Placement**: The new **"Shop Schedule & Auto Opening/Closing"** page will be accessible through both a **prominent quick-access dashboard card** on the Shopkeeper Dashboard and a **direct navigation menu item**.
 
-- **Decision 1 (Default Distance Tiers & Max Limit)**:
-  - 0–2 km: **₹10**
-  - >2 km to 5 km: **₹20**
-  - >5 km to 10 km: **₹40**
-  - >10 km: **₹70**
-  - Maximum permitted delivery distance: **15 km** (configurable by Main Admins; orders with any shop exceeding this distance are blocked at checkout with an informative explanation).
-- **Decision 2 (Three Configurable Free-Delivery Policies)**:
-  1. `MIN_ORDER_THRESHOLD`: Free delivery when order product subtotal reaches an editable threshold (**₹199** by default).
-  2. `NO_FREE_DELIVERY`: Distance-based delivery rates apply on all orders regardless of cart value.
-  3. `MANUAL_TOGGLE`: Main Admins can toggle free delivery ON or OFF instantly via a master switch.
-- **Decision 3 (Multi-Shop Routing & Charges)**:
-  - When cart items originate from multiple shops, route distances are determined per shop (based on shop coordinates to customer address coordinates).
-  - Delivery charges are computed separately for each shop according to the active distance tiers.
-  - If the active free-delivery policy applies, the full combined delivery amount is discounted, showing a transparent line-item discount to prevent confusion or duplicate charges.
-- **Decision 4 (Server-Validated Immutable Order Snapshot)**:
-  - All totals, shop-level distances, delivery charges, discounts, and payable amounts are validated and calculated by trusted repository logic on checkout—never trusting raw client amounts.
-  - A complete `DeliverySnapshot` is embedded in the Firestore `orders` document, guaranteeing that future changes to delivery settings never alter historical order records.
+- **Accurate 30-Minute Forward Calculation**: The default expected delivery time is calculated strictly as **current time + 30 minutes in Indian Standard Time (`Asia/Kolkata`)**, handling midnight transitions (e.g., 11:45 PM -> 12:15 AM Tomorrow) and shop working hours.
+- **Operating Schedule Respect**: Deliveries will never promise a time outside of the shop's operating schedule. If an order arrives after closing or is deferred to tomorrow, expected delivery will be calculated as **next opening time + 30 minutes** (e.g., 10:00 AM next working day -> 10:30 AM Tomorrow).
+- **Dual Schedule Management**: Includes both the **Master Settings Table** (Shop Opening/Closing time, Auto-Opening ON/OFF, Auto-Closing ON/OFF, Manual Override) and the **Custom Weekly Timetable** (Monday–Sunday independent times and ON/OFF day toggles).
 
 ---
 
-### 1. Architecture & Component Workflow
+### 1. Overview & Core Concept
+
+- **What It Does**: Empowers shopkeepers in Mahoba to control their operating schedules, automated opening/closing behaviors, and late-night order handling, while providing customers with honest, real-time availability and exact 30-minute delivery estimates in IST.
+- **Target Audience / Persona**:
+  - **Shopkeepers**: Easily set working hours, toggle auto-opening/closing, manage weekly holidays, and handle late-night orders with 1-tap options ("Deliver Today" vs "Deliver Tomorrow").
+  - **Customers**: Clear visibility into whether a shop is open or closed, when it opens next, accurate expected delivery times, and prevention of dead-end orders when a shop is closed.
+  - **Admins (Pranjal Rajpoot & Chanchal Didi)**: Centralized visibility into all shop schedules and availability with override capabilities.
+- **Key Value**: Eliminates unrealistic delivery promises, prevents customer frustration from closed shops, and streamlines shopkeeper operations.
+
+---
+
+### 2. User Experience & Visual Design
+
+#### A. Shopkeeper Dashboard: "Shop Schedule & Auto Opening/Closing" Screen
+1. **Header & Live IST Status Banner**:
+   - Status badge: Bright Green `OPEN – Accepting Orders` or Red `CLOSED – Opens Today/Tomorrow at HH:MM AM/PM`.
+   - Subtitle: Current Mahoba time in IST (`Asia/Kolkata`), updating automatically.
+2. **Schedule Management Table (Master Settings)**:
+   - Formatted as a structured, responsive table card:
+     | Setting | Current Value | Interactive Control |
+     | :--- | :--- | :--- |
+     | **Shop Opening Time** | 10:00 AM (default) | [Edit] time picker |
+     | **Shop Closing Time** | 10:00 PM (default) | [Edit] time picker |
+     | **Automatic Opening** | ON / OFF | Accessible M3 Switch |
+     | **Automatic Closing** | ON / OFF | Accessible M3 Switch |
+     | **Manual Shop Status**| Open / Closed | [Change] Toggle Button |
+     | **Current Shop Status**| Live Calculated | View-only pill badge |
+     | **Next Opening Time** | Auto Computed | View-only timestamp |
+     | **Next Closing Time** | Auto Computed | View-only timestamp |
+3. **Custom Weekly Shop Schedule (7 Days)**:
+   - Monday to Sunday list/table where each day has:
+     - Day name & calendar icon.
+     - Individual Opening time & Closing time buttons.
+     - Day ON/OFF switch (e.g., Sunday toggle OFF for weekly holiday).
+   - "Save Weekly Schedule" primary button (`GreenPrimary`) with loading and success feedback.
+4. **Intelligent Late-Night Order Modal/Banner**:
+   - For orders placed within 30 minutes of closing (e.g., 9:30 PM for a 10:00 PM close):
+     - Alert: *"Late-Night Order Received! Can you deliver this order today?"*
+     - Action 1: **DELIVER TODAY** -> Shopkeeper sets/confirms delivery time within working hours (e.g., 9:55 PM).
+     - Action 2: **DELIVER TOMORROW** -> Automatically calculates next working day opening time + 30 mins (e.g., 10:30 AM Tomorrow).
+
+#### B. Customer Interface Updates
+1. **Home & Shop Listing Cards**:
+   - Prominent Green `OPEN` or Red `CLOSED` pill badge.
+   - For closed shops: *"Opens Tomorrow at 10:00 AM"* or *"Opens Monday at 10:00 AM"*.
+2. **Shop Detail & Product Detail**:
+   - Expected Delivery timestamp: e.g., *"Expected Delivery: 9:58 PM"* (when ordered at 9:28 PM).
+   - When delivery is deferred to tomorrow: *"Scheduled for Tomorrow: 10:30 AM"*.
+   - When closed: "Add to Cart" and "Order Now" buttons disabled with descriptive text *"Shop is currently closed. Opens tomorrow at 10:00 AM"*.
+3. **Checkout Screen**:
+   - Active validation preventing checkout if any shop in the cart is currently closed or outside delivery bounds.
+
+#### C. Admin Portals
+- Admin Dashboard tab displays every registered shop's live status, opening/closing schedule, auto toggles, and emergency override switch.
+
+---
+
+### 3. Key Product Decisions & Trade-Offs
+
+- **Decision 1: IST Timezone Anchoring (`Asia/Kolkata`)**:
+  - *Chosen Approach*: All time calculations use `java.util.TimeZone.getTimeZone("Asia/Kolkata")` and `Calendar` / `java.time` with explicit IST offsets.
+  - *Why*: Ensures that users in different time zones or devices with incorrect clocks always compute shop availability relative to the merchant's physical location in Mahoba, UP.
+- **Decision 2: 30-Minute Forward Engine with Schedule Awareness**:
+  - *Chosen Approach*: `calculateExpectedDelivery(currentTime, shopSchedule)` computes `currentTime + 30 mins`. If this crosses the shop's closing time, or if the shop is currently closed, it advances to the shop's next open day's opening time + 30 minutes.
+  - *Why*: Directly satisfies Section 1 & Section 4 of the prompt while eliminating false delivery promises.
+- **Decision 3: Dual Persistence (Firestore + AppPersistenceManager)**:
+  - *Chosen Approach*: Schedule data is saved to Firestore under `/shops/{shopId}` and cached in `AppPersistenceManager`.
+  - *Why*: Guarantees instant local responsiveness even on poor network connectivity while syncing across devices and surviving app restarts/logouts.
+
+---
+
+### 4. Technical Architecture & Data Strategy
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                   Admin Dashboard (Tab 3)                   │
-│   • Authenticated as Pranjal Rajpoot or Chanchal Didi       │
-│   • Distance Tiers: 0-2km (₹10), 2-5km (₹20), 5-10km (₹40), │
-│     >10km (₹70), Max Limit (15km)                           │
-│   • Policy Switcher: Min Threshold (₹199), None, Manual Sw  │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ Writes (Admin verified)
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│           Firestore: /app_settings/delivery_config          │
-│   • Security Rules: Read by authenticated users             │
-│   • Write: Verified Main Admins only                        │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ Real-time flow
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    ApnaBazRepository                        │
-│   • calculateMultiShopDelivery(cartItems, customerLocation) │
-│   • Calculates per-shop distance (km) & fee (₹)             │
-│   • Checks max delivery distance eligibility                │
-│   • Evaluates active Free Delivery Policy                   │
-│   • Produces immutable DeliverySnapshot                     │
-└──────────────┬──────────────────────────────┬───────────────┘
-               │                              │
-               ▼                              ▼
-┌──────────────────────────────┐┌──────────────────────────────┐
-│        CheckoutScreen        ││       Order Creation         │
-│ • Itemized Per-Shop Charges  ││ • Immutable DeliverySnapshot │
-│ • Free Delivery Discount Tag ││ • Stored in Firestore        │
-│ • Out-of-Range Warning Alert ││ • Unchangeable by future     │
-│ • Block checkout if > max km ││   setting updates            │
-└──────────────────────────────┘└──────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                        Customer Interface                              │
+│   • Displays GREEN "OPEN" / RED "CLOSED" badges                        │
+│   • Expected Delivery Time: Exactly +30 mins in IST (Asia/Kolkata)     │
+│   • Midnight & tomorrow schedule detection ("12:15 AM Tomorrow")       │
+│   • Disables Add to Cart / Checkout when shop is unavailable           │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ Reads live status
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                       ShopScheduleEngine (IST)                         │
+│   • parseTimeToMinutes() / formatMinutesToTime()                       │
+│   • evaluateLiveStatus(schedule, currentTimeIST)                       │
+│   • computeAccurateExpectedDelivery(orderTimeIST, shopSchedule)        │
+│   • getNextOpeningSlot(schedule, fromDateIST)                          │
+└───────────────────────────────────▲────────────────────────────────────┘
+                                    │
+       ┌────────────────────────────┴───────────────────────────┐
+       │ Updates schedule                                       │
+┌──────┴─────────────────────────────────┐   ┌──────────────────┴────────┐
+│ Shop Schedule & Auto Opening Screen    │   │ Late-Night Order Manager  │
+│ • Master Settings Table                │   │ • Within 30 mins of close │
+│   - Open/Close Times (10 AM / 10 PM)   │   │ • DELIVER TODAY option    │
+│   - Auto Opening ON/OFF                │   │ • DELIVER TOMORROW option │
+│   - Auto Closing ON/OFF                │   │   (Next Open + 30 mins)   │
+│   - Manual Open/Closed toggle          │   └───────────────────────────┘
+│ • Custom Weekly 7-Day Timetable        │
+│   - Mon-Sun independent hours & ON/OFF │
+└──────────────────────┬─────────────────┘
+                       │ Writes
+                       ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                     Firestore & Persistence                            │
+│   • Collection: /shops/{shopId} & /shops/{shopId}/schedule             │
+│   • Security Rules: Shopkeeper owns their shop's schedule              │
+│   • Admin read & emergency disable permissions                         │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
----
-
-### 2. Implementation Steps
-
-#### Step 1: Update Data Models (`DeliveryConfig.kt` & `Order.kt`)
-- Refactor `DeliveryConfig`:
-  - `tiers`: List of `DeliveryTier(id, minDistanceKm, maxDistanceKm, chargeRupees, label)` with default tiers (0–2 km: ₹10, 2–5 km: ₹20, 5–10 km: ₹40, 10–999 km: ₹70).
-  - `maxDeliveryDistanceKm`: Double = 15.0.
-  - `activePolicy`: `FreeDeliveryPolicy` enum (`MIN_ORDER_THRESHOLD`, `NO_FREE_DELIVERY`, `MANUAL_TOGGLE`).
-  - `minOrderThreshold`: Double = 199.0.
-  - `manualFreeDeliveryEnabled`: Boolean = false.
-  - `updatedAt`: Long, `updatedByAdmin`: String.
-- Create `ShopDeliveryBreakdown`:
-  - `shopId`: String, `shopName`: String, `distanceKm`: Double, `deliveryFee`: Double, `isExceedingMaxDistance`: Boolean.
-- Create `DeliveryCalculationResult`:
-  - `shopBreakdowns`: List<ShopDeliveryBreakdown>, `grossDeliveryTotal`: Double, `discountAmount`: Double, `netDeliveryTotal`: Double, `isFreeDeliveryApplied`: Boolean, `freeDeliveryReason`: String?, `isCheckoutAllowed`: Boolean, `unreachableShops`: List<String>.
-- Add `DeliverySnapshot` to `Order` model to record exact historical calculations and policies permanently.
-
-#### Step 2: Repository & Trusted Calculation Engine (`ApnaBazRepository.kt`)
-- Secure backend checks:
-  - `isMainAdmin()`: verify current profile is Pranjal Rajpoot (`PR11`) or Chanchal Didi (`CD12`) with verified admin credentials.
-  - Reject `updateDeliveryConfig()` calls if not authorized.
-- Delivery Engine:
-  - `calculateDeliveryForCart(cartItems: List<CartItem>, address: DeliveryAddress?): DeliveryCalculationResult`:
-    - Group cart items by `shopId`.
-    - Retrieve each shop's geo-coordinates (fallback to shop district center or distance estimator if coordinate missing).
-    - Compute Haversine distance between shop and customer delivery address.
-    - Match distance against sorted `DeliveryTier`s.
-    - Check if any shop distance exceeds `maxDeliveryDistanceKm`; flag `isExceedingMaxDistance = true` and set `isCheckoutAllowed = false`.
-    - Apply active free-delivery policy (`MIN_ORDER_THRESHOLD`, `NO_FREE_DELIVERY`, `MANUAL_TOGGLE`).
-    - Compute `grossDeliveryTotal`, `discountAmount`, and `netDeliveryTotal`.
-- Trusted Order Placement:
-  - When customer calls `placeOrder()`, repo independently recalculates the entire bill and delivery snapshot. Client amounts are discarded in favor of calculated amounts.
-
-#### Step 3: Admin Dashboard Delivery Charge Settings UI (`AdminDashboardScreen.kt`)
-- Verify Main Admin banner indicating equal privileges for Pranjal Rajpoot and Chanchal Didi.
-- Policy Selector: Segmented buttons or interactive cards for the 3 policies:
-  1. *Free Delivery on Minimum Order* (with editable threshold input, default ₹199).
-  2. *No Free Delivery* (always charge configured distance rates).
-  3. *Manual ON/OFF Toggle* (with quick toggle switch and status badge).
-- Distance Tier Editor:
-  - Editable rate fields for 0–2 km (₹10), 2–5 km (₹20), 5–10 km (₹40), >10 km (₹70).
-  - Editable Maximum Permitted Delivery Distance (default 15 km) with helper description.
-- Action Buttons:
-  - "Reset to Defaults" button.
-  - "Save Delivery Settings" button with loading state, validation, and success snackbar.
-
-#### Step 4: Customer Checkout Bill UI (`CheckoutScreen.kt`)
-- Enhanced Bill Breakdown:
-  - Items subtotal.
-  - Multi-Shop Delivery Breakdown section:
-    - Lists each shop by name, calculated delivery distance (e.g. *2.4 km*), and individual delivery fee.
-  - Free Delivery Status & Discount:
-    - Green banner/tag: *"Free Delivery Applied (Orders over ₹199)"* or *"FlashDrop Free Delivery Promo"*, displaying `-₹XX` discount.
-    - Progress indicator if cart is below threshold: *"Add ₹X more to get Free Delivery"*.
-  - Out-of-Range Warning:
-    - Red alert card if any shop exceeds max distance (e.g., *"Shop 'XYZ' is 16.2 km away. Maximum delivery limit is 15.0 km. Please remove items from this shop to proceed."*).
-    - Disables "Proceed to Payment / Place Order" button when unreachable shops exist.
-  - Final Payable Amount highlighted.
-
-#### Step 5: Security Rules (`firestore.rules`)
-- `match /app_settings/delivery_config`:
-  - `allow read: if request.auth != null;`
-  - `allow write: if isMainAdmin();` (checking admin UID/token/email matching Pranjal Rajpoot or Chanchal Didi).
-
-#### Step 6: Testing & Verification
-- Add unit tests in `ApnaBazRepositoryRuleTest.kt`:
-  - Test distance tier pricing matching prompt specs.
-  - Test all 3 free delivery policies (threshold, no free delivery, manual toggle).
-  - Test multi-shop distance calculations and combined delivery fees.
-  - Test blocking checkout when distance exceeds max limit.
-  - Test Main Admin authorization restriction.
-- Verify build with `compile_applet` and run tests with `gradle :app:testDebugUnitTest`.
+#### Core Data Models (`ShopSchedule.kt`)
+- `DaySchedule`: `dayOfWeek`, `openingTime` ("10:00 AM"), `closingTime` ("10:00 PM"), `isOpen` (Boolean).
+- `WeeklySchedule`:
+  - `shopId`: String
+  - `days`: List<DaySchedule> (Monday through Sunday)
+  - `autoOpenEnabled`: Boolean = true
+  - `autoCloseEnabled`: Boolean = true
+  - `manualStatus`: String? = null ("OPEN", "CLOSED", null = Auto)
+  - `isTemporaryClosed`: Boolean = false
+  - `lastScheduleUpdate`: Long
+- `DeliveryEstimate`:
+  - `formattedEstimate`: String (e.g., "9:58 PM", "12:15 AM (Tomorrow)", "10:30 AM Tomorrow")
+  - `isNextDay`: Boolean
+  - `targetDeliveryTimestamp`: Long
+  - `isShopOpen`: Boolean
 
 ---
 
-### 3. Verification & Acceptance Criteria
-- [ ] Pranjal Rajpoot and Chanchal Didi can view and update Delivery Charge Settings. Non-admins cannot access or update settings.
-- [ ] Default tiers configured: 0-2km (₹10), 2-5km (₹20), 5-10km (₹40), >10km (₹70), max distance 15km.
-- [ ] All three policies function accurately: Min Order (₹199), No Free Delivery, Manual Toggle.
-- [ ] Multi-shop orders compute separate delivery fees per shop based on route distance.
-- [ ] Checkout displays itemized shop delivery breakdown, distance, free delivery discount, and final amount.
-- [ ] Out-of-range shops block checkout with a clear explanation.
-- [ ] Orders store an immutable snapshot of delivery charges.
+### 5. Implementation Steps & Verification Plan
+
+1. **Step 1: Enhance `ShopSchedule.kt` and `ShopScheduleUtils.kt`**:
+   - Implement `calculateAccurateExpectedDelivery(currentTime: Long, schedule: WeeklySchedule): DeliveryEstimate`.
+   - Add next working day scanner that skips disabled days (holidays).
+   - Add support for auto-opening and auto-closing toggle logic.
+2. **Step 2: Update `ShopkeeperDashboardScreen.kt` & Navigation**:
+   - Add prominent "Shop Schedule & Auto Opening/Closing" card on Dashboard.
+   - Add late-night order alert banner with "DELIVER TODAY" and "DELIVER TOMORROW" handlers.
+3. **Step 3: Redesign `ShopTimingScheduleScreen.kt`**:
+   - Match the exact Master Settings Table from Section 2 of the PDF.
+   - Include editable 7-day timetable with ON/OFF switches per day.
+   - Connect all toggles to Firestore and repository.
+4. **Step 4: Update Customer-Facing Screens (`HomeScreen`, `ShopDetailScreen`, `ProductDetailScreen`, `CheckoutScreen`)**:
+   - Display real-time 30-min expected delivery in IST.
+   - Gating: prevent adding items or checking out when shop is closed.
+5. **Step 5: Admin Integration (`AdminDashboardScreen`)**:
+   - Add shop schedule inspection and temporary disable actions.
+6. **Step 6: Security Rules & Unit Tests**:
+   - Add unit tests verifying the 15 test scenarios listed in the PDF.
+   - Compile and verify with `compile_applet`.

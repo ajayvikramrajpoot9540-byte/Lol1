@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -89,6 +90,17 @@ import androidx.compose.material3.TextButton
 import com.example.ui.theme.GoldRating
 import com.example.ui.theme.OrangeLight
 import com.example.ui.theme.OrangeSecondary
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import com.example.ui.components.CameraVisualSearchEngine
+import com.example.ui.components.LowestPriceFirstBadge
+import com.example.ui.components.SearchBarCameraTrailingActions
+import com.example.ui.components.VisualSearchStatusBanner
+import com.example.ui.components.VisualSearchUiState
+import com.example.util.rememberCameraManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,13 +116,57 @@ fun ProductListScreen(
     val products by repository.products.collectAsState()
     val cartItems by repository.cartItems.collectAsState()
     val shops by repository.shops.collectAsState()
+    val schedules by repository.shopSchedules.collectAsState()
+    val context = LocalContext.current
 
     var searchQuery by remember { mutableStateOf("") }
+    var visualSearchState by remember { mutableStateOf<VisualSearchUiState>(VisualSearchUiState.Idle) }
+    var lastCapturedSearchUri by remember { mutableStateOf<Uri?>(null) }
     var selectedSubcategory by remember { mutableStateOf("All") }
     var showCustomPrintDialog by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val baseCatalogProducts = remember(products, categoryName, shopId, selectedSubcategory) {
+        products.filter { p ->
+            val matchCategory = (categoryName == "All" || p.category.equals(categoryName, ignoreCase = true))
+            val matchShop = (shopId == null || p.shopId == shopId)
+            val matchSub = (selectedSubcategory == "All" || p.subcategory.equals(selectedSubcategory, ignoreCase = true))
+            matchCategory && matchShop && matchSub
+        }
+    }
+
+    fun triggerVisualProductSearch(uri: Uri) {
+        lastCapturedSearchUri = uri
+        visualSearchState = VisualSearchUiState.Loading(uri)
+        coroutineScope.launch {
+            val state = CameraVisualSearchEngine.analyzeProductPhoto(
+                context = context,
+                imageUri = uri,
+                catalogProducts = baseCatalogProducts.ifEmpty { products }
+            )
+            visualSearchState = state
+            if (state is VisualSearchUiState.Success) {
+                searchQuery = if (state.matchedProductsSortedByLowestPrice.isNotEmpty()) {
+                    state.searchQuery
+                } else {
+                    state.detectedItemName
+                }
+            }
+        }
+    }
+
+    val searchCameraManager = rememberCameraManager(
+        onImageCaptured = { uri -> triggerVisualProductSearch(uri) },
+        onError = { err -> visualSearchState = VisualSearchUiState.Error(lastCapturedSearchUri, err) }
+    )
+
+    val searchGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) triggerVisualProductSearch(uri)
+    }
 
     val activeShop = remember(shops, shopId) {
         if (shopId != null) shops.find { it.id == shopId } else null
@@ -132,13 +188,21 @@ fun ProductListScreen(
         listOf("All") + base.map { it.subcategory }.filter { it.isNotBlank() && it != "All" }.distinct()
     }
 
-    val filteredProducts = remember(products, categoryName, shopId, selectedSubcategory, searchQuery) {
-        products.filter { p ->
-            val matchCategory = (categoryName == "All" || p.category.equals(categoryName, ignoreCase = true))
-            val matchShop = (shopId == null || p.shopId == shopId)
-            val matchSub = (selectedSubcategory == "All" || p.subcategory.equals(selectedSubcategory, ignoreCase = true))
-            val matchSearch = searchQuery.isBlank() || p.name.contains(searchQuery, ignoreCase = true) || p.description.contains(searchQuery, ignoreCase = true)
-            matchCategory && matchShop && matchSub && matchSearch
+    val isSearchOrPhotoActive = searchQuery.isNotBlank() || visualSearchState is VisualSearchUiState.Success
+
+    val filteredProducts = remember(baseCatalogProducts, searchQuery, visualSearchState) {
+        CameraVisualSearchEngine.filterAndRankByLowestPrice(
+            allProducts = baseCatalogProducts,
+            query = searchQuery,
+            visualState = visualSearchState
+        )
+    }
+
+    val lowestPriceProductId = remember(filteredProducts, isSearchOrPhotoActive) {
+        if (isSearchOrPhotoActive) {
+            filteredProducts.firstOrNull { it.inStock }?.id ?: filteredProducts.firstOrNull()?.id
+        } else {
+            null
         }
     }
 
@@ -147,21 +211,25 @@ fun ProductListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = activeShop?.name ?: (if (categoryName == "All") "Mahoba Products" else categoryName),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = TextDark,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        if (activeShop != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
                             Text(
-                                text = "${activeShop.category} • ${activeShop.distance} • ${activeShop.deliveryTime}",
-                                fontSize = 12.sp,
-                                color = TextMuted
+                                text = activeShop?.name ?: (if (categoryName == "All") "Mahoba Products" else categoryName),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                color = TextDark,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
+                            if (activeShop != null) {
+                                Text(
+                                    text = "${activeShop.category} • ${activeShop.distance} • ${activeShop.deliveryTime}",
+                                    fontSize = 11.sp,
+                                    color = TextMuted
+                                )
+                            }
                         }
                     }
                 },
@@ -198,26 +266,53 @@ fun ProductListScreen(
             }
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
-            // Search field
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 1000.dp)
+            ) {
+            // Search field with Camera Photo Search
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = {
+                    searchQuery = it
+                    if (it.isBlank() && visualSearchState is VisualSearchUiState.Success) {
+                        visualSearchState = VisualSearchUiState.Idle
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .testTag("product_list_search"),
-                placeholder = { Text("Search products...", color = TextMuted, fontSize = 14.sp) },
+                placeholder = { Text("Search or click camera photo of product...", color = TextMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Search",
                         tint = GreenPrimary
+                    )
+                },
+                trailingIcon = {
+                    SearchBarCameraTrailingActions(
+                        hasActiveQueryOrPhoto = searchQuery.isNotBlank() || visualSearchState !is VisualSearchUiState.Idle,
+                        isAnalyzingPhoto = visualSearchState is VisualSearchUiState.Loading,
+                        onClear = {
+                            searchQuery = ""
+                            visualSearchState = VisualSearchUiState.Idle
+                        },
+                        onLaunchCamera = { searchCameraManager.launchCamera() },
+                        onPickFromGallery = {
+                            searchGalleryLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }
                     )
                 },
                 shape = RoundedCornerShape(14.dp),
@@ -228,6 +323,17 @@ fun ProductListScreen(
                     unfocusedBorderColor = BorderLight
                 ),
                 singleLine = true
+            )
+
+            VisualSearchStatusBanner(
+                state = visualSearchState,
+                onClear = {
+                    visualSearchState = VisualSearchUiState.Idle
+                    searchQuery = ""
+                },
+                onRetry = {
+                    lastCapturedSearchUri?.let { triggerVisualProductSearch(it) }
+                }
             )
 
             // Subcategory filter chips
@@ -339,6 +445,11 @@ fun ProductListScreen(
                 } else {
                     items(filteredProducts) { product ->
                         val inCart = cartItems.find { it.product.id == product.id }
+                        val shopLive = remember(schedules, shops, product.shopId) {
+                            repository.getShopLiveStatus(product.shopId)
+                        }
+
+                        val isLowestPriceHighlight = product.id == lowestPriceProductId
 
                         Card(
                             modifier = Modifier
@@ -347,8 +458,11 @@ fun ProductListScreen(
                                 .clickable { onProductSelected(product.id) }
                                 .testTag("product_row_${product.id}"),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isLowestPriceHighlight) Color(0xFFF0FDF4) else Color.White
+                            ),
+                            border = if (isLowestPriceHighlight) androidx.compose.foundation.BorderStroke(1.5.dp, GreenPrimary) else null,
+                            elevation = CardDefaults.cardElevation(defaultElevation = if (isLowestPriceHighlight) 2.dp else 1.dp)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -366,6 +480,9 @@ fun ProductListScreen(
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
+                                    if (isLowestPriceHighlight) {
+                                        LowestPriceFirstBadge(modifier = Modifier.padding(bottom = 3.dp))
+                                    }
                                     Text(
                                         text = product.name,
                                         fontWeight = FontWeight.Bold,
@@ -374,11 +491,41 @@ fun ProductListScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "${product.shopName} • ${product.unit}",
+                                            fontSize = 12.sp,
+                                            color = TextMuted,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(if (shopLive.isOpen) GreenLight else Color(0xFFFEE2E2))
+                                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                                        ) {
+                                            Text(
+                                                text = if (shopLive.isOpen) "OPEN" else "CLOSED",
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = if (shopLive.isOpen) GreenPrimary else Color(0xFFDC2626)
+                                            )
+                                        }
+                                    }
                                     Text(
-                                        text = "${product.shopName} • ${product.unit}",
-                                        fontSize = 12.sp,
-                                        color = TextMuted,
-                                        maxLines = 1
+                                        text = if (shopLive.isOpen) {
+                                            "Est. Delivery: ${shopLive.expectedDeliveryEstimate}"
+                                        } else {
+                                            shopLive.statusLabel
+                                        },
+                                        fontSize = 10.sp,
+                                        color = if (shopLive.isOpen) GreenPrimary else Color(0xFFDC2626),
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -413,7 +560,23 @@ fun ProductListScreen(
 
                                 Spacer(modifier = Modifier.width(8.dp))
 
-                                if (!product.inStock) {
+                                if (!shopLive.isOpen) {
+                                    Button(
+                                        onClick = {},
+                                        enabled = false,
+                                        modifier = Modifier
+                                            .testTag("add_button_${product.id}")
+                                            .height(38.dp),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            disabledContainerColor = Color(0xFFFEE2E2),
+                                            disabledContentColor = Color(0xFFDC2626)
+                                        ),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                                    ) {
+                                        Text("Closed", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                } else if (!product.inStock) {
                                     Button(
                                         onClick = {},
                                         enabled = false,
@@ -493,6 +656,7 @@ fun ProductListScreen(
             }
         }
     }
+}
 
     if (showCustomPrintDialog) {
         var specItemType by remember { mutableStateOf("Flex Banner") }

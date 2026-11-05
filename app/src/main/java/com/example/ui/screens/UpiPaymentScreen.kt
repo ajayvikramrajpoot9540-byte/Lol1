@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -69,12 +70,16 @@ fun UpiPaymentScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Pay with UPI",
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark,
-                        fontSize = 18.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Pay with UPI",
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark,
+                            fontSize = 18.sp
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -89,15 +94,21 @@ fun UpiPaymentScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             // Amount to Pay Card
             Card(
                 modifier = Modifier
@@ -278,6 +289,7 @@ fun UpiPaymentScreen(
             }
         }
     }
+}
 }
 
 @Composable

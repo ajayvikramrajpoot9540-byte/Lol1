@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import android.net.Uri
 import com.example.util.rememberCameraManager
 import androidx.activity.compose.BackHandler
@@ -174,18 +175,22 @@ fun EditShopProfileScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "Edit Shop Profile",
-                            fontWeight = FontWeight.Bold,
-                            color = TextDark,
-                            fontSize = 18.sp
-                        )
-                        Text(
-                            text = "${currentShop.name} (${currentShop.id})",
-                            fontSize = 12.sp,
-                            color = TextMuted
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Edit Shop Profile",
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark,
+                                fontSize = 17.sp
+                            )
+                            Text(
+                                text = "${currentShop.name} (${currentShop.id})",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -202,14 +207,20 @@ fun EditShopProfileScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 680.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // Protected Shop Identity Banner
             item {
                 Card(
@@ -702,6 +713,7 @@ fun EditShopProfileScreen(
             }
         }
     }
+}
 
     if (showGstNoticeDialog) {
         AlertDialog(

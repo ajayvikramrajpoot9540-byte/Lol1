@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -112,18 +113,22 @@ fun AdminTransactionsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "Admin Transaction History",
-                            fontWeight = FontWeight.Bold,
-                            color = TextDark,
-                            fontSize = 17.sp
-                        )
-                        Text(
-                            text = "Mahoba Payments & Audit Ledger",
-                            color = TextMuted,
-                            fontSize = 11.sp
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Admin Transaction History",
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "Mahoba Payments & Audit Ledger",
+                                color = TextMuted,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -139,12 +144,18 @@ fun AdminTransactionsScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 960.dp)
+            ) {
             // Search Input
             OutlinedTextField(
                 value = searchQuery,
@@ -257,6 +268,7 @@ fun AdminTransactionsScreen(
             }
         }
     }
+}
 
     // Inspection Modal Dialog
     inspectingTransaction?.let { txn ->

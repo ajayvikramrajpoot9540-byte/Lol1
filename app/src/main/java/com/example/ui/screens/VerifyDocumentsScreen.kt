@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -161,7 +162,7 @@ fun VerifyDocumentsScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        FlashDropCompactLogo(size = 32.dp, showText = false)
+                        FlashDropCompactLogo(showText = false)
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
@@ -195,16 +196,22 @@ fun VerifyDocumentsScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 640.dp)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             // STEP PROGRESS HEADER
             RegistrationProgressHeader(currentStep = 2)
 
@@ -512,6 +519,7 @@ fun VerifyDocumentsScreen(
             }
         }
     }
+}
 }
 
 @Composable

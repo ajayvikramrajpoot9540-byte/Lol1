@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.example.util.configureAppCheck(this, intent)
         enableEdgeToEdge()
         repository = ApnaBazRepository(applicationContext)
 
@@ -351,7 +352,7 @@ fun FlashDropApp(repository: ApnaBazRepository) {
                 totalAmount = order?.totalAmount ?: selectedOrderAmount,
                 paymentMethod = methodLabel,
                 paymentStatus = status,
-                expectedDeliverySlot = order?.confirmedDeliveryTime?.ifBlank { order.expectedDeliverySlot } ?: "Today, 4:30 PM - 6:30 PM",
+                expectedDeliverySlot = order?.confirmedDeliveryTime?.ifBlank { order.expectedDeliverySlot } ?: com.example.data.model.ShopScheduleUtils.calculateExact30MinForward(),
                 onTrackOrder = {
                     navigateTo(Screen.OrderDetail.route)
                 },

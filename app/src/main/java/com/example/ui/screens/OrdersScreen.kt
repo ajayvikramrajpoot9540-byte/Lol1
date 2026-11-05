@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -101,7 +102,13 @@ fun OrdersScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Orders", fontWeight = FontWeight.Bold, color = TextDark) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("My Orders", fontWeight = FontWeight.Bold, color = TextDark)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDark)
@@ -119,12 +126,18 @@ fun OrdersScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 760.dp)
+            ) {
             // Tab Row
             TabRow(
                 selectedTabIndex = selectedTabIndex,
@@ -240,6 +253,7 @@ fun OrdersScreen(
         }
     }
 }
+}
 
 @Composable
 fun OrderCardItem(
@@ -287,6 +301,32 @@ fun OrderCardItem(
                 color = TextDark,
                 maxLines = 2
             )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            val deliveryText = order.confirmedDeliveryTime.ifBlank { order.expectedDeliverySlot }
+            val isTomorrow = order.scheduledForTomorrow || order.lateNightDecision.equals("DELIVER_TOMORROW", ignoreCase = true) || deliveryText.contains("Tomorrow", ignoreCase = true)
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = if (isTomorrow) Color(0xFFEFF6FF) else GreenLight.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = if (isTomorrow) {
+                        "📅 Scheduled for Next Working Day: $deliveryText"
+                    } else {
+                        "⚡ Expected Delivery: $deliveryText"
+                    },
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isTomorrow) Color(0xFF1D4ED8) else GreenPrimary
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 

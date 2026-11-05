@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -78,7 +79,12 @@ fun ProductDetailScreen(
     onUploadDocuments: (() -> Unit)? = null
 ) {
     val products by repository.products.collectAsState()
+    val schedules by repository.shopSchedules.collectAsState()
+    val shops by repository.shops.collectAsState()
     val product = products.find { it.id == productId }
+    val shopLiveStatus = remember(schedules, shops, product?.shopId) {
+        if (product != null) repository.getShopLiveStatus(product.shopId) else null
+    }
 
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -92,7 +98,19 @@ fun ProductDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(product?.name ?: "Product Details", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            product?.name ?: "Product Details",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -108,12 +126,18 @@ fun ProductDetailScreen(
         },
         bottomBar = {
             if (product != null) {
-                Card(
+                Box(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    contentAlignment = Alignment.Center
                 ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 760.dp),
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -132,7 +156,26 @@ fun ProductDetailScreen(
                             )
                         }
 
-                        if (isDocumentPrinting) {
+                        if (shopLiveStatus != null && !shopLiveStatus.isOpen) {
+                            Button(
+                                onClick = {},
+                                enabled = false,
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .testTag("detail_add_to_cart_button"),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    disabledContainerColor = Color(0xFFFEE2E2),
+                                    disabledContentColor = Color(0xFFDC2626)
+                                )
+                            ) {
+                                Text(
+                                    text = "Shop Closed (${shopLiveStatus.nextOpeningTime})",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        } else if (isDocumentPrinting) {
                             Button(
                                 onClick = {
                                     onUploadDocuments?.invoke() ?: onViewCart()
@@ -186,19 +229,26 @@ fun ProductDetailScreen(
                 }
             }
         }
-    ) { paddingValues ->
+    }
+) { paddingValues ->
         if (product == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Product not found")
             }
         } else {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(BackgroundWarm)
-                    .verticalScroll(rememberScrollState())
-                    .padding(paddingValues)
+                    .padding(paddingValues),
+                contentAlignment = Alignment.TopCenter
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 760.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
                 // Product Hero Image
                 Box(
                     modifier = Modifier
@@ -276,32 +326,67 @@ fun ProductDetailScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Shop Info Box
+                    // Shop Info Box with Live Availability & Accurate Expected Delivery
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(12.dp)
                         ) {
-                            Icon(Icons.Default.Store, contentDescription = null, tint = GreenPrimary, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Icon(Icons.Default.Store, contentDescription = null, tint = GreenPrimary, modifier = Modifier.size(24.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "Sold by: ${product.shopName}",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = TextDark
+                                        )
+                                        Text(
+                                            text = "Verified Mahoba Local Merchant • 100% Genuine",
+                                            fontSize = 11.sp,
+                                            color = TextMuted
+                                        )
+                                    }
+                                }
+                                if (shopLiveStatus != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (shopLiveStatus.isOpen) GreenPrimary else Color(0xFFDC2626))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = if (shopLiveStatus.isOpen) "OPEN" else "CLOSED",
+                                            color = Color.White,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.ExtraBold
+                                        )
+                                    }
+                                }
+                            }
+                            if (shopLiveStatus != null) {
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "Sold by: ${product.shopName}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = TextDark
-                                )
-                                Text(
-                                    text = "Verified Mahoba Local Merchant • 100% Genuine",
+                                    text = if (shopLiveStatus.isOpen) {
+                                        "${shopLiveStatus.statusLabel} • Expected Delivery: ${shopLiveStatus.expectedDeliveryEstimate}"
+                                    } else {
+                                        "Shop is currently CLOSED (Next Opening: ${shopLiveStatus.nextOpeningTime}) • Next Delivery: ${shopLiveStatus.expectedDeliveryEstimate}"
+                                    },
                                     fontSize = 11.sp,
-                                    color = TextMuted
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (shopLiveStatus.isOpen) GreenPrimary else Color(0xFFDC2626)
                                 )
                             }
                         }
@@ -363,4 +448,5 @@ fun ProductDetailScreen(
             }
         }
     }
+}
 }

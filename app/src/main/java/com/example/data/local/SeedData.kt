@@ -678,7 +678,7 @@ object SeedData {
             paymentStatus = "paid",
             transactionId = "UPI1234567890",
             paymentReference = "7HGF54J3K2",
-            expectedDeliverySlot = "Today, 4:30 PM - 6:30 PM",
+            expectedDeliverySlot = com.example.data.model.ShopScheduleUtils.calculateExact30MinForward(),
             status = "preparing",
             statusNote = "Shopkeeper is preparing your items"
         ),

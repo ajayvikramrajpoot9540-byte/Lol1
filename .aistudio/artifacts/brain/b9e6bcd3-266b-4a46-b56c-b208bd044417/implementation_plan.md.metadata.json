@@ -1,6 +1,6 @@
 {
-  "summary":  "Complete architectural implementation plan for the FlashDrop Admin-Controlled Delivery Charge System. Covers equal Main Admin authorization for Pranjal Rajpoot and Chanchal Didi, distance tier configuration (0-2km ₹10, >2-5km ₹20, >5-10km ₹40, >10km ₹70, max distance limit), three free-delivery policies (minimum order threshold ₹199, no free delivery, manual toggle), multi-shop distance and charge calculations, customer itemized checkout bill with distance limit validation, trusted Firestore order snapshots, and zero-trust Firestore security rules.",
-  "updatedAt":  "2026-10-25T03:17:35.334300755Z",
-  "requestFeedback":  true,
-  "userFacing":  true
+  "summary": "Comprehensive implementation plan for FlashDrop's Advanced Smart Delivery & Shop Schedule Management System as specified in the 6-page instructions PDF. Covers accurate 30-minute IST delivery calculations, late-night order routing within 30 minutes of closing, a dedicated 'Shop Schedule & Auto Opening/Closing' page with master settings and custom 7-day weekly schedule tables, customer-side availability gates, and Firestore security rules.",
+  "updatedAt": "2026-11-05T08:34:18.004659216Z",
+  "requestFeedback": true,
+  "userFacing": true
 }

@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -145,19 +146,23 @@ fun OrderDetailScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = order?.orderNumber ?: "Live Delivery Tracking",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp,
-                            color = TextDark
-                        )
-                        Text(
-                            text = "FlashDrop Mahoba • Real-Time GPS",
-                            fontSize = 11.sp,
-                            color = GreenPrimary,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = order?.orderNumber ?: "Live Delivery Tracking",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                color = TextDark
+                            )
+                            Text(
+                                text = "FlashDrop Mahoba • Real-Time GPS",
+                                fontSize = 11.sp,
+                                color = GreenPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -194,15 +199,21 @@ fun OrderDetailScreen(
                 Text("Order #$orderId not found", color = TextMuted)
             }
         } else {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(BackgroundWarm)
-                    .verticalScroll(rememberScrollState())
-                    .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(paddingValues),
+                contentAlignment = Alignment.TopCenter
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 760.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                 // Header Status Card
                 HeaderStatusCard(order = order, tracking = tracking)
 
@@ -269,6 +280,7 @@ fun OrderDetailScreen(
                 }
             }
         }
+    }
 
         if (showReceiptDialog && order != null) {
             PaymentReceiptDialog(order = order, onDismiss = { showReceiptDialog = false })
@@ -325,6 +337,29 @@ private fun HeaderStatusCard(order: Order, tracking: DeliveryTracking) {
                     fontSize = 13.sp,
                     color = GreenPrimary,
                     fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            val deliveryText = order.confirmedDeliveryTime.ifBlank { order.expectedDeliverySlot }
+            val isTomorrow = order.scheduledForTomorrow || order.lateNightDecision.equals("DELIVER_TOMORROW", ignoreCase = true) || deliveryText.contains("Tomorrow", ignoreCase = true)
+            Spacer(modifier = Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isTomorrow) Color(0xFFEFF6FF) else GreenLight)
+                    .border(1.dp, if (isTomorrow) Color(0xFF3B82F6) else GreenPrimary.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = if (isTomorrow) {
+                        "📅 Delivery Scheduled for Next Working Day: $deliveryText"
+                    } else {
+                        "⚡ Expected Delivery Time: $deliveryText"
+                    },
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isTomorrow) Color(0xFF1D4ED8) else GreenPrimary
                 )
             }
         }

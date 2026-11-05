@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -122,7 +123,7 @@ fun CartScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        com.example.ui.components.FlashDropCompactLogo(size = 28.dp, showText = true)
+                        com.example.ui.components.FlashDropCompactLogo(showText = true)
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
@@ -159,12 +160,18 @@ fun CartScreen(
         },
         bottomBar = {
             if (cartItems.isNotEmpty()) {
-                Card(
+                Box(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    contentAlignment = Alignment.Center
                 ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 760.dp),
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    ) {
                     Column(
                         modifier = Modifier
                             .navigationBarsPadding()
@@ -219,7 +226,8 @@ fun CartScreen(
                 }
             }
         }
-    ) { paddingValues ->
+    }
+) { paddingValues ->
         if (cartItems.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -259,14 +267,20 @@ fun CartScreen(
                 }
             }
         } else {
-            LazyColumn(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(BackgroundWarm)
                     .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentAlignment = Alignment.TopCenter
             ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 760.dp),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                 if (closedShopItem != null) {
                     item {
                         Card(
@@ -755,4 +769,5 @@ fun CartScreen(
             }
         }
     }
+}
 }

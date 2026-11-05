@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -311,7 +312,13 @@ fun CheckoutScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Checkout", fontWeight = FontWeight.Bold, color = TextDark) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Checkout", fontWeight = FontWeight.Bold, color = TextDark)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDark)
@@ -321,64 +328,71 @@ fun CheckoutScreen(
             )
         },
         bottomBar = {
-            Card(
+            Box(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                contentAlignment = Alignment.Center
             ) {
-                Column(
+                Card(
                     modifier = Modifier
-                        .navigationBarsPadding()
-                        .padding(16.dp)
+                        .fillMaxWidth()
+                        .widthIn(max = 760.dp),
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
-                    if (!isCheckoutAllowed) {
-                        Text(
-                            text = "⚠️ Delivery unavailable: ${billResult.checkoutBlockedReason}",
-                            fontSize = 11.sp,
-                            color = Color(0xFFDC2626),
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .padding(16.dp)
                     ) {
-                        Column {
-                            Text(text = "Final Amount", fontSize = 12.sp, color = TextMuted)
+                        if (!isCheckoutAllowed) {
                             Text(
-                                text = "₹${"%.2f".format(totalAmount)}",
-                                fontSize = 22.sp,
+                                text = "⚠️ Delivery unavailable: ${billResult.checkoutBlockedReason}",
+                                fontSize = 11.sp,
+                                color = Color(0xFFDC2626),
                                 fontWeight = FontWeight.Bold,
-                                color = if (isCheckoutAllowed) GreenPrimary else Color.Gray
+                                modifier = Modifier.padding(bottom = 8.dp)
                             )
                         }
 
-                        val (buttonText, buttonColor) = when {
-                            closedShopItem != null -> "Shop is Closed (${closedShopStatus?.statusLabel ?: "Closed"})" to Color.Gray
-                            !isCheckoutAllowed -> "Exceeds Delivery Distance" to Color.Gray
-                            !repository.isUserSignedIn() -> "Sign In to Place Order" to OrangeSecondary
-                            selectedPaymentMethod == "upi" -> "Pay ₹${"%.2f".format(totalAmount)} via UPI ➔" to OrangeSecondary
-                            selectedPaymentMethod == "debit_card" -> "Pay ₹${"%.2f".format(totalAmount)} Securely ➔" to GreenPrimary
-                            else -> "Place Order (Pay on Delivery) ➔" to GreenPrimary
-                        }
-
-                        Button(
-                            onClick = { executeOrderPlacement() },
-                            modifier = Modifier
-                                .height(50.dp)
-                                .testTag("place_order_button"),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                            enabled = cartItems.isNotEmpty() && !isPlacingOrder && isCheckoutAllowed && closedShopItem == null
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (isPlacingOrder) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
-                            } else {
-                                Text(buttonText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Column {
+                                Text(text = "Final Amount", fontSize = 12.sp, color = TextMuted)
+                                Text(
+                                    text = "₹${"%.2f".format(totalAmount)}",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isCheckoutAllowed) GreenPrimary else Color.Gray
+                                )
+                            }
+
+                            val (buttonText, buttonColor) = when {
+                                closedShopItem != null -> "Shop is Closed (${closedShopStatus?.statusLabel ?: "Closed"})" to Color.Gray
+                                !isCheckoutAllowed -> "Exceeds Delivery Distance" to Color.Gray
+                                !repository.isUserSignedIn() -> "Sign In to Place Order" to OrangeSecondary
+                                selectedPaymentMethod == "upi" -> "Pay ₹${"%.2f".format(totalAmount)} via UPI ➔" to OrangeSecondary
+                                selectedPaymentMethod == "debit_card" -> "Pay ₹${"%.2f".format(totalAmount)} Securely ➔" to GreenPrimary
+                                else -> "Place Order (Pay on Delivery) ➔" to GreenPrimary
+                            }
+
+                            Button(
+                                onClick = { executeOrderPlacement() },
+                                modifier = Modifier
+                                    .height(50.dp)
+                                    .testTag("place_order_button"),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                                enabled = cartItems.isNotEmpty() && !isPlacingOrder && isCheckoutAllowed && closedShopItem == null
+                            ) {
+                                if (isPlacingOrder) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                                } else {
+                                    Text(buttonText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -386,15 +400,21 @@ fun CheckoutScreen(
             }
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 760.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             if (closedShopItem != null) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -962,6 +982,7 @@ fun CheckoutScreen(
             }
         }
     }
+}
 }
 
 // 1. Dynamic UPI QR Code Payment Card with Timer & UPI ID

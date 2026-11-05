@@ -527,7 +527,7 @@ class AppPersistenceManager(private val context: Context) {
                         paymentStatus = o.optString("paymentStatus", "pending"),
                         transactionId = o.optString("transactionId"),
                         paymentReference = o.optString("paymentReference"),
-                        expectedDeliverySlot = o.optString("expectedDeliverySlot", "Today, 4:30 PM - 6:30 PM"),
+                        expectedDeliverySlot = o.optString("expectedDeliverySlot", com.example.data.model.ShopScheduleUtils.calculateExact30MinForward()),
                         isNearClosingTime = o.optBoolean("isNearClosingTime", false),
                         lateNightDecision = o.optString("lateNightDecision", ""),
                         confirmedDeliveryTime = o.optString("confirmedDeliveryTime", ""),
@@ -1006,11 +1006,19 @@ class AppPersistenceManager(private val context: Context) {
             schedules.forEach { (shopId, sched) ->
                 val sObj = JSONObject()
                 sObj.put("shopId", sched.shopId)
+                sObj.put("defaultOpeningTime", sched.defaultOpeningTime)
+                sObj.put("defaultClosingTime", sched.defaultClosingTime)
                 sObj.put("autoScheduleEnabled", sched.autoScheduleEnabled)
+                sObj.put("autoOpeningEnabled", sched.autoOpeningEnabled)
+                sObj.put("autoClosingEnabled", sched.autoClosingEnabled)
+                sObj.put("isTemporarilyClosed", sched.isTemporarilyClosed)
                 if (sched.manualOverride != null) {
                     sObj.put("manualOverride", sched.manualOverride)
                 }
                 sObj.put("lastManualOverrideTimestamp", sched.lastManualOverrideTimestamp)
+                sObj.put("lastScheduleUpdate", sched.lastScheduleUpdate)
+                sObj.put("updatedBy", sched.updatedBy)
+                sObj.put("lateNightConfirmationEnabled", sched.lateNightConfirmationEnabled)
                 val daysArr = JSONArray()
                 sched.days.forEach { d ->
                     daysArr.put(JSONObject().apply {
@@ -1038,6 +1046,8 @@ class AppPersistenceManager(private val context: Context) {
             while (keys.hasNext()) {
                 val shopId = keys.next()
                 val sObj = root.getJSONObject(shopId)
+                val defaultOpen = sObj.optString("defaultOpeningTime", "10:00 AM")
+                val defaultClose = sObj.optString("defaultClosingTime", "10:00 PM")
                 val daysArr = sObj.optJSONArray("days")
                 val daysList = mutableListOf<DaySchedule>()
                 if (daysArr != null) {
@@ -1046,8 +1056,8 @@ class AppPersistenceManager(private val context: Context) {
                         daysList.add(
                             DaySchedule(
                                 dayOfWeek = dObj.optString("dayOfWeek", "Monday"),
-                                openingTime = dObj.optString("openingTime", "10:00 AM"),
-                                closingTime = dObj.optString("closingTime", "10:00 PM"),
+                                openingTime = dObj.optString("openingTime", defaultOpen),
+                                closingTime = dObj.optString("closingTime", defaultClose),
                                 isOpen = dObj.optBoolean("isOpen", true)
                             )
                         )
@@ -1056,10 +1066,18 @@ class AppPersistenceManager(private val context: Context) {
                 val manualOverride = if (sObj.has("manualOverride")) sObj.getBoolean("manualOverride") else null
                 map[shopId] = WeeklySchedule(
                     shopId = shopId,
-                    days = if (daysList.isNotEmpty()) daysList else WeeklySchedule.defaultDays(),
+                    defaultOpeningTime = defaultOpen,
+                    defaultClosingTime = defaultClose,
+                    days = if (daysList.isNotEmpty()) daysList else WeeklySchedule.defaultDays(defaultOpen, defaultClose),
                     autoScheduleEnabled = sObj.optBoolean("autoScheduleEnabled", true),
+                    autoOpeningEnabled = sObj.optBoolean("autoOpeningEnabled", true),
+                    autoClosingEnabled = sObj.optBoolean("autoClosingEnabled", true),
                     manualOverride = manualOverride,
-                    lastManualOverrideTimestamp = sObj.optLong("lastManualOverrideTimestamp", 0L)
+                    isTemporarilyClosed = sObj.optBoolean("isTemporarilyClosed", false),
+                    lastManualOverrideTimestamp = sObj.optLong("lastManualOverrideTimestamp", 0L),
+                    lastScheduleUpdate = sObj.optLong("lastScheduleUpdate", System.currentTimeMillis()),
+                    updatedBy = sObj.optString("updatedBy", "shopkeeper"),
+                    lateNightConfirmationEnabled = sObj.optBoolean("lateNightConfirmationEnabled", true)
                 )
             }
             map

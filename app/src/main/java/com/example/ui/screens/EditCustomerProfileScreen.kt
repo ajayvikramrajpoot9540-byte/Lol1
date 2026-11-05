@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -159,12 +160,16 @@ fun EditCustomerProfileScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Edit Profile",
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark,
-                        fontSize = 18.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Edit Profile",
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark,
+                            fontSize = 18.sp
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(
@@ -190,14 +195,20 @@ fun EditCustomerProfileScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 680.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // Profile Photo Section
             item {
                 Card(
@@ -603,6 +614,7 @@ fun EditCustomerProfileScreen(
             }
         }
     }
+}
 
     // Email change verification warning dialog
     if (showEmailNoticeDialog) {

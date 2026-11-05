@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -107,7 +108,7 @@ fun ShopkeeperPendingApprovalScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        FlashDropCompactLogo(size = 32.dp, showText = true)
+                        FlashDropCompactLogo(showText = true)
                         Spacer(modifier = Modifier.width(8.dp))
                     }
                 },
@@ -140,15 +141,21 @@ fun ShopkeeperPendingApprovalScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(WarmBackground)
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 600.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             Spacer(modifier = Modifier.height(10.dp))
 
             // Animated Pending Badge Icon
@@ -409,6 +416,7 @@ fun ShopkeeperPendingApprovalScreen(
             Spacer(modifier = Modifier.height(20.dp))
         }
     }
+}
 }
 
 @Composable

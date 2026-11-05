@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -59,7 +60,7 @@ fun OrderConfirmationScreen(
     totalAmount: Double = 315.0,
     paymentMethod: String = "UPI",
     paymentStatus: String = "paid",
-    expectedDeliverySlot: String = "Today, 4:30 PM - 6:30 PM",
+    expectedDeliverySlot: String = com.example.data.model.ShopScheduleUtils.calculateExact30MinForward(),
     onTrackOrder: () -> Unit,
     onBackToHome: () -> Unit
 ) {
@@ -262,4 +263,5 @@ fun OrderConfirmationScreen(
             }
         }
     }
+}
 }

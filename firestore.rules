@@ -166,5 +166,15 @@ service cloud.firestore {
       );
       allow delete: if isMainAdmin();
     }
+
+    // Shop Schedules collection (Opening/Closing times, Auto Open/Close, Manual Override & 7-day Weekly Schedule)
+    match /shop_schedules/{shopId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isMainAdmin() || (
+        isAuthenticated() &&
+        request.resource.data.shopId == shopId
+      );
+      allow delete: if isMainAdmin();
+    }
   }
 }

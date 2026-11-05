@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
@@ -71,6 +72,7 @@ fun LoginDialog(
     var customerPhone by remember { mutableStateOf("") }
 
     AlertDialog(
+        modifier = Modifier.widthIn(max = 480.dp),
         onDismissRequest = onDismiss,
         title = {
             Column(
@@ -78,9 +80,8 @@ fun LoginDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 FlashDropLogo(
-                    iconSize = 84.dp,
-                    showTagline = true,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    useTransparentBackground = true,
+                    modifier = Modifier.padding(bottom = 6.dp)
                 )
                 Text(
                     text = when (selectedTab) {

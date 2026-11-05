@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -96,11 +98,15 @@ fun CategoriesScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        "Categories / Varg",
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Categories / Varg",
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -127,12 +133,18 @@ fun CategoriesScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundWarm)
-                .padding(paddingValues)
+                .padding(paddingValues),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 1000.dp)
+            ) {
             Text(
                 text = "Explore Mahoba Local Markets",
                 fontSize = 15.sp,
@@ -202,4 +214,5 @@ fun CategoriesScreen(
             }
         }
     }
+}
 }

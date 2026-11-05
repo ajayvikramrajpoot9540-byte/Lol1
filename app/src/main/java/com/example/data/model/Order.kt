@@ -86,7 +86,7 @@ data class Order(
     val paymentStatus: String = "pending",
     val transactionId: String = "",
     val paymentReference: String = "",
-    val expectedDeliverySlot: String = "Today, 4:30 PM - 6:30 PM",
+    val expectedDeliverySlot: String = ShopScheduleUtils.calculateExact30MinForward(),
     val isNearClosingTime: Boolean = false,
     val lateNightDecision: String = "", // "PENDING", "DELIVER_TODAY", "DELIVER_TOMORROW"
     val confirmedDeliveryTime: String = "",

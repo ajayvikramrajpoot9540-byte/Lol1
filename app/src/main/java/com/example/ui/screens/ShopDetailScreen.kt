@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -68,9 +69,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import com.example.data.model.Product
 import com.example.data.model.Shop
 import com.example.data.repository.ApnaBazRepository
+import com.example.ui.components.CameraVisualSearchEngine
+import com.example.ui.components.LowestPriceFirstBadge
+import com.example.ui.components.SearchBarCameraTrailingActions
+import com.example.ui.components.VisualSearchStatusBanner
+import com.example.ui.components.VisualSearchUiState
 import com.example.ui.navigation.Screen
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.BorderLight
@@ -81,6 +92,7 @@ import com.example.ui.theme.OrangeLight
 import com.example.ui.theme.OrangeSecondary
 import com.example.ui.theme.TextDark
 import com.example.ui.theme.TextMuted
+import com.example.util.rememberCameraManager
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,19 +107,67 @@ fun ShopDetailScreen(
     val shops by repository.shops.collectAsState()
     val products by repository.products.collectAsState()
     val cartItems by repository.cartItems.collectAsState()
+    val schedules by repository.shopSchedules.collectAsState()
+    val context = LocalContext.current
 
     val shop = shops.find { it.id == shopId }
     val shopProducts = products.filter { it.shopId == shopId }
+    val liveStatus = remember(schedules, shops, shopId) {
+        repository.getShopLiveStatus(shopId)
+    }
 
     var searchQuery by remember { mutableStateOf("") }
+    var visualSearchState by remember { mutableStateOf<VisualSearchUiState>(VisualSearchUiState.Idle) }
+    var lastCapturedSearchUri by remember { mutableStateOf<Uri?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val filteredProducts = remember(shopProducts, searchQuery) {
-        if (searchQuery.isBlank()) shopProducts
-        else shopProducts.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.description.contains(searchQuery, ignoreCase = true)
+    fun triggerVisualProductSearch(uri: Uri) {
+        lastCapturedSearchUri = uri
+        visualSearchState = VisualSearchUiState.Loading(uri)
+        coroutineScope.launch {
+            val state = CameraVisualSearchEngine.analyzeProductPhoto(
+                context = context,
+                imageUri = uri,
+                catalogProducts = shopProducts
+            )
+            visualSearchState = state
+            if (state is VisualSearchUiState.Success) {
+                searchQuery = if (state.matchedProductsSortedByLowestPrice.isNotEmpty()) {
+                    state.searchQuery
+                } else {
+                    state.detectedItemName
+                }
+            }
+        }
+    }
+
+    val searchCameraManager = rememberCameraManager(
+        onImageCaptured = { uri -> triggerVisualProductSearch(uri) },
+        onError = { err -> visualSearchState = VisualSearchUiState.Error(lastCapturedSearchUri, err) }
+    )
+
+    val searchGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) triggerVisualProductSearch(uri)
+    }
+
+    val isSearchOrPhotoActive = searchQuery.isNotBlank() || visualSearchState is VisualSearchUiState.Success
+
+    val filteredProducts = remember(shopProducts, searchQuery, visualSearchState) {
+        CameraVisualSearchEngine.filterAndRankByLowestPrice(
+            allProducts = shopProducts,
+            query = searchQuery,
+            visualState = visualSearchState
+        )
+    }
+
+    val lowestPriceProductId = remember(filteredProducts, isSearchOrPhotoActive) {
+        if (isSearchOrPhotoActive) {
+            filteredProducts.firstOrNull { it.inStock }?.id ?: filteredProducts.firstOrNull()?.id
+        } else {
+            null
         }
     }
 
@@ -115,7 +175,13 @@ fun ShopDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(shop?.name ?: "Shop Details", fontWeight = FontWeight.Bold, color = TextDark, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.example.ui.components.FlashDropCompactLogo(showText = false)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(shop?.name ?: "Shop Details", fontWeight = FontWeight.Bold, color = TextDark, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDark)
@@ -148,17 +214,32 @@ fun ShopDetailScreen(
         } else if (shop.id == "hemu_printing" || shop.category == "Printing Press") {
             HemuPrintingPressShopView(
                 shop = shop,
+                liveStatus = liveStatus,
                 paddingValues = paddingValues,
-                onUploadDocuments = { onNavigate(Screen.DocumentPrinting.route) }
+                onUploadDocuments = {
+                    if (liveStatus.isOpen) {
+                        onNavigate(Screen.DocumentPrinting.route)
+                    } else {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Shop is CLOSED (${liveStatus.nextOpeningTime}). Orders cannot be placed right now.")
+                        }
+                    }
+                }
             )
         } else {
-            LazyColumn(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(BackgroundWarm)
                     .padding(paddingValues),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                contentAlignment = Alignment.TopCenter
             ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 960.dp),
+                    contentPadding = PaddingValues(bottom = 80.dp)
+                ) {
                 // Shop Banner & Info
                 item {
                     Box(
@@ -188,26 +269,38 @@ fun ShopDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(shop.name, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark)
-                                val liveStatus = remember(shop.id, repository) {
-                                    repository.getShopLiveStatus(shop.id)
-                                }
+                                Text(shop.name, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDark, modifier = Modifier.weight(1f))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(if (liveStatus.isOpen) GreenLight else Color(0xFFFEE2E2))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .background(if (liveStatus.isOpen) GreenPrimary else Color(0xFFDC2626))
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
                                 ) {
                                     Text(
-                                        text = liveStatus.statusLabel,
-                                        color = if (liveStatus.isOpen) GreenPrimary else Color(0xFFDC2626),
+                                        text = if (liveStatus.isOpen) "OPEN" else "CLOSED",
+                                        color = Color.White,
                                         fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.ExtraBold
                                     )
                                 }
                             }
 
-                            if (!repository.getShopLiveStatus(shop.id).isOpen) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = liveStatus.statusLabel,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (liveStatus.isOpen) GreenPrimary else Color(0xFFDC2626)
+                            )
+                            Text(
+                                text = "Expected Delivery: ${liveStatus.expectedDeliveryEstimate}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (liveStatus.isOpen) GreenPrimary else Color(0xFFB45309)
+                            )
+
+                            if (!liveStatus.isOpen) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Box(
                                     modifier = Modifier
@@ -218,7 +311,7 @@ fun ShopDetailScreen(
                                         .padding(8.dp)
                                 ) {
                                     Text(
-                                        text = "Orders are closed: ${repository.getShopLiveStatus(shop.id).statusLabel}",
+                                        text = "Shop is currently CLOSED. Next Opening Time: ${liveStatus.nextOpeningTime}. Add to Cart & Checkout are disabled until the shop opens.",
                                         fontSize = 11.sp,
                                         color = Color(0xFFB91C1C),
                                         fontWeight = FontWeight.SemiBold
@@ -247,17 +340,38 @@ fun ShopDetailScreen(
                     }
                 }
 
-                // In-Shop Search
+                // In-Shop Search with Camera Photo Search
                 item {
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        onValueChange = {
+                            searchQuery = it
+                            if (it.isBlank() && visualSearchState is VisualSearchUiState.Success) {
+                                visualSearchState = VisualSearchUiState.Idle
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 6.dp)
                             .testTag("shop_search_field"),
-                        placeholder = { Text("Search in ${shop.name}...", fontSize = 14.sp, color = TextMuted) },
+                        placeholder = { Text("Search or click camera photo in ${shop.name}...", fontSize = 13.sp, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = GreenPrimary) },
+                        trailingIcon = {
+                            SearchBarCameraTrailingActions(
+                                hasActiveQueryOrPhoto = searchQuery.isNotBlank() || visualSearchState !is VisualSearchUiState.Idle,
+                                isAnalyzingPhoto = visualSearchState is VisualSearchUiState.Loading,
+                                onClear = {
+                                    searchQuery = ""
+                                    visualSearchState = VisualSearchUiState.Idle
+                                },
+                                onLaunchCamera = { searchCameraManager.launchCamera() },
+                                onPickFromGallery = {
+                                    searchGalleryLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                }
+                            )
+                        },
                         shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = Color.White,
@@ -266,6 +380,17 @@ fun ShopDetailScreen(
                             unfocusedBorderColor = BorderLight
                         ),
                         singleLine = true
+                    )
+
+                    VisualSearchStatusBanner(
+                        state = visualSearchState,
+                        onClear = {
+                            visualSearchState = VisualSearchUiState.Idle
+                            searchQuery = ""
+                        },
+                        onRetry = {
+                            lastCapturedSearchUri?.let { triggerVisualProductSearch(it) }
+                        }
                     )
                 }
 
@@ -334,7 +459,11 @@ fun ShopDetailScreen(
 
                 item {
                     Text(
-                        text = "Available Products (${filteredProducts.size})",
+                        text = if (isSearchOrPhotoActive) {
+                            "Matching Products – Least Price First (${filteredProducts.size})"
+                        } else {
+                            "Available Products (${filteredProducts.size})"
+                        },
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = TextDark,
@@ -344,6 +473,7 @@ fun ShopDetailScreen(
 
                 items(filteredProducts) { product ->
                     val inCart = cartItems.find { it.product.id == product.id }
+                    val isLowestPriceHighlight = product.id == lowestPriceProductId
 
                     Card(
                         modifier = Modifier
@@ -352,8 +482,11 @@ fun ShopDetailScreen(
                             .clickable { onProductSelected(product.id) }
                             .testTag("shop_product_${product.id}"),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isLowestPriceHighlight) Color(0xFFF0FDF4) else Color.White
+                        ),
+                        border = if (isLowestPriceHighlight) androidx.compose.foundation.BorderStroke(1.5.dp, GreenPrimary) else null,
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isLowestPriceHighlight) 2.dp else 1.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -371,6 +504,9 @@ fun ShopDetailScreen(
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
+                                if (isLowestPriceHighlight) {
+                                    LowestPriceFirstBadge(modifier = Modifier.padding(bottom = 3.dp))
+                                }
                                 Text(product.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
                                 Text(product.unit, fontSize = 12.sp, color = TextMuted)
                                 Spacer(modifier = Modifier.height(2.dp))
@@ -394,7 +530,21 @@ fun ShopDetailScreen(
                                 }
                             }
 
-                            if (!product.inStock) {
+                            if (!liveStatus.isOpen) {
+                                Button(
+                                    onClick = {},
+                                    enabled = false,
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        disabledContainerColor = Color(0xFFFEE2E2),
+                                        disabledContentColor = Color(0xFFDC2626)
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Text("Shop Closed", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            } else if (!product.inStock) {
                                 Button(
                                     onClick = {},
                                     enabled = false,
@@ -451,23 +601,31 @@ fun ShopDetailScreen(
         }
     }
 }
+}
 
 
 @Composable
 fun HemuPrintingPressShopView(
     shop: Shop,
+    liveStatus: com.example.data.model.ShopLiveStatus,
     paddingValues: PaddingValues,
     onUploadDocuments: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf("Document Printing") }
 
-    LazyColumn(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundWarm)
             .padding(paddingValues),
-        contentPadding = PaddingValues(bottom = 32.dp)
+        contentAlignment = Alignment.TopCenter
     ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 960.dp),
+            contentPadding = PaddingValues(bottom = 32.dp)
+        ) {
         // 1. Hero Banner with Green Overlay (Screen 2)
         item {
             Box(
@@ -713,36 +871,61 @@ fun HemuPrintingPressShopView(
             }
         }
 
-        // 6. Upload Documents prominent green button
+        // 6. Upload Documents prominent green button (disabled when shop is closed)
         item {
             Spacer(modifier = Modifier.height(14.dp))
+            if (!liveStatus.isOpen) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFFEF2F2))
+                        .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = "CLOSED • Next Opening: ${liveStatus.nextOpeningTime} • Est. Delivery: ${liveStatus.expectedDeliveryEstimate}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFB91C1C)
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             Button(
                 onClick = onUploadDocuments,
+                enabled = liveStatus.isOpen,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
                     .height(52.dp)
                     .testTag("upload_documents_button"),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = GreenPrimary,
+                    disabledContainerColor = Color(0xFFFEE2E2),
+                    disabledContentColor = Color(0xFFDC2626)
+                ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.CloudUpload,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = if (liveStatus.isOpen) Color.White else Color(0xFFDC2626),
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Upload Documents",
-                    fontSize = 16.sp,
+                    text = if (liveStatus.isOpen) "Upload Documents" else "Shop Closed (${liveStatus.nextOpeningTime})",
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = if (liveStatus.isOpen) Color.White else Color(0xFFDC2626)
                 )
             }
         }
     }
+}
 }
 
 @Composable
