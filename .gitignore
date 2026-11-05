@@ -17,3 +17,16 @@ local.properties
 .env
 debug.keystore
 *-debug.log
+
+# Exclude private prompt PDFs and Admin/Shopkeeper/Customer screenshots from GitHub
+public/assets/aistudio/*.pdf
+public/assets/aistudio/*.jpg
+public/assets/aistudio/Screenshot*
+public/assets/aistudio/screenshot*
+public/assets/aistudio/Shopkeper*
+public/assets/aistudio/Change*
+public/assets/aistudio/CHange*
+public/assets/aistudio/payment-page*
+!public/assets/aistudio/logo_1_c41463e7.png
+!public/assets/aistudio/flashdrop--Logo_5ebe7cf0.png
+

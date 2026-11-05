@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlashDrop – 30-Minute Local Delivery & Smart Storefront</title>
+  <link rel="icon" type="image/png" href="assets/flashdrop-logo.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ====================================================================
+       COMPACT RESPONSIVE HEADER (Official FlashDrop Logo on Left)
+       ==================================================================== -->
+  <header class="fd-header">
+    <div class="fd-header-inner">
+      <a href="#" class="fd-brand-group" onclick="switchPortal('customer', document.getElementById('navCustomerBtn')); return false;">
+        <img
+          src="assets/flashdrop-logo.png"
+          alt="FlashDrop Official Logo"
+          class="fd-logo-img"
+        />
+        <span class="fd-location-pill">
+          <span class="dot"></span> Mahoba, UP (210427)
+        </span>
+      </a>
+
+      <!-- Adaptive Portal Navigation -->
+      <nav class="fd-nav-tabs" aria-label="Main Navigation">
+        <button id="navCustomerBtn" class="fd-nav-btn active" onclick="switchPortal('customer', this)">
+          🛍️ Customer Store
+        </button>
+        <button id="navShopkeeperBtn" class="fd-nav-btn" onclick="switchPortal('shopkeeper', this)">
+          🏪 Shopkeeper Schedule
+        </button>
+        <button id="navAdminBtn" class="fd-nav-btn" onclick="switchPortal('admin', this)">
+          🛡️ Admin Portal
+        </button>
+        <button id="navGithubBtn" class="fd-nav-btn github-btn" onclick="switchPortal('github', this)">
+          🚀 Publish to GitHub Guide
+        </button>
+      </nav>
+
+      <!-- Live IST Clock & Cart -->
+      <div class="fd-header-actions">
+        <span id="liveIstClock" class="fd-clock-badge">IST 10:00 AM</span>
+        <button class="fd-cart-btn" onclick="openCartModal()">
+          🛒 Cart <span id="headerCartCount" class="fd-cart-count">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ====================================================================
+       MAIN CONTAINER
+       ==================================================================== -->
+  <main class="fd-container">
+
+    <!-- ==================================================================
+         PORTAL 1: CUSTOMER STOREFRONT
+         ================================================================== -->
+    <section id="portal-customer" class="fd-portal-view active">
+
+      <!-- Hero Banner + Smart 30-Minute Forward Delivery Calculator -->
+      <div class="fd-hero-banner">
+        <div>
+          <span class="fd-hero-tag">⚡ 30-Minute Express Delivery</span>
+          <h1 class="fd-hero-title">Fresh Groceries, Sweets, Vegetables & Essentials in Mahoba</h1>
+          <p class="fd-hero-subtitle">
+            Can't type? Click the <strong>Camera icon in the search bar</strong> to take a photo of any product — FlashDrop automatically displays available matches with the <strong>Least Rate / Lowest Price at the Top/First</strong>!
+          </p>
+        </div>
+
+        <div class="fd-smart-delivery-card">
+          <h3>⏱️ Smart 30-Min Forward Delivery</h3>
+          <div id="heroLiveEta" class="fd-delivery-eta">Expected by 10:30 AM</div>
+          <div id="heroOrderTime" class="fd-delivery-meta">Calculated live from current IST time (+30 mins)</div>
+        </div>
+      </div>
+
+      <!-- Search Bar with Camera Photo Search & Lowest-Price-First Ranking -->
+      <div class="fd-search-section">
+        <div class="fd-search-row">
+          <div class="fd-search-input-wrap">
+            <span style="font-size:1.1rem;">🔍</span>
+            <input
+              id="fdSearchInput"
+              type="text"
+              class="fd-search-input"
+              placeholder="Search milk, atta, biscuits, tomatoes... or click Camera to take a photo!"
+            />
+          </div>
+
+          <!-- Hidden File Input for Camera Capture & Gallery Photo -->
+          <input
+            id="cameraFileInput"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style="display:none;"
+            onchange="handlePhotoInput(event)"
+          />
+          <input
+            id="galleryFileInput"
+            type="file"
+            accept="image/*"
+            style="display:none;"
+            onchange="handlePhotoInput(event)"
+          />
+
+          <button
+            type="button"
+            class="fd-camera-btn"
+            onclick="document.getElementById('cameraFileInput').click()"
+            title="Click a photo of any product to find the lowest price available"
+          >
+            📷 Camera Search
+          </button>
+
+          <button
+            type="button"
+            class="fd-gallery-btn"
+            onclick="document.getElementById('galleryFileInput').click()"
+            title="Upload product photo from gallery"
+          >
+            🖼️ Photo
+          </button>
+        </div>
+
+        <!-- Instant Demo Camera Presets for Quick Testing -->
+        <div class="fd-search-helper">
+          <span>💡 <strong>Try Instant Camera Photo Detection (Lowest Price First):</strong></span>
+          <div class="fd-quick-photo-chips">
+            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('milk', 'Fresh Milk Pack')">📸 Test Milk Photo (₹27 First)</button>
+            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('atta', 'Chakki Fresh Wheat Atta')">📸 Test Atta Photo (₹195 First)</button>
+            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('tomato', 'Fresh Farm Tomatoes')">📸 Test Tomato Photo (₹24 First)</button>
+            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('biscuit', 'Biscuits Pack')">📸 Test Biscuit Photo (₹10 First)</button>
+          </div>
+        </div>
+
+        <!-- Visual Search & Lowest-Price-First Result Banner -->
+        <div id="visualSearchBanner" class="fd-visual-banner"></div>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="fd-categories">
+        <button class="fd-cat-pill active" onclick="selectCategory('All', this)">All Categories</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Groceries', this)">🌾 Groceries & Atta</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Sweets', this)">🥛 Sweets & Dairy</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Vegetables', this)">🍅 Fresh Vegetables</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Medicine', this)">💊 Medicine & Stationery</button>
+      </div>
+
+      <!-- Products Section (Sorted with Least Rate / Lowest Price First!) -->
+      <div id="productsSection" class="fd-section-header">
+        <h2 class="fd-section-title">
+          🏷️ Available Products <span style="font-size:0.8rem; font-weight:700; color:var(--fd-green-primary);">(Least Rate / Lowest Price First)</span>
+        </h2>
+      </div>
+      <div id="productsGrid" class="fd-grid-products"></div>
+
+      <!-- Local Mahoba Partner Shops -->
+      <div class="fd-section-header" style="margin-top:32px;">
+        <h2 class="fd-section-title">🏪 Verified Local Shops in Mahoba</h2>
+      </div>
+      <div id="shopsGrid" class="fd-grid-shops"></div>
+
+    </section>
+
+    <!-- ==================================================================
+         PORTAL 2: SHOPKEEPER DASHBOARD & SMART SCHEDULE SYSTEM
+         ================================================================== -->
+    <section id="portal-shopkeeper" class="fd-portal-view">
+      <div class="fd-section-header">
+        <h2 class="fd-section-title">🏪 Shopkeeper Smart Schedule & Inventory Dashboard</h2>
+        <span id="skLiveStatusBadge" class="fd-status-badge open">OPEN NOW</span>
+      </div>
+
+      <div class="fd-two-col">
+        <!-- Card 1: Default 10 AM - 10 PM & Auto Opening / Closing -->
+        <div class="fd-card">
+          <div>
+            <h3 style="font-size:1.05rem; font-weight:800; margin-bottom:6px; color:var(--fd-green-deep);">
+              ⏰ Shop Timing & Auto-Schedule Control
+            </h3>
+            <p style="font-size:0.8rem; color:var(--fd-text-secondary); margin-bottom:14px;">
+              Default Timing: <strong>10:00 AM Opening</strong> and <strong>10:00 PM Closing</strong>. Auto-Opening and Auto-Closing are ON by default.
+            </p>
+
+            <div class="fd-two-col" style="gap:10px;">
+              <div class="fd-form-group">
+                <label for="skOpeningTime">Default Opening Time</label>
+                <input id="skOpeningTime" type="text" class="fd-input" value="10:00 AM" />
+              </div>
+              <div class="fd-form-group">
+                <label for="skClosingTime">Default Closing Time</label>
+                <input id="skClosingTime" type="text" class="fd-input" value="10:00 PM" />
+              </div>
+            </div>
+
+            <div class="fd-form-group" style="display:flex; align-items:center; gap:8px;">
+              <input id="skAutoOpen" type="checkbox" checked />
+              <label for="skAutoOpen" style="margin:0;"><strong>Automatic Opening ON</strong> (Opens shop automatically at Opening Time)</label>
+            </div>
+
+            <div class="fd-form-group" style="display:flex; align-items:center; gap:8px;">
+              <input id="skAutoClose" type="checkbox" checked />
+              <label for="skAutoClose" style="margin:0;"><strong>Automatic Closing ON</strong> (Closes shop automatically at Closing Time)</label>
+            </div>
+
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">
+              <button class="fd-btn-primary" onclick="saveShopkeeperSchedule()">💾 Save Schedule</button>
+              <button class="fd-btn-outline" onclick="setManualShopOverride(true)">Force Open Now</button>
+              <button class="fd-btn-orange" onclick="setManualShopOverride(false)">Manual Close Now</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Late-Night Order Decision (Within 30 Mins of Closing) -->
+        <div class="fd-card">
+          <div>
+            <h3 style="font-size:1.05rem; font-weight:800; margin-bottom:6px; color:var(--fd-orange-dark);">
+              🌙 Late-Night Order Decision (Near Closing Time)
+            </h3>
+            <p style="font-size:0.8rem; color:var(--fd-text-secondary); margin-bottom:12px;">
+              When an order is placed within 30 minutes before closing (e.g., 9:30 PM – 10:00 PM), choose whether to deliver tonight or schedule for tomorrow's opening (+30 mins):
+            </p>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+              <button class="fd-btn-primary" onclick="setLateNightDecision('today')">⚡ Deliver Today (+30 Mins)</button>
+              <button class="fd-btn-orange" onclick="setLateNightDecision('tomorrow')">🌅 Deliver Tomorrow (Opening + 30 Mins)</button>
+            </div>
+
+            <div id="lateNightDecisionPreview" style="background:var(--fd-orange-soft); border:1px solid var(--fd-orange-primary); padding:10px 12px; border-radius:8px; font-size:0.82rem;"></div>
+
+            <!-- Add Product Form -->
+            <hr style="border:none; border-top:1px solid var(--fd-border); margin:16px 0;" />
+            <h4 style="font-size:0.95rem; font-weight:800; margin-bottom:8px;">➕ Upload New Product to Catalog</h4>
+            <form onsubmit="handleAddNewProduct(event)">
+              <div class="fd-two-col" style="gap:8px;">
+                <div class="fd-form-group">
+                  <label>Product Name</label>
+                  <input id="newProdName" type="text" class="fd-input" placeholder="e.g. Amul Gold Milk" required />
+                </div>
+                <div class="fd-form-group">
+                  <label>Category</label>
+                  <select id="newProdCategory" class="fd-select">
+                    <option value="Groceries">Groceries</option>
+                    <option value="Sweets & Dairy">Sweets & Dairy</option>
+                    <option value="Vegetables">Vegetables</option>
+                    <option value="Medicine & Stationery">Medicine & Stationery</option>
+                  </select>
+                </div>
+              </div>
+              <div class="fd-two-col" style="gap:8px;">
+                <div class="fd-form-group">
+                  <label>Selling Rate / Price (₹)</label>
+                  <input id="newProdPrice" type="number" class="fd-input" placeholder="25" required />
+                </div>
+                <div class="fd-form-group">
+                  <label>MRP (₹) & Pack Unit</label>
+                  <div style="display:flex; gap:6px;">
+                    <input id="newProdMrp" type="number" class="fd-input" placeholder="30" required />
+                    <input id="newProdUnit" type="text" class="fd-input" placeholder="500 ml" required />
+                  </div>
+                </div>
+              </div>
+              <button type="submit" class="fd-btn-primary">Upload Product</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom 7-Day Weekly Schedule Table -->
+      <div class="fd-card" style="margin-top:16px;">
+        <h3 style="font-size:1rem; font-weight:800; margin-bottom:4px;">📅 Custom 7-Day Weekly Schedule (Monday – Sunday)</h3>
+        <p style="font-size:0.78rem; color:var(--fd-text-secondary);">
+          Customize opening/closing hours for individual days or mark a weekly holiday. Next-day delivery automatically skips closed holidays.
+        </p>
+        <div style="overflow-x:auto;">
+          <table class="fd-schedule-table">
+            <thead>
+              <tr>
+                <th>Day of Week</th>
+                <th>Opening Time</th>
+                <th>Closing Time</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="skWeeklyTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         PORTAL 3: ADMIN PORTAL
+         ================================================================== -->
+    <section id="portal-admin" class="fd-portal-view">
+      <div class="fd-section-header">
+        <h2 class="fd-section-title">🛡️ FlashDrop Admin Master Control</h2>
+      </div>
+      <div class="fd-card">
+        <h3 style="font-size:1rem; font-weight:800; margin-bottom:6px;">Registered Mahoba Shops & Schedule Override</h3>
+        <p style="font-size:0.8rem; color:var(--fd-text-secondary); margin-bottom:12px;">
+          Temporarily disabling a shop closes it for immediate orders while preserving its saved 7-day weekly schedule.
+        </p>
+        <div style="overflow-x:auto;">
+          <table class="fd-schedule-table">
+            <thead>
+              <tr>
+                <th>Shop Name & Location</th>
+                <th>Operating Hours</th>
+                <th>Live Status</th>
+                <th>Admin Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminShopsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         PORTAL 4: STEP-BY-STEP GITHUB PUBLISHING GUIDE
+         ================================================================== -->
+    <section id="portal-github" class="fd-portal-view">
+      <div class="fd-section-header">
+        <h2 class="fd-section-title">🚀 Step-by-Step: How to Publish Your FlashDrop Website on GitHub Pages</h2>
+      </div>
+
+      <div class="fd-step-card">
+        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-green-deep);">📁 Where is the Website Code Located?</h3>
+        <p style="font-size:0.86rem; color:var(--fd-text-secondary); margin-top:4px;">
+          All website files are cleanly organized inside the <strong><code>/flashdrop-website</code></strong> folder in your project explorer:
+        </p>
+        <ul style="font-size:0.84rem; margin:8px 0 0 20px; color:var(--fd-text-main);">
+          <li><code>flashdrop-website/index.html</code> — Complete responsive HTML structure</li>
+          <li><code>flashdrop-website/styles.css</code> — Official FlashDrop Green (<code>#16A34A</code>) & Orange (<code>#FF8A24</code>) styles</li>
+          <li><code>flashdrop-website/app.js</code> — Camera Photo Search, Lowest-Price-First ranking, and 30-Minute Delivery engine</li>
+          <li><code>flashdrop-website/assets/flashdrop-logo.png</code> — Your official FlashDrop logo</li>
+          <li><code>flashdrop-website/GITHUB_PUBLISH_GUIDE.md</code> — Printable step-by-step instructions</li>
+        </ul>
+      </div>
+
+      <!-- METHOD A: EASIEST NO-CODE BROWSER UPLOAD -->
+      <h3 style="margin:20px 0 10px; font-size:1.05rem; font-weight:900; color:var(--fd-orange-dark);">
+        Option A: Easiest Method (Upload Directly on GitHub.com — No Terminal Needed)
+      </h3>
+
+      <div class="fd-step-card orange">
+        <h4>Step 1: Download the Project from AI Studio</h4>
+        <p style="font-size:0.84rem; color:var(--fd-text-secondary); margin-top:4px;">
+          Click the <strong>Settings / Export</strong> icon in AI Studio and choose <strong>Download ZIP</strong>. Extract the ZIP on your computer and open the <strong><code>flashdrop-website</code></strong> folder.
+        </p>
+      </div>
+
+      <div class="fd-step-card orange">
+        <h4>Step 2: Create a New Repository on GitHub</h4>
+        <p style="font-size:0.84rem; color:var(--fd-text-secondary); margin-top:4px;">
+          1. Go to <a href="https://github.com/new" target="_blank" rel="noopener">github.com/new</a> and sign in.<br/>
+          2. Enter Repository Name: <strong><code>flashdrop-website</code></strong>.<br/>
+          3. Select <strong>Public</strong> and click <strong>Create repository</strong>.
+        </p>
+      </div>
+
+      <div class="fd-step-card orange">
+        <h4>Step 3: Upload the Contents of <code>flashdrop-website</code></h4>
+        <p style="font-size:0.84rem; color:var(--fd-text-secondary); margin-top:4px;">
+          1. On your new GitHub repository page, click <strong>"uploading an existing file"</strong>.<br/>
+          2. Drag and drop <code>index.html</code>, <code>styles.css</code>, <code>app.js</code>, <code>GITHUB_PUBLISH_GUIDE.md</code>, and the <code>assets</code> folder from inside <code>flashdrop-website/</code> into the browser window.<br/>
+          3. Click the green <strong>Commit changes</strong> button.
+        </p>
+      </div>
+
+      <div class="fd-step-card orange">
+        <h4>Step 4: Turn On Free GitHub Pages Hosting</h4>
+        <p style="font-size:0.84rem; color:var(--fd-text-secondary); margin-top:4px;">
+          1. Inside your GitHub repository, click <strong>Settings</strong> (top tab) → <strong>Pages</strong> (left sidebar).<br/>
+          2. Under <strong>Build and deployment → Branch</strong>, change <code>None</code> to <strong><code>main</code></strong> and folder <strong><code>/ (root)</code></strong>, then click <strong>Save</strong>.<br/>
+          3. Wait 60 seconds and refresh — your live website link will appear at:<br/>
+          <strong><code>https://&lt;your-github-username&gt;.github.io/flashdrop-website/</code></strong>
+        </p>
+      </div>
+
+      <!-- METHOD B: GIT COMMAND LINE -->
+      <h3 style="margin:24px 0 10px; font-size:1.05rem; font-weight:900; color:var(--fd-green-deep);">
+        Option B: Publish Using Git Terminal Commands (One-Click Copy)
+      </h3>
+
+      <div class="fd-step-card">
+        <h4>Run these commands inside the <code>flashdrop-website</code> folder:</h4>
+        <div class="fd-code-box">
+          <code id="gitCmdBlock">cd flashdrop-website
+git init
+git add .
+git commit -m "Publish official FlashDrop website"
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/flashdrop-website.git
+git push -u origin main</code>
+          <button class="fd-copy-btn" onclick="copyCodeText('gitCmdBlock', this)">Copy Commands</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ====================================================================
+       CART & SMART 30-MINUTE CHECKOUT MODAL
+       ==================================================================== -->
+  <div id="cartModalBackdrop" class="fd-modal-backdrop" onclick="if(event.target===this) closeCartModal()">
+    <div class="fd-modal">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="font-size:1.1rem; font-weight:900;">🛒 Your FlashDrop Cart</h3>
+        <button class="fd-btn-outline" onclick="closeCartModal()">Close ✕</button>
+      </div>
+      <div id="cartItemsContainer"></div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       FOOTER
+       ==================================================================== -->
+  <footer class="fd-footer">
+    <div style="max-width:1280px; margin:0 auto; display:flex; flex-direction:column; align-items:center; gap:8px;">
+      <img src="assets/flashdrop-logo.png" alt="FlashDrop Logo" style="height:36px; width:auto; object-fit:contain;" />
+      <div><strong>FlashDrop Mahoba</strong> — 30-Minute Local Delivery • Camera Visual Search (Lowest Price First)</div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
