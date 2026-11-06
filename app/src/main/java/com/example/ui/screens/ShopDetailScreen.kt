@@ -354,7 +354,7 @@ fun ShopDetailScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 6.dp)
                             .testTag("shop_search_field"),
-                        placeholder = { Text("Search or click camera photo in ${shop.name}...", fontSize = 13.sp, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        placeholder = { Text("Search by text, mic, or camera in ${shop.name}...", fontSize = 13.sp, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = GreenPrimary) },
                         trailingIcon = {
                             SearchBarCameraTrailingActions(
@@ -369,6 +369,10 @@ fun ShopDetailScreen(
                                     searchGalleryLauncher.launch(
                                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                     )
+                                },
+                                onVoiceSearchResult = { spokenText ->
+                                    searchQuery = spokenText
+                                    visualSearchState = VisualSearchUiState.Idle
                                 }
                             )
                         },

@@ -1,18 +1,13 @@
 /* ==========================================================================
-   FlashDrop Official Website & Interactive Web Storefront Engine (app.js)
+   FlashDrop Official Website & Customer Storefront Engine (app.js)
    Features:
    - Camera / Photo Search in Search Bar with Lowest Rate / Price First Sorting
    - Smart 30-Minute Forward Delivery Calculation (IST Timezone)
-   - Shop Schedule Management (Default 10 AM - 10 PM, Auto Open/Close, Custom 7-Day)
-   - Late-Night Order Decision (Deliver Today vs Deliver Tomorrow)
-   - Multi-Portal Views: Customer Storefront, Shopkeeper Dashboard, Admin Portal, GitHub Guide
+   - Live Partner Shop Status (Standard 10:00 AM - 10:00 PM IST)
+   - Public Customer Navigation: Home, Partner Shops, About Us, Terms & Conditions, Contact
    ========================================================================== */
 
-const DEFAULT_DAYS = [
-  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
-];
-
-const INITIAL_SHOPS = [
+const SHOPS = [
   {
     id: 'sharma_general',
     name: 'Sharma General Store',
@@ -20,17 +15,7 @@ const INITIAL_SHOPS = [
     address: 'Alha Chowk, Main Market, Mahoba',
     rating: 4.8,
     openingTime: '10:00 AM',
-    closingTime: '10:00 PM',
-    autoOpeningEnabled: true,
-    autoClosingEnabled: true,
-    manualOverride: null, // null = follow schedule, true = force open, false = force closed
-    isTemporarilyClosed: false,
-    weeklySchedule: DEFAULT_DAYS.map(day => ({
-      day,
-      open: '10:00 AM',
-      close: '10:00 PM',
-      isOpen: true
-    }))
+    closingTime: '10:00 PM'
   },
   {
     id: 'bundelkhand_sweets',
@@ -39,17 +24,7 @@ const INITIAL_SHOPS = [
     address: 'Rath Road, Near Bus Stand, Mahoba',
     rating: 4.9,
     openingTime: '09:00 AM',
-    closingTime: '10:30 PM',
-    autoOpeningEnabled: true,
-    autoClosingEnabled: true,
-    manualOverride: null,
-    isTemporarilyClosed: false,
-    weeklySchedule: DEFAULT_DAYS.map(day => ({
-      day,
-      open: '09:00 AM',
-      close: '10:30 PM',
-      isOpen: true
-    }))
+    closingTime: '10:30 PM'
   },
   {
     id: 'kisan_fresh_veg',
@@ -58,40 +33,20 @@ const INITIAL_SHOPS = [
     address: 'Subhash Chowk, Mahoba',
     rating: 4.7,
     openingTime: '08:00 AM',
-    closingTime: '09:30 PM',
-    autoOpeningEnabled: true,
-    autoClosingEnabled: true,
-    manualOverride: null,
-    isTemporarilyClosed: false,
-    weeklySchedule: DEFAULT_DAYS.map(day => ({
-      day,
-      open: '08:00 AM',
-      close: '09:30 PM',
-      isOpen: true
-    }))
+    closingTime: '09:30 PM'
   },
   {
     id: 'mahoba_medicos',
-    name: 'Mahoba Care Medicos & stationery',
+    name: 'Mahoba Care Medicos & Stationery',
     category: 'Medicine & Stationery',
     address: 'Civil Lines, District Hospital Road, Mahoba',
     rating: 4.9,
     openingTime: '10:00 AM',
-    closingTime: '10:00 PM',
-    autoOpeningEnabled: true,
-    autoClosingEnabled: true,
-    manualOverride: null,
-    isTemporarilyClosed: false,
-    weeklySchedule: DEFAULT_DAYS.map(day => ({
-      day,
-      open: '10:00 AM',
-      close: '10:00 PM',
-      isOpen: true
-    }))
+    closingTime: '10:00 PM'
   }
 ];
 
-const INITIAL_PRODUCTS = [
+const PRODUCTS = [
   // Milk products (multiple prices to demonstrate Lowest Rate / Price First!)
   {
     id: 'prod_milk_1',
@@ -256,24 +211,20 @@ const INITIAL_PRODUCTS = [
   }
 ];
 
-// State
 let state = {
-  shops: JSON.parse(localStorage.getItem('fd_shops')) || INITIAL_SHOPS,
-  products: JSON.parse(localStorage.getItem('fd_products')) || INITIAL_PRODUCTS,
-  cart: JSON.parse(localStorage.getItem('fd_cart')) || {},
+  shops: SHOPS,
+  products: PRODUCTS,
+  cart: JSON.parse(localStorage.getItem('fd_cart_v2')) || {},
   searchQuery: '',
   selectedCategory: 'All',
   visualSearchActive: false,
   visualSearchDetectedName: '',
   visualSearchPhotoUrl: '',
-  lateNightDecisionMode: 'today', // 'today' or 'tomorrow'
   deliveryBaseFee: 20
 };
 
-function saveState() {
-  localStorage.setItem('fd_shops', JSON.stringify(state.shops));
-  localStorage.setItem('fd_products', JSON.stringify(state.products));
-  localStorage.setItem('fd_cart', JSON.stringify(state.cart));
+function saveCart() {
+  localStorage.setItem('fd_cart_v2', JSON.stringify(state.cart));
 }
 
 // ==========================================================================
@@ -319,44 +270,12 @@ function calculateExact30MinForward() {
 }
 
 function evaluateShopLiveStatus(shop) {
-  if (shop.isTemporarilyClosed) {
-    return {
-      isOpen: false,
-      badgeText: 'TEMP CLOSED BY ADMIN',
-      deliveryText: 'Next-Day Delivery Available',
-      isNearClosing: false
-    };
-  }
-  if (shop.manualOverride === true) {
-    return {
-      isOpen: true,
-      badgeText: 'OPEN NOW (MANUAL)',
-      deliveryText: `Expected by ${calculateExact30MinForward()}`,
-      isNearClosing: false
-    };
-  }
-  if (shop.manualOverride === false) {
-    return {
-      isOpen: false,
-      badgeText: 'CLOSED (MANUAL)',
-      deliveryText: `Next-Day: Tomorrow 10:30 AM`,
-      isNearClosing: false
-    };
-  }
-
   const ist = getISTNow();
   const currentMins = ist.getHours() * 60 + ist.getMinutes();
   const openMins = parseTimeToMinutes(shop.openingTime || '10:00 AM');
   const closeMins = parseTimeToMinutes(shop.closingTime || '10:00 PM');
 
-  let withinWindow = currentMins >= openMins && currentMins <= closeMins;
-  if (!shop.autoOpeningEnabled && withinWindow) {
-    withinWindow = false;
-  }
-  if (!shop.autoClosingEnabled && currentMins > closeMins) {
-    withinWindow = true;
-  }
-
+  const withinWindow = currentMins >= openMins && currentMins <= closeMins;
   const minsUntilClose = closeMins - currentMins;
   const isNearClosing = withinWindow && minsUntilClose >= 0 && minsUntilClose <= 30;
 
@@ -383,11 +302,9 @@ function evaluateShopLiveStatus(shop) {
 // ==========================================================================
 function sortProductsLowestPriceFirst(products) {
   return [...products].sort((a, b) => {
-    // 1. Available (inStock = true) products ALWAYS come first
     if (a.inStock !== b.inStock) {
       return a.inStock ? -1 : 1;
     }
-    // 2. Lowest price ascending (Least Rate / Price at index 0 / top!)
     if (a.price !== b.price) {
       return a.price - b.price;
     }
@@ -398,12 +315,10 @@ function sortProductsLowestPriceFirst(products) {
 function getFilteredAndRankedProducts() {
   let list = [...state.products];
 
-  // Category filter
   if (state.selectedCategory && state.selectedCategory !== 'All') {
     list = list.filter(p => p.category.toLowerCase().includes(state.selectedCategory.toLowerCase()));
   }
 
-  // Search query filter
   const q = state.searchQuery.trim().toLowerCase();
   if (q) {
     const tokens = q.split(/\s+/).filter(Boolean);
@@ -413,15 +328,9 @@ function getFilteredAndRankedProducts() {
     });
   }
 
-  // Always sort matching results with Lowest Price First when searching or using Camera Search!
-  if (q || state.visualSearchActive) {
-    return sortProductsLowestPriceFirst(list);
-  }
-
   return sortProductsLowestPriceFirst(list);
 }
 
-// Handle Camera / Gallery Photo Upload from Search Bar
 function handlePhotoInput(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
@@ -429,7 +338,6 @@ function handlePhotoInput(event) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const photoDataUrl = e.target.result;
-    // Extract intelligent product keywords from file name or run visual detection
     const rawName = (file.name || '').toLowerCase();
     let detectedQuery = 'milk';
     let detectedLabel = 'Fresh Dairy Milk Pack';
@@ -481,6 +389,52 @@ function clearVisualSearch() {
   const searchInput = document.getElementById('fdSearchInput');
   if (searchInput) searchInput.value = '';
   renderAll();
+}
+
+function startVoiceSearch() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micBtn = document.getElementById('fdMicBtn');
+
+  if (SpeechRecognition) {
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-IN';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      if (micBtn) micBtn.textContent = '🎙️ Listening...';
+
+      recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript.trim();
+        if (micBtn) micBtn.textContent = '🎤 Mic';
+        if (transcript) {
+          applyVisualSearchMatch(transcript, `Voice Search: "${transcript}"`, '');
+        }
+      };
+
+      recognition.onerror = function() {
+        if (micBtn) micBtn.textContent = '🎤 Mic';
+        promptVoiceSearchFallback();
+      };
+
+      recognition.onend = function() {
+        if (micBtn) micBtn.textContent = '🎤 Mic';
+      };
+
+      recognition.start();
+      return;
+    } catch (e) {
+      if (micBtn) micBtn.textContent = '🎤 Mic';
+    }
+  }
+  promptVoiceSearchFallback();
+}
+
+function promptVoiceSearchFallback() {
+  const spoken = window.prompt('🎙️ Voice Search — Speak or enter product name (e.g. Milk, Atta, Tomato, Biscuit):', 'Milk');
+  if (spoken && spoken.trim()) {
+    applyVisualSearchMatch(spoken.trim(), `Voice Search: "${spoken.trim()}"`, '');
+  }
 }
 
 // ==========================================================================
@@ -549,11 +503,8 @@ function renderVisualSearchBanner(rankedProducts) {
   `;
 }
 
-function renderShops() {
-  const container = document.getElementById('shopsGrid');
-  if (!container) return;
-
-  container.innerHTML = state.shops.map(shop => {
+function buildShopCardsHtml() {
+  return state.shops.map(shop => {
     const status = evaluateShopLiveStatus(shop);
     return `
       <div class="fd-card">
@@ -579,6 +530,15 @@ function renderShops() {
       </div>
     `;
   }).join('');
+}
+
+function renderShops() {
+  const html = buildShopCardsHtml();
+  const homeShops = document.getElementById('shopsGrid');
+  if (homeShops) homeShops.innerHTML = html;
+
+  const dirShops = document.getElementById('shopsDirectoryGrid');
+  if (dirShops) dirShops.innerHTML = html;
 }
 
 function renderProducts(rankedProducts) {
@@ -639,76 +599,6 @@ function renderProducts(rankedProducts) {
   }).join('');
 }
 
-function renderShopkeeperPortal() {
-  const primaryShop = state.shops[0];
-  if (!primaryShop) return;
-
-  const status = evaluateShopLiveStatus(primaryShop);
-  const statusBadgeEl = document.getElementById('skLiveStatusBadge');
-  if (statusBadgeEl) {
-    statusBadgeEl.className = `fd-status-badge ${status.isOpen ? 'open' : 'closed'}`;
-    statusBadgeEl.textContent = status.badgeText;
-  }
-
-  const openInput = document.getElementById('skOpeningTime');
-  const closeInput = document.getElementById('skClosingTime');
-  const autoOpenChk = document.getElementById('skAutoOpen');
-  const autoCloseChk = document.getElementById('skAutoClose');
-
-  if (openInput && document.activeElement !== openInput) openInput.value = primaryShop.openingTime;
-  if (closeInput && document.activeElement !== closeInput) closeInput.value = primaryShop.closingTime;
-  if (autoOpenChk) autoOpenChk.checked = primaryShop.autoOpeningEnabled;
-  if (autoCloseChk) autoCloseChk.checked = primaryShop.autoClosingEnabled;
-
-  // Late-night order preview
-  const latePreviewEl = document.getElementById('lateNightDecisionPreview');
-  if (latePreviewEl) {
-    if (state.lateNightDecisionMode === 'today') {
-      latePreviewEl.innerHTML = `✅ <strong>Deliver Today Selected:</strong> Customer sees expected delivery at <strong>${calculateExact30MinForward()}</strong> (Order Time + 30 Mins).`;
-    } else {
-      const nextDayTime = formatMinutesTo12Hr(parseTimeToMinutes(primaryShop.openingTime) + 30);
-      latePreviewEl.innerHTML = `🌙 <strong>Deliver Tomorrow Selected:</strong> Order moved to Next Working Day. Customer receives notification: <strong>Expected Delivery Tomorrow by ${nextDayTime}</strong>.`;
-    }
-  }
-
-  // Weekly table
-  const tbody = document.getElementById('skWeeklyTableBody');
-  if (tbody && primaryShop.weeklySchedule) {
-    tbody.innerHTML = primaryShop.weeklySchedule.map((d, idx) => `
-      <tr>
-        <td><strong>${d.day}</strong></td>
-        <td><input type="text" class="fd-input" style="padding:4px 8px; font-size:0.78rem;" value="${d.open}" onchange="updateWeeklyDay(${idx}, 'open', this.value)" /></td>
-        <td><input type="text" class="fd-input" style="padding:4px 8px; font-size:0.78rem;" value="${d.close}" onchange="updateWeeklyDay(${idx}, 'close', this.value)" /></td>
-        <td>
-          <input type="checkbox" ${d.isOpen ? 'checked' : ''} onchange="updateWeeklyDay(${idx}, 'isOpen', this.checked)" />
-          <span style="font-size:0.75rem;">${d.isOpen ? 'Open' : 'Holiday'}</span>
-        </td>
-      </tr>
-    `).join('');
-  }
-}
-
-function renderAdminPortal() {
-  const tbody = document.getElementById('adminShopsTableBody');
-  if (!tbody) return;
-
-  tbody.innerHTML = state.shops.map((shop, idx) => {
-    const status = evaluateShopLiveStatus(shop);
-    return `
-      <tr>
-        <td><strong>${shop.name}</strong><div style="font-size:0.74rem; color:var(--fd-text-secondary);">${shop.address}</div></td>
-        <td>${shop.openingTime} – ${shop.closingTime}</td>
-        <td><span class="fd-status-badge ${status.isOpen ? 'open' : 'closed'}">${status.badgeText}</span></td>
-        <td>
-          <button class="${shop.isTemporarilyClosed ? 'fd-btn-primary' : 'fd-btn-orange'}" onclick="toggleAdminShopDisable(${idx})">
-            ${shop.isTemporarilyClosed ? 'Re-Enable Shop' : 'Temp Disable'}
-          </button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
 function renderCartBadge() {
   const totalCount = Object.values(state.cart).reduce((acc, n) => acc + n, 0);
   const badge = document.getElementById('headerCartCount');
@@ -721,8 +611,6 @@ function renderAll() {
   renderVisualSearchBanner(rankedProducts);
   renderShops();
   renderProducts(rankedProducts);
-  renderShopkeeperPortal();
-  renderAdminPortal();
   renderCartBadge();
 }
 
@@ -736,6 +624,7 @@ function switchPortal(portalId, btnEl) {
 
   document.querySelectorAll('.fd-nav-btn').forEach(b => b.classList.remove('active'));
   if (btnEl) btnEl.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function selectCategory(cat, btnEl) {
@@ -746,6 +635,7 @@ function selectCategory(cat, btnEl) {
 }
 
 function filterByShop(shopId, shopName) {
+  switchPortal('home', document.getElementById('navHomeBtn'));
   state.searchQuery = shopName;
   const input = document.getElementById('fdSearchInput');
   if (input) input.value = shopName;
@@ -756,7 +646,7 @@ function filterByShop(shopId, shopName) {
 
 function addToCart(productId) {
   state.cart[productId] = (state.cart[productId] || 0) + 1;
-  saveState();
+  saveCart();
   renderAll();
 }
 
@@ -767,7 +657,7 @@ function changeCartQty(productId, delta) {
   } else {
     state.cart[productId] = next;
   }
-  saveState();
+  saveCart();
   renderAll();
   renderCartModalContent();
 }
@@ -829,7 +719,7 @@ function renderCartModalContent() {
 
 function placeOrderNow(total, eta) {
   state.cart = {};
-  saveState();
+  saveCart();
   renderAll();
   const container = document.getElementById('cartItemsContainer');
   if (container) {
@@ -838,7 +728,7 @@ function placeOrderNow(total, eta) {
         <div style="font-size:2.4rem; margin-bottom:8px;">🎉</div>
         <h3 style="color:var(--fd-green-deep); margin-bottom:6px;">Order Confirmed!</h3>
         <p style="font-size:0.88rem; color:var(--fd-text-secondary); margin-bottom:10px;">
-          Total Paid/COD: <strong>₹${total}</strong><br/>
+          Total Amount: <strong>₹${total}</strong><br/>
           Expected Delivery Time: <strong style="color:var(--fd-orange-dark);">${eta}</strong>
         </p>
         <button class="fd-btn-primary" onclick="closeCartModal()">Continue Shopping</button>
@@ -847,89 +737,13 @@ function placeOrderNow(total, eta) {
   }
 }
 
-// Shopkeeper Schedule Controls
-function saveShopkeeperSchedule() {
-  const shop = state.shops[0];
-  if (!shop) return;
-  shop.openingTime = document.getElementById('skOpeningTime').value.trim() || '10:00 AM';
-  shop.closingTime = document.getElementById('skClosingTime').value.trim() || '10:00 PM';
-  shop.autoOpeningEnabled = document.getElementById('skAutoOpen').checked;
-  shop.autoClosingEnabled = document.getElementById('skAutoClose').checked;
-  shop.manualOverride = null;
-  saveState();
-  renderAll();
-  alert('Shop schedule saved! Automatic opening/closing and customer 30-minute delivery estimates updated.');
-}
-
-function setManualShopOverride(forceState) {
-  const shop = state.shops[0];
-  if (!shop) return;
-  shop.manualOverride = forceState;
-  saveState();
-  renderAll();
-}
-
-function updateWeeklyDay(dayIndex, field, value) {
-  const shop = state.shops[0];
-  if (!shop || !shop.weeklySchedule[dayIndex]) return;
-  shop.weeklySchedule[dayIndex][field] = value;
-  saveState();
-  renderAll();
-}
-
-function setLateNightDecision(mode) {
-  state.lateNightDecisionMode = mode;
-  renderShopkeeperPortal();
-}
-
-function handleAddNewProduct(e) {
+function handleContactSubmit(e) {
   e.preventDefault();
-  const name = document.getElementById('newProdName').value.trim();
-  const category = document.getElementById('newProdCategory').value;
-  const price = parseFloat(document.getElementById('newProdPrice').value) || 25;
-  const mrp = parseFloat(document.getElementById('newProdMrp').value) || (price + 10);
-  const unit = document.getElementById('newProdUnit').value.trim() || '1 Pack';
-
-  if (!name) return;
-
-  state.products.push({
-    id: 'prod_custom_' + Date.now(),
-    name,
-    category,
-    shopId: state.shops[0].id,
-    shopName: state.shops[0].name,
-    price,
-    mrp,
-    unit,
-    inStock: true,
-    keywords: name.toLowerCase().split(/\s+/)
-  });
-
-  saveState();
+  const name = document.getElementById('contactName').value.trim();
   e.target.reset();
-  renderAll();
-  alert(`Added "${name}" at ₹${price}! It will automatically rank by Lowest Price First in customer search.`);
+  alert(`Thank you, ${name}! Your message has been received by the FlashDrop Mahoba Support Team.`);
 }
 
-function toggleAdminShopDisable(shopIdx) {
-  const shop = state.shops[shopIdx];
-  if (!shop) return;
-  shop.isTemporarilyClosed = !shop.isTemporarilyClosed;
-  saveState();
-  renderAll();
-}
-
-function copyCodeText(codeId, btnEl) {
-  const el = document.getElementById(codeId);
-  if (!el) return;
-  navigator.clipboard.writeText(el.innerText.trim()).then(() => {
-    const oldText = btnEl.textContent;
-    btnEl.textContent = 'Copied ✓';
-    setTimeout(() => { btnEl.textContent = oldText; }, 1800);
-  });
-}
-
-// Initialize on load
 document.addEventListener('DOMContentLoaded', () => {
   const searchInput = document.getElementById('fdSearchInput');
   if (searchInput) {

@@ -291,7 +291,7 @@ fun ProductListScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .testTag("product_list_search"),
-                placeholder = { Text("Search or click camera photo of product...", color = TextMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                placeholder = { Text("Search by text, mic voice, or camera photo...", color = TextMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
@@ -312,6 +312,10 @@ fun ProductListScreen(
                             searchGalleryLauncher.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
+                        },
+                        onVoiceSearchResult = { spokenText ->
+                            searchQuery = spokenText
+                            visualSearchState = VisualSearchUiState.Idle
                         }
                     )
                 },

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlashDrop – 30-Minute Local Delivery in Mahoba</title>
+  <link rel="icon" type="image/png" href="assets/flashdrop-logo.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ====================================================================
+       COMPACT RESPONSIVE HEADER (Official FlashDrop Logo on Left)
+       ==================================================================== -->
+  <header class="fd-header">
+    <div class="fd-header-inner">
+      <a href="#" class="fd-brand-group" onclick="switchPortal('home', document.getElementById('navHomeBtn')); return false;">
+        <img
+          src="assets/flashdrop-logo.png"
+          alt="FlashDrop Official Logo"
+          class="fd-logo-img"
+        />
+        <span class="fd-location-pill">
+          <span class="dot"></span> Mahoba, UP (210427)
+        </span>
+      </a>
+
+      <!-- Public Customer Navigation Tabs (Read-Only, Safe for Public Visitors) -->
+      <nav class="fd-nav-tabs" aria-label="Main Navigation">
+        <button id="navHomeBtn" class="fd-nav-btn active" onclick="switchPortal('home', this)">
+          🏠 Home
+        </button>
+        <button id="navShopsBtn" class="fd-nav-btn" onclick="switchPortal('shops', this)">
+          🏪 Partner Shops
+        </button>
+        <button id="navAboutBtn" class="fd-nav-btn" onclick="switchPortal('about', this)">
+          ✨ About Us
+        </button>
+        <button id="navTermsBtn" class="fd-nav-btn" onclick="switchPortal('terms', this)">
+          📜 Terms &amp; Conditions
+        </button>
+        <button id="navContactBtn" class="fd-nav-btn" onclick="switchPortal('contact', this)">
+          📞 Contact &amp; Help
+        </button>
+      </nav>
+
+      <!-- Live IST Clock & Cart -->
+      <div class="fd-header-actions">
+        <span id="liveIstClock" class="fd-clock-badge">IST 10:00 AM</span>
+        <button class="fd-cart-btn" onclick="openCartModal()">
+          🛒 Cart <span id="headerCartCount" class="fd-cart-count">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ====================================================================
+       MAIN CONTAINER
+       ==================================================================== -->
+  <main class="fd-container">
+
+    <!-- ==================================================================
+         PAGE 1: HOME (CUSTOMER STOREFRONT)
+         ================================================================== -->
+    <section id="portal-home" class="fd-portal-view active">
+
+      <!-- Hero Banner + Smart 30-Minute Forward Delivery Calculator -->
+      <div class="fd-hero-banner">
+        <div>
+          <span class="fd-hero-tag">⚡ 30-Minute Express Delivery</span>
+          <h1 class="fd-hero-title">Fresh Groceries, Sweets, Vegetables &amp; Essentials in Mahoba</h1>
+          <p class="fd-hero-subtitle">
+            Can't type? Click the <strong>Camera icon in the search bar</strong> to take a photo of any product — FlashDrop automatically displays available matches with the <strong>Least Rate / Lowest Price at the Top/First</strong>!
+          </p>
+        </div>
+
+        <div class="fd-smart-delivery-card">
+          <h3>⏱️ Smart 30-Min Forward Delivery</h3>
+          <div id="heroLiveEta" class="fd-delivery-eta">Expected by 10:30 AM</div>
+          <div id="heroOrderTime" class="fd-delivery-meta">Calculated live from current IST time (+30 mins)</div>
+        </div>
+      </div>
+
+      <!-- Search Bar with Camera Photo Search & Lowest-Price-First Ranking -->
+      <div class="fd-search-section">
+        <div class="fd-search-row">
+          <div class="fd-search-input-wrap">
+            <span style="font-size:1.1rem;">🔍</span>
+            <input
+              id="fdSearchInput"
+              type="text"
+              class="fd-search-input"
+              placeholder="Search by text, mic voice, or camera photo..."
+            />
+          </div>
+
+          <!-- Hidden File Input for Camera Capture & Gallery Photo -->
+          <input
+            id="cameraFileInput"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style="display:none;"
+            onchange="handlePhotoInput(event)"
+          />
+          <input
+            id="galleryFileInput"
+            type="file"
+            accept="image/*"
+            style="display:none;"
+            onchange="handlePhotoInput(event)"
+          />
+
+          <button
+            id="fdMicBtn"
+            type="button"
+            class="fd-gallery-btn"
+            onclick="startVoiceSearch()"
+            title="Speak product name using Microphone"
+          >
+            🎤 Mic
+          </button>
+
+          <button
+            type="button"
+            class="fd-camera-btn"
+            onclick="document.getElementById('cameraFileInput').click()"
+            title="Click a photo of any product to find the lowest price available"
+          >
+            📷 Camera Search
+          </button>
+
+          <button
+            type="button"
+            class="fd-gallery-btn"
+            onclick="document.getElementById('galleryFileInput').click()"
+            title="Upload product photo from gallery"
+          >
+            🖼️ Photo
+          </button>
+        </div>
+
+        <!-- Instant Demo Camera Presets for Quick Testing -->
+        <div class="fd-search-helper">
+          <span>💡 <strong>Quick Photo Search (Lowest Price First):</strong></span>
+          <div class="fd-quick-photo-chips">
+            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('milk', 'Fresh Milk Pack')">📸 Milk (₹27 First)</button>
+            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('atta', 'Chakki Fresh Wheat Atta')">📸 Atta (₹195 First)</button>
+            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('tomato', 'Fresh Farm Tomatoes')">📸 Tomato (₹24 First)</button>
+            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('biscuit', 'Biscuits Pack')">📸 Biscuit (₹10 First)</button>
+          </div>
+        </div>
+
+        <!-- Visual Search & Lowest-Price-First Result Banner -->
+        <div id="visualSearchBanner" class="fd-visual-banner"></div>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="fd-categories">
+        <button class="fd-cat-pill active" onclick="selectCategory('All', this)">All Categories</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Groceries', this)">🌾 Groceries &amp; Atta</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Sweets', this)">🥛 Sweets &amp; Dairy</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Vegetables', this)">🍅 Fresh Vegetables</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Medicine', this)">💊 Medicine &amp; Stationery</button>
+      </div>
+
+      <!-- Products Section (Sorted with Least Rate / Lowest Price First!) -->
+      <div id="productsSection" class="fd-section-header">
+        <h2 class="fd-section-title">
+          🏷️ Available Products <span style="font-size:0.8rem; font-weight:700; color:var(--fd-green-primary);">(Least Rate / Lowest Price First)</span>
+        </h2>
+      </div>
+      <div id="productsGrid" class="fd-grid-products"></div>
+
+      <!-- Local Mahoba Partner Shops -->
+      <div class="fd-section-header" style="margin-top:32px;">
+        <h2 class="fd-section-title">🏪 Verified Local Shops in Mahoba</h2>
+      </div>
+      <div id="shopsGrid" class="fd-grid-shops"></div>
+
+    </section>
+
+    <!-- ==================================================================
+         PAGE 2: PARTNER SHOPS DIRECTORY (READ-ONLY FOR VISITORS)
+         ================================================================== -->
+    <section id="portal-shops" class="fd-portal-view">
+      <div class="fd-section-header">
+        <h2 class="fd-section-title">🏪 Verified Partner Shops in Mahoba</h2>
+      </div>
+      <p style="font-size:0.9rem; color:var(--fd-text-secondary); margin-bottom:16px;">
+        All partner stores operate with verified daily schedules (Standard Hours: <strong>10:00 AM – 10:00 PM IST</strong>). Orders placed during open hours are delivered in <strong>30 minutes</strong>, while orders placed after closing are automatically scheduled for next-morning delivery.
+      </p>
+      <div id="shopsDirectoryGrid" class="fd-grid-shops"></div>
+    </section>
+
+    <!-- ==================================================================
+         PAGE 3: ABOUT US
+         ================================================================== -->
+    <section id="portal-about" class="fd-portal-view">
+      <div class="fd-section-header">
+        <h2 class="fd-section-title">✨ About FlashDrop Mahoba</h2>
+      </div>
+
+      <div class="fd-two-col">
+        <div class="fd-card">
+          <div>
+            <span class="fd-lowest-badge">OUR MISSION</span>
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--fd-green-deep); margin-bottom:8px;">
+              Hyperlocal 30-Minute Delivery for Every Household in Mahoba
+            </h3>
+            <p style="font-size:0.88rem; color:var(--fd-text-secondary); margin-bottom:12px;">
+              FlashDrop connects customers across Mahoba (210427) directly with trusted neighborhood kirana stores, sweet shops, fresh vegetable vendors, pharmacies, and stationery outlets.
+            </p>
+            <p style="font-size:0.88rem; color:var(--fd-text-secondary);">
+              Whether you need morning milk, fresh chakki atta, farm vegetables, or urgent stationery, FlashDrop delivers right to your doorstep within <strong>30 minutes</strong> of your order time.
+            </p>
+          </div>
+        </div>
+
+        <div class="fd-card">
+          <div>
+            <span class="fd-lowest-badge">SMART INNOVATION</span>
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--fd-orange-dark); margin-bottom:8px;">
+              Camera Photo Search &amp; Lowest Rate / Price First Guarantee
+            </h3>
+            <p style="font-size:0.88rem; color:var(--fd-text-secondary); margin-bottom:12px;">
+              Designed for everyone—even if someone cannot type product names, they can simply tap the <strong>Camera button in the search bar</strong> and click a photo of the item they need.
+            </p>
+            <p style="font-size:0.88rem; color:var(--fd-text-secondary);">
+              FlashDrop immediately checks availability across local stores and sorts matching products with the <strong>Least Rate / Lowest Price at the very top/first</strong> so customers always save money.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="fd-grid-shops" style="margin-top:16px;">
+        <div class="fd-step-card">
+          <h4 style="color:var(--fd-green-deep);">⚡ Exact 30-Minute Delivery</h4>
+          <p style="font-size:0.84rem; color:var(--fd-text-secondary); margin-top:4px;">
+            Every order calculates an accurate delivery time equal to your exact order time plus 30 minutes during store operating hours.
+          </p>
+        </div>
+        <div class="fd-step-card orange">
+          <h4 style="color:var(--fd-orange-dark);">🏷️ Lowest Price First</h4>
+          <p style="font-size:0.84rem; color:var(--fd-text-secondary); margin-top:4px;">
+            Available products are automatically ranked by lowest selling price first so you never overpay for daily essentials.
+          </p>
+        </div>
+        <div class="fd-step-card">
+          <h4 style="color:var(--fd-green-deep);">🌙 Smart Next-Day Scheduling</h4>
+          <p style="font-size:0.84rem; color:var(--fd-text-secondary); margin-top:4px;">
+            Ordering late at night after a shop closes? FlashDrop seamlessly schedules your order for the shop's next working day opening (+30 mins).
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         PAGE 4: TERMS & CONDITIONS, DELIVERY & PRIVACY POLICY
+         ================================================================== -->
+    <section id="portal-terms" class="fd-portal-view">
+      <div class="fd-section-header">
+        <h2 class="fd-section-title">📜 Terms &amp; Conditions</h2>
+      </div>
+
+      <div class="fd-step-card">
+        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-green-deep);">1. Service Availability &amp; Operating Hours</h3>
+        <p style="font-size:0.85rem; color:var(--fd-text-secondary); margin-top:4px;">
+          FlashDrop operates across Mahoba, Uttar Pradesh (PIN 210427). Standard partner shop timings are <strong>10:00 AM to 10:00 PM IST</strong> unless customized by individual partner stores. Live shop status (<em>Open Now</em> or <em>Closed</em>) is displayed in real time on every store card.
+        </p>
+      </div>
+
+      <div class="fd-step-card orange">
+        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-orange-dark);">2. 30-Minute Delivery &amp; Late-Night Order Policy</h3>
+        <p style="font-size:0.85rem; color:var(--fd-text-secondary); margin-top:4px;">
+          • <strong>Active Store Hours:</strong> Orders placed while a partner shop is open are scheduled for delivery within <strong>30 minutes</strong> from the exact order timestamp.<br/>
+          • <strong>Orders Near Closing Time:</strong> For orders placed within 30 minutes before a shop's closing time, the partner shop may either dispatch the order the same night or schedule it for the next working morning (Opening Time + 30 minutes).<br/>
+          • <strong>Closed Store Orders:</strong> Orders placed when a shop is closed are automatically queued for the next working day's opening window.
+        </p>
+      </div>
+
+      <div class="fd-step-card">
+        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-green-deep);">3. Product Pricing &amp; Lowest-Rate Ranking</h3>
+        <p style="font-size:0.85rem; color:var(--fd-text-secondary); margin-top:4px;">
+          All prices listed on FlashDrop are inclusive of applicable taxes and are never higher than the product's printed MRP. When using text search or Camera Photo Search, available in-stock products are automatically sorted from lowest price to highest price for customer convenience.
+        </p>
+      </div>
+
+      <div class="fd-step-card orange">
+        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-orange-dark);">4. Cancellations, Returns &amp; Refunds</h3>
+        <p style="font-size:0.85rem; color:var(--fd-text-secondary); margin-top:4px;">
+          • Customers may inspect fresh vegetables, dairy, and packaged goods at the time of doorstep delivery.<br/>
+          • Damaged, expired, or incorrect items qualify for an instant doorstep replacement or 100% refund.<br/>
+          • Orders can be cancelled free of charge before the partner store dispatches the delivery rider.
+        </p>
+      </div>
+
+      <div class="fd-step-card">
+        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-green-deep);">5. Customer Privacy &amp; Camera Search Usage</h3>
+        <p style="font-size:0.85rem; color:var(--fd-text-secondary); margin-top:4px;">
+          Photos captured or selected using the Search Bar Camera feature are used solely to identify matching grocery and household products in the store catalog. FlashDrop does not sell or share personal customer information or delivery addresses with third parties.
+        </p>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         PAGE 5: CONTACT & HELP CENTER
+         ================================================================== -->
+    <section id="portal-contact" class="fd-portal-view">
+      <div class="fd-section-header">
+        <h2 class="fd-section-title">📞 Contact Us &amp; Customer Help Center</h2>
+      </div>
+
+      <div class="fd-two-col">
+        <div class="fd-card">
+          <div>
+            <h3 style="font-size:1.05rem; font-weight:800; color:var(--fd-green-deep); margin-bottom:10px;">
+              🏢 FlashDrop Mahoba Support Desk
+            </h3>
+            <p style="font-size:0.86rem; color:var(--fd-text-secondary); margin-bottom:14px;">
+              Need help with an order, delivery timing, or want to register your local shop on FlashDrop? Reach out to our local support team:
+            </p>
+
+            <div style="font-size:0.86rem; display:grid; gap:10px;">
+              <div style="background:var(--fd-bg); padding:10px 12px; border-radius:8px;">
+                <strong>📍 Head Office:</strong><br/>
+                Alha Chowk, Main Market Road, Mahoba, Uttar Pradesh – 210427
+              </div>
+              <div style="background:var(--fd-bg); padding:10px 12px; border-radius:8px;">
+                <strong>🕒 Support Timings:</strong><br/>
+                Every Day: 8:00 AM – 10:30 PM IST
+              </div>
+              <div style="background:var(--fd-bg); padding:10px 12px; border-radius:8px;">
+                <strong>📧 Email Support:</strong><br/>
+                support@flashdropmahoba.in
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fd-card">
+          <div>
+            <h3 style="font-size:1.05rem; font-weight:800; color:var(--fd-orange-dark); margin-bottom:10px;">
+              💬 Send Us a Message / Order Inquiry
+            </h3>
+            <form onsubmit="handleContactSubmit(event)">
+              <div class="fd-form-group">
+                <label for="contactName">Your Name</label>
+                <input id="contactName" type="text" class="fd-input" placeholder="Enter your full name" required />
+              </div>
+              <div class="fd-form-group">
+                <label for="contactPhone">Mobile Number</label>
+                <input id="contactPhone" type="tel" class="fd-input" placeholder="10-digit mobile number" required />
+              </div>
+              <div class="fd-form-group">
+                <label for="contactTopic">Topic</label>
+                <select id="contactTopic" class="fd-select">
+                  <option value="Order Delivery Support">Order / Delivery Support</option>
+                  <option value="Partner Shop Inquiry">Register My Shop on FlashDrop</option>
+                  <option value="Feedback / Suggestion">Feedback or Suggestion</option>
+                </select>
+              </div>
+              <div class="fd-form-group">
+                <label for="contactMsg">Message</label>
+                <input id="contactMsg" type="text" class="fd-input" placeholder="How can we help you today?" required />
+              </div>
+              <button type="submit" class="fd-btn-primary" style="width:100%; padding:10px;">
+                Send Message
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ====================================================================
+       CART & SMART 30-MINUTE CHECKOUT MODAL
+       ==================================================================== -->
+  <div id="cartModalBackdrop" class="fd-modal-backdrop" onclick="if(event.target===this) closeCartModal()">
+    <div class="fd-modal">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="font-size:1.1rem; font-weight:900;">🛒 Your FlashDrop Cart</h3>
+        <button class="fd-btn-outline" onclick="closeCartModal()">Close ✕</button>
+      </div>
+      <div id="cartItemsContainer"></div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       FOOTER WITH QUICK LINKS
+       ==================================================================== -->
+  <footer class="fd-footer">
+    <div style="max-width:1280px; margin:0 auto; display:flex; flex-direction:column; align-items:center; gap:10px;">
+      <img src="assets/flashdrop-logo.png" alt="FlashDrop Logo" style="height:36px; width:auto; object-fit:contain;" />
+      <div><strong>FlashDrop Mahoba</strong> — 30-Minute Local Delivery • Camera Visual Search (Lowest Price First)</div>
+      <div style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-top:4px;">
+        <a href="#" onclick="switchPortal('home', document.getElementById('navHomeBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">Home</a>
+        <a href="#" onclick="switchPortal('shops', document.getElementById('navShopsBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">Partner Shops</a>
+        <a href="#" onclick="switchPortal('about', document.getElementById('navAboutBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">About Us</a>
+        <a href="#" onclick="switchPortal('terms', document.getElementById('navTermsBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">Terms &amp; Conditions</a>
+        <a href="#" onclick="switchPortal('contact', document.getElementById('navContactBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">Contact &amp; Help</a>
+      </div>
+      <div style="font-size:0.74rem; color:var(--fd-text-muted);">
+        © 2026 FlashDrop Mahoba. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

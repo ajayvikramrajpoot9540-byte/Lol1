@@ -1,9 +1,17 @@
 package com.example.ui.components
 
+import android.Manifest
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -11,9 +19,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +40,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material3.Button
@@ -39,19 +51,29 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.example.data.model.Product
 import com.example.ui.theme.GreenLight
@@ -324,8 +346,8 @@ object CameraVisualSearchEngine {
 
 /**
  * Trailing icon row for Search Bars across FlashDrop:
- * Includes a Clear button (when query or photo search is active), a Gallery Photo Picker button,
- * and a prominent Camera button so customers who cannot type can easily click a photo.
+ * Includes a Clear button (when query or photo search is active), a Microphone Voice Search button,
+ * a Gallery Photo Picker button, and a prominent Camera button so customers can search by voice or photo.
  */
 @Composable
 fun SearchBarCameraTrailingActions(
@@ -333,8 +355,19 @@ fun SearchBarCameraTrailingActions(
     isAnalyzingPhoto: Boolean,
     onClear: () -> Unit,
     onLaunchCamera: () -> Unit,
-    onPickFromGallery: (() -> Unit)? = null
+    onPickFromGallery: (() -> Unit)? = null,
+    onVoiceSearchResult: ((String) -> Unit)? = null
 ) {
+    val context = LocalContext.current
+    var showVoiceDialog by remember { mutableStateOf(false) }
+
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Open voice search dialog whether granted or on emulator fallback
+        showVoiceDialog = true
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(end = 6.dp)
@@ -343,16 +376,46 @@ fun SearchBarCameraTrailingActions(
             IconButton(
                 onClick = onClear,
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(32.dp)
                     .testTag("search_bar_clear_button")
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Clear Search",
                     tint = TextMuted,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(17.dp)
                 )
             }
+        }
+
+        if (onVoiceSearchResult != null) {
+            IconButton(
+                onClick = {
+                    val hasMicPerm = ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (hasMicPerm) {
+                        showVoiceDialog = true
+                    } else {
+                        micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                },
+                enabled = !isAnalyzingPhoto,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(OrangeLight)
+                    .testTag("search_bar_mic_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Voice Search with Microphone",
+                    tint = OrangeSecondary,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
         }
 
         if (onPickFromGallery != null) {
@@ -360,14 +423,14 @@ fun SearchBarCameraTrailingActions(
                 onClick = onPickFromGallery,
                 enabled = !isAnalyzingPhoto,
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(34.dp)
                     .testTag("search_bar_gallery_button")
             ) {
                 Icon(
                     imageVector = Icons.Default.PhotoLibrary,
                     contentDescription = "Search by Gallery Photo",
                     tint = GreenPrimary,
-                    modifier = Modifier.size(19.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -394,6 +457,300 @@ fun SearchBarCameraTrailingActions(
                     tint = GreenPrimary,
                     modifier = Modifier.size(20.dp)
                 )
+            }
+        }
+    }
+
+    if (showVoiceDialog && onVoiceSearchResult != null) {
+        VoiceSearchListeningDialog(
+            onDismiss = { showVoiceDialog = false },
+            onVoiceQueryRecognized = { recognizedText ->
+                showVoiceDialog = false
+                onVoiceSearchResult(recognizedText)
+            }
+        )
+    }
+}
+
+/**
+ * Interactive Voice Search Listening Dialog using Android SpeechRecognizer + System RecognizerIntent
+ * + Instant Voice Phrase Chips so users can search by speaking any product name and see the
+ * Lowest Rate / Price product at the top/first.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun VoiceSearchListeningDialog(
+    onDismiss: () -> Unit,
+    onVoiceQueryRecognized: (String) -> Unit
+) {
+    val context = LocalContext.current
+    var isListening by remember { mutableStateOf(false) }
+    var statusMessage by remember { mutableStateOf("Listening... Speak a product name (e.g. Milk, Atta, Tomatoes)") }
+    var partialSpokenText by remember { mutableStateOf("") }
+
+    val systemSpeechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val bestMatch = matches?.firstOrNull()?.trim()
+            if (!bestMatch.isNullOrBlank()) {
+                onVoiceQueryRecognized(bestMatch)
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val recognizer = if (SpeechRecognizer.isRecognitionAvailable(context)) {
+            SpeechRecognizer.createSpeechRecognizer(context)
+        } else {
+            null
+        }
+
+        if (recognizer != null) {
+            val listener = object : RecognitionListener {
+                override fun onReadyForSpeech(params: Bundle?) {
+                    isListening = true
+                    statusMessage = "Listening now... Speak product name clearly"
+                }
+
+                override fun onBeginningOfSpeech() {
+                    isListening = true
+                    statusMessage = "Hearing your voice..."
+                }
+
+                override fun onRmsChanged(rmsdB: Float) {}
+                override fun onBufferReceived(buffer: ByteArray?) {}
+
+                override fun onEndOfSpeech() {
+                    isListening = false
+                    statusMessage = "Processing spoken product..."
+                }
+
+                override fun onError(error: Int) {
+                    isListening = false
+                    statusMessage = "Tap 'Retry Mic' to speak again, or tap a voice phrase below:"
+                }
+
+                override fun onResults(results: Bundle?) {
+                    isListening = false
+                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    val best = matches?.firstOrNull()?.trim()
+                    if (!best.isNullOrBlank()) {
+                        partialSpokenText = best
+                        onVoiceQueryRecognized(best)
+                    } else {
+                        statusMessage = "Could not catch that. Try speaking again or tap a product below:"
+                    }
+                }
+
+                override fun onPartialResults(partialResults: Bundle?) {
+                    val partial = partialResults
+                        ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        ?.firstOrNull()
+                        ?.trim()
+                    if (!partial.isNullOrBlank()) {
+                        partialSpokenText = partial
+                    }
+                }
+
+                override fun onEvent(eventType: Int, params: Bundle?) {}
+            }
+
+            recognizer.setRecognitionListener(listener)
+            try {
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                }
+                recognizer.startListening(intent)
+                isListening = true
+            } catch (e: Exception) {
+                Log.w(TAG, "SpeechRecognizer start failed: ${e.message}")
+                isListening = false
+                statusMessage = "Speak using System Voice or tap a voice command below:"
+            }
+        } else {
+            statusMessage = "Tap 'System Voice Prompt' or select a spoken product below:"
+        }
+
+        onDispose {
+            try {
+                recognizer?.stopListening()
+                recognizer?.destroy()
+            } catch (_: Exception) {}
+        }
+    }
+
+    val quickVoicePhrases = remember {
+        listOf(
+            "Milk" to "🥛 \"Milk\"",
+            "Atta" to "🌾 \"Atta\"",
+            "Biscuit" to "🍪 \"Biscuit\"",
+            "Tomato" to "🍅 \"Tomato\"",
+            "Potato" to "🥔 \"Potato\"",
+            "Pedha" to "🍬 \"Pedha\"",
+            "Notebook" to "📓 \"Notebook\"",
+            "Medicine" to "💊 \"Medicine\""
+        )
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("voice_search_dialog"),
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Pulsing Mic Circle
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(if (isListening) GreenLight else OrangeLight)
+                        .border(
+                            width = 2.dp,
+                            color = if (isListening) GreenPrimary else OrangeSecondary,
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Microphone Active",
+                        tint = if (isListening) GreenPrimary else OrangeSecondary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = if (isListening) "Listening for Product Name..." else "Voice Product Search",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 17.sp,
+                    color = TextDark
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = statusMessage,
+                    fontSize = 12.sp,
+                    color = TextMuted,
+                    textAlign = TextAlign.Center
+                )
+
+                if (partialSpokenText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = GreenLight,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(
+                            text = "\"$partialSpokenText\"",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = GreenPrimary,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // System Speech Intent Launcher Button
+                Button(
+                    onClick = {
+                        try {
+                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                putExtra(
+                                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                                )
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
+                                putExtra(
+                                    RecognizerIntent.EXTRA_PROMPT,
+                                    "Speak product name (Lowest price shown first)"
+                                )
+                            }
+                            systemSpeechLauncher.launch(intent)
+                        } catch (_: Exception) {
+                            statusMessage = "System voice activity not available on this emulator. Tap any voice phrase below:"
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("launch_system_voice_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Speak with System Microphone", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "Or tap a spoken phrase to test Voice Search (Lowest Price First):",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextMuted,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    quickVoicePhrases.forEach { (query, label) ->
+                        Surface(
+                            color = Color(0xFFF0FDF4),
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(1.dp, GreenPrimary.copy(alpha = 0.5f)),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .clickable { onVoiceQueryRecognized(query) }
+                                .testTag("voice_phrase_chip_${query.lowercase()}")
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GreenPrimary,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cancel", color = TextDark, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }

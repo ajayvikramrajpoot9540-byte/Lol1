@@ -148,6 +148,7 @@ fun HomeScreen(
     var showAddressManagementDialog by remember { mutableStateOf(false) }
     var locationMenuExpanded by remember { mutableStateOf(false) }
     var showMapLocationPicker by remember { mutableStateOf(false) }
+    var showWebsitePreview by remember { mutableStateOf(false) }
 
     LaunchedEffect(profile.locality) {
         if (profile.locality.isNotBlank()) {
@@ -374,6 +375,13 @@ fun HomeScreen(
 
                         Spacer(modifier = Modifier.width(4.dp))
 
+                        // Live Website Preview Button in Review Window
+                        com.example.ui.components.WebsitePreviewTopButton(
+                            onClick = { showWebsitePreview = true }
+                        )
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
                         // Customer Notification Bell Button
                         NotificationBellButton(
                             repository = repository,
@@ -471,7 +479,7 @@ fun HomeScreen(
                         .testTag("home_search_input"),
                     placeholder = {
                         Text(
-                            "Search or click camera photo of product...",
+                            "Search by text, mic voice, or camera photo...",
                             color = TextMuted,
                             fontSize = 13.sp,
                             maxLines = 1,
@@ -500,6 +508,10 @@ fun HomeScreen(
                                 searchGalleryLauncher.launch(
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                 )
+                            },
+                            onVoiceSearchResult = { spokenText ->
+                                searchQuery = spokenText
+                                visualSearchState = VisualSearchUiState.Idle
                             }
                         )
                     },
@@ -871,6 +883,12 @@ fun HomeScreen(
             onAddressSelected = { selected ->
                 selectedLocality = selected.area.ifBlank { "Mahoba" }
             }
+        )
+    }
+
+    if (showWebsitePreview) {
+        com.example.ui.components.WebsitePreviewFullScreenDialog(
+            onDismiss = { showWebsitePreview = false }
         )
     }
 }
