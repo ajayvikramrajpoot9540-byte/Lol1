@@ -1,0 +1,27 @@
+id,shopId,shopName,name,category,subcategory,price,originalPrice,description,imageUrl,unit,inStock,rating,ratingCount
+prod_atta,sharma_general,Sharma General Store,Aashirvaad Atta (5kg,,,,,,,,,,
+prod_parle_g,sharma_general,Sharma General Store,Parle-G Biscuits,Grocery,Snacks,20.0,25.0,India's favorite glucose biscuits. Crispy and sweet snack for daily tea breaks.,https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=400&auto=format&fit=crop&q=80,Pack of 2,True,4.9,310
+prod_maggi,sharma_general,Sharma General Store,Maggi Noodles,Grocery,Snacks,15.0,20.0,Classic 2-minute masala instant noodles loaded with authentic Indian spices.,https://images.unsplash.com/photo-1612927601601-6638404737ce?w=400&auto=format&fit=crop&q=80,Pack of 1,True,4.7,340
+prod_salt,sharma_general,Sharma General Store,Tata Salt (1kg,,,,,,,,,,
+prod_butter,sharma_general,Sharma General Store,Amul Butter (500g,,,,,,,,,,
+prod_fortune_oil,sharma_general,Sharma General Store,Fortune Refined Sunlite Oil (1L,,,,,,,,,,
+prod_rice,sharma_general,Sharma General Store,India Gate Basmati Rice (1kg,,,,,,,,,,
+prod_kurti,rani_fashion,Rani Fashion Hub,Handloom Cotton Kurti (Ethnic,,,,,,,,,,
+prod_shirt,rani_fashion,Rani Fashion Hub,Pure Linen Men's Casual Shirt,Fashion,Men,599.0,999.0,Premium breathable linen shirt in subtle pastel shades. Stylish tailored fit for festivals and casual wear.,https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&auto=format&fit=crop&q=80,Size: 40/42,True,4.5,42
+prod_saree,rani_fashion,Rani Fashion Hub,Chanderi Art Silk Saree,Fashion,Women,1199.0,1899.0,Traditional zari border silk saree with unstitched blouse piece. Authentic Bundelkhand festival elegance.,https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&auto=format&fit=crop&q=80,6.3 meters with blouse,True,4.9,37
+prod_earphones,mahoba_electronics,Mahoba Electronics & Mobiles,boAt BassHeads 100 Earphones,Electronics,Audio,399.0,599.0,Super extra bass wired in-ear earphones with in-line microphone and 10mm dynamic drivers.,https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&auto=format&fit=crop&q=80,1 Unit (Black,,,
+prod_charger,mahoba_electronics,Mahoba Electronics & Mobiles,20W Type-C Fast Charger & Cable,Electronics,Accessories,449.0,699.0,Quick charge 3.0 power adapter with 1m braided fast charging Type-C cable.,https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=400&auto=format&fit=crop&q=80,Adapter + Cable,True,4.7,88
+prod_powerbank,mahoba_electronics,Mahoba Electronics & Mobiles,10000mAh Slim Power Bank,Electronics,Accessories,899.0,1299.0,Dual USB output slim power bank with smart LED indicator and short circuit protection.,https://images.unsplash.com/photo-1609592424361-9c17df2093e0?w=400&auto=format&fit=crop&q=80,10000mAh,True,4.8,76
+prod_pedha,sahu_sweets,Sahu Sweets & Namkeen,Mahoba Special Khoya Pedha (400g,,,,,,,,,,
+prod_gulabjamun,sahu_sweets,Sahu Sweets & Namkeen,Hot Desi Ghee Gulab Jamun (500g,,,,,,,,,,
+prod_samosa_combo,sahu_sweets,Sahu Sweets & Namkeen,Crispy Samosa & Jalebi Combo,Food,Snacks,80.0,90.0,4 crispy spiced potato samosas served with sweet imli chutney and 200g hot crispy jalebi.,https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400&auto=format&fit=crop&q=80,4 Samosas + 200g Jalebi,True,4.9,220
+prod_desi_ghee,bundelkhand_organics,Bundelkhand Organics & Spices,Desi Cow Bilona Ghee (1L,,,,,,,,,,
+prod_dolo,gupta_medical,Gupta Medical & Health Care,Dolo 650mg Paracetamol,Pharmacy,Medicines,32.0,34.0,"Fast relief from fever, headache, body aches, and mild flu symptoms.",https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&auto=format&fit=crop&q=80,Strip of 15 Tablets,True,4.8,92
+prod_chyawanprash,gupta_medical,Gupta Medical & Health Care,Dabur Chyawanprash (1kg,,,,,,,,,,
+prod_notebooks,kitab_ghar,Kitab Ghar & Stationery,Classmate Spiral Notebook (Pack of 3,,,,,,,,,,
+prod_flex_banner,hemu_printing,Hemu Printing Shop,Custom Flex Banner Printing (All Sizes,,,,,,,,,,
+prod_visiting_cards,hemu_printing,Hemu Printing Shop,Premium Matte Visiting Cards (100 Pcs,,,,,,,,,,
+prod_doc_print,hemu_printing,Hemu Printing Shop,High-Speed A4 B&W Document & Photo Printing,Printing Press,Document Printing,1.0,2.0,Crisp laser printouts on 75 GSM A4 paper. Black & White only. Doorstep delivery across Mahoba.,https://images.unsplash.com/photo-1589330694653-dad6bc0140ad?w=400&auto=format&fit=crop&q=80,A4 B&W print,True,4.9,230
+prod_pamphlets,hemu_printing,Hemu Printing Shop,Marketing Pamphlets & Handbills (1000 Pcs,,,,,,,,,,
+prod_wedding_cards,hemu_printing,Hemu Printing Shop,Traditional Bundelkhandi Wedding Cards (100 Sets,,,,,,,,,,
+prod_binding,hemu_printing,Hemu Printing Shop,Spiral Binding & Project Lamination,Printing Press,Document Printing,60.0,80.0,"Durable transparent front cover, black comb spine, and thermal pouch lamination for certificates.",https://images.unsplash.com/photo-1455390582262-044cdead277a?w=400&auto=format&fit=crop&q=80,per document,True,4.8,76

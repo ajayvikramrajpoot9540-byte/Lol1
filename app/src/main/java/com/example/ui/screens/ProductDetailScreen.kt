@@ -46,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -81,7 +82,8 @@ fun ProductDetailScreen(
     val products by repository.products.collectAsState()
     val schedules by repository.shopSchedules.collectAsState()
     val shops by repository.shops.collectAsState()
-    val product = products.find { it.id == productId }
+    var activeProductId by remember(productId) { mutableStateOf(productId) }
+    val product = products.find { it.id == activeProductId } ?: products.find { it.id == productId }
     val shopLiveStatus = remember(schedules, shops, product?.shopId) {
         if (product != null) repository.getShopLiveStatus(product.shopId) else null
     }
@@ -391,6 +393,28 @@ fun ProductDetailScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // ⚖️ Multi-Shop Price Comparison Card (Mahoba Local Stores)
+                    com.example.ui.components.MultiShopPriceComparisonCard(
+                        currentProduct = product,
+                        allProducts = products,
+                        allShops = shops,
+                        getLiveStatus = { sId -> repository.getShopLiveStatus(sId) },
+                        onSelectProduct = { selectedProduct ->
+                            activeProductId = selectedProduct.id
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Switched to ${selectedProduct.shopName} (₹${selectedProduct.price.toInt()})")
+                            }
+                        },
+                        onAddToCart = { addProduct ->
+                            repository.addToCart(addProduct)
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Added 1x ${addProduct.name} from ${addProduct.shopName} to Cart")
+                            }
+                        }
+                    )
 
                     Spacer(modifier = Modifier.height(16.dp))
 

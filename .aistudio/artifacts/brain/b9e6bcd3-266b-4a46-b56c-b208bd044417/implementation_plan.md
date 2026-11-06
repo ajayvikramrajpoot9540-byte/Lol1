@@ -169,3 +169,12 @@ Comprehensive plan to implement the advanced delivery time calculation, shopkeep
 6. **Step 6: Security Rules & Unit Tests**:
    - Add unit tests verifying the 15 test scenarios listed in the PDF.
    - Compile and verify with `compile_applet`.
+7. **Step 7: Multi-Shop Price Comparison Card on Product Details (Completed)**:
+   - Built interactive `MultiShopPriceComparisonCard.kt` in `com.example.ui.components`.
+   - Matching engine matches comparable products across local Mahoba shops by keyword tokens and category.
+   - Computes side-by-side shop ratings (⭐ 4.8), distance, live open/closed status, item prices, delivery fees, and net total cost.
+   - Highlights the #1 lowest price in Mahoba with a glowing `★ Lowest Price` badge.
+   - Supports 1-tap store switching and direct "+ Add to Cart" action buttons.
+   - Mirrored across both the Android app (`ProductDetailScreen.kt`) and FlashDrop Website modal (`flashdrop-website/app.js` and `styles.css`).
+   - Verified with unit tests in `MultiShopPriceComparisonTest.kt` and `compile_applet`.
+

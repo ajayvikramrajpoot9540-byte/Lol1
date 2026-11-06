@@ -213,6 +213,24 @@ object SeedData {
             phone = "+91 98765 33445",
             imageUrl = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&auto=format&fit=crop&q=80",
             ownerId = "shopkeeper_rk"
+        ),
+        Shop(
+            id = "bajpai_kirana",
+            name = "Bajpai Kirana & Daily Needs",
+            category = "Grocery",
+            rating = 4.7,
+            ratingCount = 112,
+            distance = "0.9 km",
+            deliveryTime = "15-25 mins",
+            deliveryAvailable = true,
+            deliveryFee = 15.0,
+            minOrder = 80.0,
+            isOpen = true,
+            description = "Subhash Nagar wholesale & retail groceries, atta, dals, dairy items, and household provisions.",
+            address = "Subhash Nagar, Mahoba",
+            phone = "+91 98765 89012",
+            imageUrl = "https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&auto=format&fit=crop&q=80",
+            ownerId = "shopkeeper_bajpai"
         )
     )
 
@@ -498,6 +516,104 @@ object SeedData {
             rating = 5.0,
             ratingCount = 49
         ),
+        Product(
+            id = "prod_atta_organics",
+            shopId = "bundelkhand_organics",
+            shopName = "Bundelkhand Organics & Spices",
+            name = "Bundelkhandi Chakki Fresh Sharbati Atta (5kg)",
+            category = "Grocery",
+            subcategory = "Atta & Dals",
+            price = 235.0,
+            originalPrice = 270.0,
+            description = "100% stone-ground unadulterated MP Sharbati wheat flour. Rich in natural dietary fiber.",
+            imageUrl = "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&auto=format&fit=crop&q=80",
+            unit = "5kg pack",
+            inStock = true,
+            rating = 4.9,
+            ratingCount = 85
+        ),
+        Product(
+            id = "prod_oil_organics",
+            shopId = "bundelkhand_organics",
+            shopName = "Bundelkhand Organics & Spices",
+            name = "Fortune Refined Sunlite Oil (1L)",
+            category = "Grocery",
+            subcategory = "Oils & Ghee",
+            price = 142.0,
+            originalPrice = 160.0,
+            description = "Pure enriched cooking oil packed fresh from certified local batch.",
+            imageUrl = "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400&auto=format&fit=crop&q=80",
+            unit = "1L Pouch",
+            inStock = true,
+            rating = 4.7,
+            ratingCount = 41
+        ),
+
+        // Bajpai Kirana & Daily Needs
+        Product(
+            id = "prod_atta_bajpai",
+            shopId = "bajpai_kirana",
+            shopName = "Bajpai Kirana & Daily Needs",
+            name = "Aashirvaad Shudh Chakki Atta (5kg)",
+            category = "Grocery",
+            subcategory = "Atta & Dals",
+            price = 239.0,
+            originalPrice = 275.0,
+            description = "Standard Aashirvaad whole wheat flour packed with natural nutrients for rotis.",
+            imageUrl = "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&auto=format&fit=crop&q=80",
+            unit = "5kg pack",
+            inStock = true,
+            rating = 4.7,
+            ratingCount = 74
+        ),
+        Product(
+            id = "prod_parle_g_bajpai",
+            shopId = "bajpai_kirana",
+            shopName = "Bajpai Kirana & Daily Needs",
+            name = "Parle-G Biscuits",
+            category = "Grocery",
+            subcategory = "Snacks",
+            price = 18.0,
+            originalPrice = 25.0,
+            description = "India's favorite crunchy glucose biscuits at direct wholesale rate in Mahoba.",
+            imageUrl = "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=400&auto=format&fit=crop&q=80",
+            unit = "Pack of 2",
+            inStock = true,
+            rating = 4.8,
+            ratingCount = 95
+        ),
+        Product(
+            id = "prod_butter_bajpai",
+            shopId = "bajpai_kirana",
+            shopName = "Bajpai Kirana & Daily Needs",
+            name = "Amul Butter (500g)",
+            category = "Grocery",
+            subcategory = "Dairy",
+            price = 255.0,
+            originalPrice = 275.0,
+            description = "Freshly chilled Amul pasteurized butter for breakfast toast and cooking.",
+            imageUrl = "https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?w=400&auto=format&fit=crop&q=80",
+            unit = "500g pack",
+            inStock = true,
+            rating = 4.8,
+            ratingCount = 80
+        ),
+        Product(
+            id = "prod_salt_bajpai",
+            shopId = "bajpai_kirana",
+            shopName = "Bajpai Kirana & Daily Needs",
+            name = "Tata Salt (1kg)",
+            category = "Grocery",
+            subcategory = "Household",
+            price = 23.0,
+            originalPrice = 28.0,
+            description = "Desh ka namak with essential iodine. Hygienic everyday kitchen salt.",
+            imageUrl = "https://images.unsplash.com/photo-1518843875459-f738682238a6?w=400&auto=format&fit=crop&q=80",
+            unit = "1kg pack",
+            inStock = true,
+            rating = 4.8,
+            ratingCount = 110
+        ),
 
         // Gupta Medical
         Product(
@@ -647,6 +763,22 @@ object SeedData {
             inStock = true,
             rating = 4.8,
             ratingCount = 76
+        ),
+        Product(
+            id = "prod_doc_print_rk",
+            shopId = "rk_printing",
+            shopName = "R.K. Printing Press",
+            name = "High-Speed A4 B&W Document & Photo Printing",
+            category = "Printing Press",
+            subcategory = "Document Printing",
+            price = 1.25,
+            originalPrice = 2.0,
+            description = "High-resolution crisp digital laser printouts on 75 GSM paper. Urgent same-day printout delivery across Mahoba.",
+            imageUrl = "https://images.unsplash.com/photo-1589330694653-dad6bc0140ad?w=400&auto=format&fit=crop&q=80",
+            unit = "A4 B&W print",
+            inStock = true,
+            rating = 4.3,
+            ratingCount = 88
         )
     )
 

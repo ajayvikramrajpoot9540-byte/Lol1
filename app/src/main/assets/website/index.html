@@ -10,7 +10,7 @@
 <body>
 
   <!-- ====================================================================
-       COMPACT RESPONSIVE HEADER (Official FlashDrop Logo on Left)
+       1. TOP HEADER & NAVIGATION
        ==================================================================== -->
   <header class="fd-header">
     <div class="fd-header-inner">
@@ -25,7 +25,7 @@
         </span>
       </a>
 
-      <!-- Public Customer Navigation Tabs (Read-Only, Safe for Public Visitors) -->
+      <!-- Main Navigation Tabs -->
       <nav class="fd-nav-tabs" aria-label="Main Navigation">
         <button id="navHomeBtn" class="fd-nav-btn active" onclick="switchPortal('home', this)">
           🏠 Home
@@ -33,18 +33,21 @@
         <button id="navShopsBtn" class="fd-nav-btn" onclick="switchPortal('shops', this)">
           🏪 Partner Shops
         </button>
-        <button id="navAboutBtn" class="fd-nav-btn" onclick="switchPortal('about', this)">
-          ✨ About Us
+        <button id="navOrdersBtn" class="fd-nav-btn" onclick="switchPortal('orders', this)">
+          📦 My Orders <span id="navOrdersBadge" class="fd-cart-count" style="display:none; margin-left:4px;">0</span>
+        </button>
+        <button id="navPortalBtn" class="fd-nav-btn" onclick="switchPortal('portal', this)" style="border-color:var(--fd-orange-primary); color:var(--fd-orange-dark);">
+          🏪 Merchant / Admin
         </button>
         <button id="navTermsBtn" class="fd-nav-btn" onclick="switchPortal('terms', this)">
-          📜 Terms &amp; Conditions
+          📜 Terms &amp; Policies
         </button>
         <button id="navContactBtn" class="fd-nav-btn" onclick="switchPortal('contact', this)">
-          📞 Contact &amp; Help
+          📞 Help &amp; Support
         </button>
       </nav>
 
-      <!-- Live IST Clock & Cart -->
+      <!-- Live Clock & Cart Trigger -->
       <div class="fd-header-actions">
         <span id="liveIstClock" class="fd-clock-badge">IST 10:00 AM</span>
         <button class="fd-cart-btn" onclick="openCartModal()">
@@ -55,7 +58,7 @@
   </header>
 
   <!-- ====================================================================
-       MAIN CONTAINER
+       2. MAIN CONTENT CONTAINER
        ==================================================================== -->
   <main class="fd-container">
 
@@ -64,24 +67,24 @@
          ================================================================== -->
     <section id="portal-home" class="fd-portal-view active">
 
-      <!-- Hero Banner + Smart 30-Minute Forward Delivery Calculator -->
+      <!-- Hero Banner + Live 30-Minute Forward Delivery Engine -->
       <div class="fd-hero-banner">
         <div>
           <span class="fd-hero-tag">⚡ 30-Minute Express Delivery</span>
-          <h1 class="fd-hero-title">Fresh Groceries, Sweets, Vegetables &amp; Essentials in Mahoba</h1>
+          <h1 class="fd-hero-title">Fresh Groceries, Sweets, Vegetables &amp; Daily Essentials in Mahoba</h1>
           <p class="fd-hero-subtitle">
-            Can't type? Click the <strong>Camera icon in the search bar</strong> to take a photo of any product — FlashDrop automatically displays available matches with the <strong>Least Rate / Lowest Price at the Top/First</strong>!
+            Can't type? Use the <strong>Mic Voice Search</strong> or click the <strong>Camera button</strong> to snap a photo of any product — FlashDrop automatically matches local stores with the <strong>Least Rate / Lowest Price at the Top/First</strong>!
           </p>
         </div>
 
         <div class="fd-smart-delivery-card">
           <h3>⏱️ Smart 30-Min Forward Delivery</h3>
           <div id="heroLiveEta" class="fd-delivery-eta">Expected by 10:30 AM</div>
-          <div id="heroOrderTime" class="fd-delivery-meta">Calculated live from current IST time (+30 mins)</div>
+          <div id="heroOrderTime" class="fd-delivery-meta">Calculated live from current IST time (+30 mins exact)</div>
         </div>
       </div>
 
-      <!-- Search Bar with Camera Photo Search & Lowest-Price-First Ranking -->
+      <!-- Multi-Modal Search Bar (Text, Voice Mic, Camera Photo) -->
       <div class="fd-search-section">
         <div class="fd-search-row">
           <div class="fd-search-input-wrap">
@@ -90,11 +93,11 @@
               id="fdSearchInput"
               type="text"
               class="fd-search-input"
-              placeholder="Search by text, mic voice, or camera photo..."
+              placeholder="Search by text, speak with mic, or click camera photo..."
             />
           </div>
 
-          <!-- Hidden File Input for Camera Capture & Gallery Photo -->
+          <!-- Hidden File Inputs -->
           <input
             id="cameraFileInput"
             type="file"
@@ -111,60 +114,68 @@
             onchange="handlePhotoInput(event)"
           />
 
+          <!-- Microphone Voice Button -->
           <button
             id="fdMicBtn"
             type="button"
             class="fd-gallery-btn"
             onclick="startVoiceSearch()"
-            title="Speak product name using Microphone"
+            title="Speak product name with Microphone"
           >
-            🎤 Mic
+            🎤 Voice Mic
           </button>
 
+          <!-- Camera Photo Button -->
           <button
             type="button"
             class="fd-camera-btn"
             onclick="document.getElementById('cameraFileInput').click()"
-            title="Click a photo of any product to find the lowest price available"
+            title="Click a photo of any product to find lowest price available"
           >
             📷 Camera Search
           </button>
 
+          <!-- Gallery Button -->
           <button
             type="button"
             class="fd-gallery-btn"
             onclick="document.getElementById('galleryFileInput').click()"
-            title="Upload product photo from gallery"
+            title="Upload photo from gallery"
           >
-            🖼️ Photo
+            🖼️ Gallery
           </button>
         </div>
 
-        <!-- Instant Demo Camera Presets for Quick Testing -->
+        <!-- Quick Demo Voice & Camera Presets -->
         <div class="fd-search-helper">
-          <span>💡 <strong>Quick Photo Search (Lowest Price First):</strong></span>
+          <span>💡 <strong>Quick Test Presets (Sorted Lowest Price First):</strong></span>
           <div class="fd-quick-photo-chips">
-            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('milk', 'Fresh Milk Pack')">📸 Milk (₹27 First)</button>
-            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('atta', 'Chakki Fresh Wheat Atta')">📸 Atta (₹195 First)</button>
-            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('tomato', 'Fresh Farm Tomatoes')">📸 Tomato (₹24 First)</button>
-            <button class="fd-photo-chip" onclick="triggerQuickCameraPreset('biscuit', 'Biscuits Pack')">📸 Biscuit (₹10 First)</button>
+            <button class="fd-photo-chip" onclick="applyPresetSearch('milk', 'Fresh Milk Pack')">🥛 Milk (₹27 First)</button>
+            <button class="fd-photo-chip" onclick="applyPresetSearch('atta', 'Chakki Fresh Gehu Atta')">🌾 Atta (₹195 First)</button>
+            <button class="fd-photo-chip" onclick="applyPresetSearch('tomato', 'Fresh Farm Tomatoes')">🍅 Tomato (₹24 First)</button>
+            <button class="fd-photo-chip" onclick="applyPresetSearch('biscuit', 'Biscuits Pack')">🍪 Biscuit (₹10 First)</button>
+            <button class="fd-photo-chip" onclick="applyPresetSearch('notebook', 'Stationery Notebook')">📓 Notebook (₹55 First)</button>
           </div>
         </div>
 
-        <!-- Visual Search & Lowest-Price-First Result Banner -->
+        <!-- Visual / Voice Search Result Banner -->
         <div id="visualSearchBanner" class="fd-visual-banner"></div>
       </div>
 
       <!-- Category Filter Pills -->
       <div class="fd-categories">
         <button class="fd-cat-pill active" onclick="selectCategory('All', this)">All Categories</button>
-        <button class="fd-cat-pill" onclick="selectCategory('Groceries', this)">🌾 Groceries &amp; Atta</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Grocery', this)">🌾 Grocery &amp; Atta</button>
         <button class="fd-cat-pill" onclick="selectCategory('Sweets', this)">🥛 Sweets &amp; Dairy</button>
         <button class="fd-cat-pill" onclick="selectCategory('Vegetables', this)">🍅 Fresh Vegetables</button>
-        <button class="fd-cat-pill" onclick="selectCategory('Medicine', this)">💊 Medicine &amp; Stationery</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Pharmacy', this)">💊 Pharmacy &amp; Health</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Books', this)">📚 Books &amp; Stationery</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Fashion', this)">👗 Fashion &amp; Clothing</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Electronics', this)">⚡ Electronics</button>
+        <button class="fd-cat-pill" onclick="selectCategory('Printing', this)">🖨️ Printing Press</button>
       </div>
 
-      <!-- Products Section (Sorted with Least Rate / Lowest Price First!) -->
+      <!-- Products Grid Section (Sorted Lowest Price First!) -->
       <div id="productsSection" class="fd-section-header">
         <h2 class="fd-section-title">
           🏷️ Available Products <span style="font-size:0.8rem; font-weight:700; color:var(--fd-green-primary);">(Least Rate / Lowest Price First)</span>
@@ -172,91 +183,171 @@
       </div>
       <div id="productsGrid" class="fd-grid-products"></div>
 
-      <!-- Local Mahoba Partner Shops -->
-      <div class="fd-section-header" style="margin-top:32px;">
+      <!-- Partner Shops Section -->
+      <div class="fd-section-header" style="margin-top:36px;">
         <h2 class="fd-section-title">🏪 Verified Local Shops in Mahoba</h2>
+        <span style="font-size:0.82rem; color:var(--fd-text-secondary);">Operating Hours: 10:00 AM – 10:00 PM IST</span>
       </div>
       <div id="shopsGrid" class="fd-grid-shops"></div>
 
     </section>
 
     <!-- ==================================================================
-         PAGE 2: PARTNER SHOPS DIRECTORY (READ-ONLY FOR VISITORS)
+         PAGE 2: PARTNER SHOPS DIRECTORY
          ================================================================== -->
     <section id="portal-shops" class="fd-portal-view">
       <div class="fd-section-header">
         <h2 class="fd-section-title">🏪 Verified Partner Shops in Mahoba</h2>
       </div>
       <p style="font-size:0.9rem; color:var(--fd-text-secondary); margin-bottom:16px;">
-        All partner stores operate with verified daily schedules (Standard Hours: <strong>10:00 AM – 10:00 PM IST</strong>). Orders placed during open hours are delivered in <strong>30 minutes</strong>, while orders placed after closing are automatically scheduled for next-morning delivery.
+        Explore all verified Mahoba kirana stores, sweet shops, printing presses, and pharmacies. Click <strong>"View Products →"</strong> on any store to view its exclusive catalog and add items directly to your cart.
       </p>
       <div id="shopsDirectoryGrid" class="fd-grid-shops"></div>
     </section>
 
     <!-- ==================================================================
-         PAGE 3: ABOUT US
+         PAGE 3: MY ORDERS & 30-MINUTE DELIVERY TRACKER
          ================================================================== -->
-    <section id="portal-about" class="fd-portal-view">
+    <section id="portal-orders" class="fd-portal-view">
       <div class="fd-section-header">
-        <h2 class="fd-section-title">✨ About FlashDrop Mahoba</h2>
+        <h2 class="fd-section-title">📦 My Orders &amp; Live Delivery Tracking</h2>
+      </div>
+      <div id="ordersContainer"></div>
+    </section>
+
+    <!-- ==================================================================
+         PAGE 4: SHOPKEEPER & ADMIN MANAGEMENT PORTAL
+         ================================================================== -->
+    <section id="portal-portal" class="fd-portal-view">
+      <div class="fd-section-header">
+        <h2 class="fd-section-title">🏪 Merchant &amp; Administrator Dashboard</h2>
+        <span id="skLiveStatusBadge" class="fd-status-badge open">OPEN NOW</span>
       </div>
 
       <div class="fd-two-col">
+        <!-- Shop Schedule Control -->
         <div class="fd-card">
           <div>
-            <span class="fd-lowest-badge">OUR MISSION</span>
-            <h3 style="font-size:1.1rem; font-weight:800; color:var(--fd-green-deep); margin-bottom:8px;">
-              Hyperlocal 30-Minute Delivery for Every Household in Mahoba
+            <h3 style="font-size:1.05rem; font-weight:800; margin-bottom:6px; color:var(--fd-green-deep);">
+              ⏰ Shop Operating Hours &amp; Auto Opening/Closing
             </h3>
-            <p style="font-size:0.88rem; color:var(--fd-text-secondary); margin-bottom:12px;">
-              FlashDrop connects customers across Mahoba (210427) directly with trusted neighborhood kirana stores, sweet shops, fresh vegetable vendors, pharmacies, and stationery outlets.
+            <p style="font-size:0.8rem; color:var(--fd-text-secondary); margin-bottom:14px;">
+              Default Hours: <strong>10:00 AM Opening</strong> and <strong>10:00 PM Closing</strong>. Automatic opening and closing keep customer delivery calculations 100% accurate.
             </p>
-            <p style="font-size:0.88rem; color:var(--fd-text-secondary);">
-              Whether you need morning milk, fresh chakki atta, farm vegetables, or urgent stationery, FlashDrop delivers right to your doorstep within <strong>30 minutes</strong> of your order time.
-            </p>
+
+            <div class="fd-two-col" style="gap:10px;">
+              <div class="fd-form-group">
+                <label for="skOpeningTime">Default Opening Time</label>
+                <input id="skOpeningTime" type="text" class="fd-input" value="10:00 AM" />
+              </div>
+              <div class="fd-form-group">
+                <label for="skClosingTime">Default Closing Time</label>
+                <input id="skClosingTime" type="text" class="fd-input" value="10:00 PM" />
+              </div>
+            </div>
+
+            <div class="fd-form-group" style="display:flex; align-items:center; gap:8px;">
+              <input id="skAutoOpen" type="checkbox" checked />
+              <label for="skAutoOpen" style="margin:0;"><strong>Automatic Opening ON</strong> (Opens shop automatically at opening time)</label>
+            </div>
+
+            <div class="fd-form-group" style="display:flex; align-items:center; gap:8px;">
+              <input id="skAutoClose" type="checkbox" checked />
+              <label for="skAutoClose" style="margin:0;"><strong>Automatic Closing ON</strong> (Closes shop automatically at closing time)</label>
+            </div>
+
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">
+              <button class="fd-btn-primary" onclick="saveShopkeeperSchedule()">💾 Save Schedule</button>
+              <button class="fd-btn-outline" onclick="setManualShopOverride(true)">Force Open Now</button>
+              <button class="fd-btn-orange" onclick="setManualShopOverride(false)">Manual Close Now</button>
+            </div>
           </div>
         </div>
 
+        <!-- Late-Night Order Decision & Product Upload -->
         <div class="fd-card">
           <div>
-            <span class="fd-lowest-badge">SMART INNOVATION</span>
-            <h3 style="font-size:1.1rem; font-weight:800; color:var(--fd-orange-dark); margin-bottom:8px;">
-              Camera Photo Search &amp; Lowest Rate / Price First Guarantee
+            <h3 style="font-size:1.05rem; font-weight:800; margin-bottom:6px; color:var(--fd-orange-dark);">
+              🌙 Late-Night Order Decision (Within 30 Mins of Closing)
             </h3>
-            <p style="font-size:0.88rem; color:var(--fd-text-secondary); margin-bottom:12px;">
-              Designed for everyone—even if someone cannot type product names, they can simply tap the <strong>Camera button in the search bar</strong> and click a photo of the item they need.
+            <p style="font-size:0.8rem; color:var(--fd-text-secondary); margin-bottom:12px;">
+              When a customer places an order within 30 minutes of closing (e.g., 9:30 PM – 10:00 PM), select how FlashDrop should handle fulfillment:
             </p>
-            <p style="font-size:0.88rem; color:var(--fd-text-secondary);">
-              FlashDrop immediately checks availability across local stores and sorts matching products with the <strong>Least Rate / Lowest Price at the very top/first</strong> so customers always save money.
-            </p>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+              <button class="fd-btn-primary" onclick="setLateNightDecision('today')">⚡ Deliver Tonight (+30 Mins)</button>
+              <button class="fd-btn-orange" onclick="setLateNightDecision('tomorrow')">🌅 Deliver Tomorrow (Opening + 30 Mins)</button>
+            </div>
+
+            <div id="lateNightDecisionPreview" style="background:var(--fd-orange-soft); border:1px solid var(--fd-orange-primary); padding:10px 12px; border-radius:8px; font-size:0.82rem;"></div>
+
+            <!-- Upload Product Form -->
+            <hr style="border:none; border-top:1px solid var(--fd-border); margin:16px 0;" />
+            <h4 style="font-size:0.95rem; font-weight:800; margin-bottom:8px;">➕ Add New Product to Store Catalog</h4>
+            <form onsubmit="handleAddNewProduct(event)">
+              <div class="fd-two-col" style="gap:8px;">
+                <div class="fd-form-group">
+                  <label>Product Name</label>
+                  <input id="newProdName" type="text" class="fd-input" placeholder="e.g. Amul Gold Milk 1L" required />
+                </div>
+                <div class="fd-form-group">
+                  <label>Category</label>
+                  <select id="newProdCategory" class="fd-select">
+                    <option value="Grocery">Grocery</option>
+                    <option value="Sweets">Sweets &amp; Dairy</option>
+                    <option value="Vegetables">Vegetables</option>
+                    <option value="Pharmacy">Pharmacy</option>
+                    <option value="Books">Books &amp; Stationery</option>
+                    <option value="Fashion">Fashion</option>
+                    <option value="Electronics">Electronics</option>
+                    <option value="Printing">Printing Press</option>
+                  </select>
+                </div>
+              </div>
+              <div class="fd-two-col" style="gap:8px;">
+                <div class="fd-form-group">
+                  <label>Selling Price (₹)</label>
+                  <input id="newProdPrice" type="number" class="fd-input" placeholder="32" required />
+                </div>
+                <div class="fd-form-group">
+                  <label>MRP &amp; Unit</label>
+                  <div style="display:flex; gap:6px;">
+                    <input id="newProdMrp" type="number" class="fd-input" placeholder="35" required />
+                    <input id="newProdUnit" type="text" class="fd-input" placeholder="500 ml" required />
+                  </div>
+                </div>
+              </div>
+              <button type="submit" class="fd-btn-primary">Upload Product to Catalog</button>
+            </form>
           </div>
         </div>
       </div>
 
-      <div class="fd-grid-shops" style="margin-top:16px;">
-        <div class="fd-step-card">
-          <h4 style="color:var(--fd-green-deep);">⚡ Exact 30-Minute Delivery</h4>
-          <p style="font-size:0.84rem; color:var(--fd-text-secondary); margin-top:4px;">
-            Every order calculates an accurate delivery time equal to your exact order time plus 30 minutes during store operating hours.
-          </p>
-        </div>
-        <div class="fd-step-card orange">
-          <h4 style="color:var(--fd-orange-dark);">🏷️ Lowest Price First</h4>
-          <p style="font-size:0.84rem; color:var(--fd-text-secondary); margin-top:4px;">
-            Available products are automatically ranked by lowest selling price first so you never overpay for daily essentials.
-          </p>
-        </div>
-        <div class="fd-step-card">
-          <h4 style="color:var(--fd-green-deep);">🌙 Smart Next-Day Scheduling</h4>
-          <p style="font-size:0.84rem; color:var(--fd-text-secondary); margin-top:4px;">
-            Ordering late at night after a shop closes? FlashDrop seamlessly schedules your order for the shop's next working day opening (+30 mins).
-          </p>
+      <!-- Admin Master Shops Control -->
+      <div class="fd-card" style="margin-top:16px;">
+        <h3 style="font-size:1rem; font-weight:800; margin-bottom:4px;">🛡️ Administrator Shop Control</h3>
+        <p style="font-size:0.8rem; color:var(--fd-text-secondary); margin-bottom:12px;">
+          Temporarily disable shops for immediate deliveries during emergencies while preserving their full 7-day schedule.
+        </p>
+        <div style="overflow-x:auto;">
+          <table class="fd-schedule-table">
+            <thead>
+              <tr>
+                <th>Shop Name &amp; Address</th>
+                <th>Category</th>
+                <th>Standard Hours</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminShopsTableBody"></tbody>
+          </table>
         </div>
       </div>
     </section>
 
     <!-- ==================================================================
-         PAGE 4: TERMS & CONDITIONS, DELIVERY & PRIVACY POLICY
+         PAGE 5: TERMS & CONDITIONS
          ================================================================== -->
     <section id="portal-terms" class="fd-portal-view">
       <div class="fd-section-header">
@@ -264,111 +355,77 @@
       </div>
 
       <div class="fd-step-card">
-        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-green-deep);">1. Service Availability &amp; Operating Hours</h3>
+        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-green-deep);">1. 30-Minute Delivery Guarantee in Mahoba</h3>
         <p style="font-size:0.85rem; color:var(--fd-text-secondary); margin-top:4px;">
-          FlashDrop operates across Mahoba, Uttar Pradesh (PIN 210427). Standard partner shop timings are <strong>10:00 AM to 10:00 PM IST</strong> unless customized by individual partner stores. Live shop status (<em>Open Now</em> or <em>Closed</em>) is displayed in real time on every store card.
+          Orders placed with open partner stores are delivered within <strong>30 minutes</strong> of order confirmation. During severe weather or closed hours, orders are scheduled for the next working morning.
         </p>
       </div>
 
       <div class="fd-step-card orange">
-        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-orange-dark);">2. 30-Minute Delivery &amp; Late-Night Order Policy</h3>
+        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-orange-dark);">2. Least Rate / Lowest Price First Sorting</h3>
         <p style="font-size:0.85rem; color:var(--fd-text-secondary); margin-top:4px;">
-          • <strong>Active Store Hours:</strong> Orders placed while a partner shop is open are scheduled for delivery within <strong>30 minutes</strong> from the exact order timestamp.<br/>
-          • <strong>Orders Near Closing Time:</strong> For orders placed within 30 minutes before a shop's closing time, the partner shop may either dispatch the order the same night or schedule it for the next working morning (Opening Time + 30 minutes).<br/>
-          • <strong>Closed Store Orders:</strong> Orders placed when a shop is closed are automatically queued for the next working day's opening window.
+          FlashDrop searches all local stores in Mahoba and always ranks in-stock items with the <strong>lowest selling price at the very top</strong>, marked with the green <em>★ Least Rate / Lowest Price First</em> badge.
         </p>
       </div>
 
       <div class="fd-step-card">
-        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-green-deep);">3. Product Pricing &amp; Lowest-Rate Ranking</h3>
+        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-green-deep);">3. Returns &amp; Instant Doorstep Refunds</h3>
         <p style="font-size:0.85rem; color:var(--fd-text-secondary); margin-top:4px;">
-          All prices listed on FlashDrop are inclusive of applicable taxes and are never higher than the product's printed MRP. When using text search or Camera Photo Search, available in-stock products are automatically sorted from lowest price to highest price for customer convenience.
-        </p>
-      </div>
-
-      <div class="fd-step-card orange">
-        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-orange-dark);">4. Cancellations, Returns &amp; Refunds</h3>
-        <p style="font-size:0.85rem; color:var(--fd-text-secondary); margin-top:4px;">
-          • Customers may inspect fresh vegetables, dairy, and packaged goods at the time of doorstep delivery.<br/>
-          • Damaged, expired, or incorrect items qualify for an instant doorstep replacement or 100% refund.<br/>
-          • Orders can be cancelled free of charge before the partner store dispatches the delivery rider.
-        </p>
-      </div>
-
-      <div class="fd-step-card">
-        <h3 style="font-size:1rem; font-weight:800; color:var(--fd-green-deep);">5. Customer Privacy &amp; Camera Search Usage</h3>
-        <p style="font-size:0.85rem; color:var(--fd-text-secondary); margin-top:4px;">
-          Photos captured or selected using the Search Bar Camera feature are used solely to identify matching grocery and household products in the store catalog. FlashDrop does not sell or share personal customer information or delivery addresses with third parties.
+          Customers can inspect items upon delivery. Damaged, defective, or incorrect items qualify for immediate free replacement or instant 100% refund.
         </p>
       </div>
     </section>
 
     <!-- ==================================================================
-         PAGE 5: CONTACT & HELP CENTER
+         PAGE 6: CONTACT & SUPPORT
          ================================================================== -->
     <section id="portal-contact" class="fd-portal-view">
       <div class="fd-section-header">
-        <h2 class="fd-section-title">📞 Contact Us &amp; Customer Help Center</h2>
+        <h2 class="fd-section-title">📞 Help &amp; Support</h2>
       </div>
 
       <div class="fd-two-col">
         <div class="fd-card">
-          <div>
-            <h3 style="font-size:1.05rem; font-weight:800; color:var(--fd-green-deep); margin-bottom:10px;">
-              🏢 FlashDrop Mahoba Support Desk
-            </h3>
-            <p style="font-size:0.86rem; color:var(--fd-text-secondary); margin-bottom:14px;">
-              Need help with an order, delivery timing, or want to register your local shop on FlashDrop? Reach out to our local support team:
-            </p>
-
-            <div style="font-size:0.86rem; display:grid; gap:10px;">
-              <div style="background:var(--fd-bg); padding:10px 12px; border-radius:8px;">
-                <strong>📍 Head Office:</strong><br/>
-                Alha Chowk, Main Market Road, Mahoba, Uttar Pradesh – 210427
-              </div>
-              <div style="background:var(--fd-bg); padding:10px 12px; border-radius:8px;">
-                <strong>🕒 Support Timings:</strong><br/>
-                Every Day: 8:00 AM – 10:30 PM IST
-              </div>
-              <div style="background:var(--fd-bg); padding:10px 12px; border-radius:8px;">
-                <strong>📧 Email Support:</strong><br/>
-                support@flashdropmahoba.in
-              </div>
+          <h3 style="font-size:1.05rem; font-weight:800; color:var(--fd-green-deep); margin-bottom:10px;">
+            🏢 Mahoba Central Office
+          </h3>
+          <div style="font-size:0.86rem; display:grid; gap:10px;">
+            <div style="background:var(--fd-bg); padding:10px 12px; border-radius:8px;">
+              <strong>📍 Address:</strong><br/>
+              Alha Chowk, Sadar Bazaar Main Road, Mahoba, Uttar Pradesh – 210427
+            </div>
+            <div style="background:var(--fd-bg); padding:10px 12px; border-radius:8px;">
+              <strong>🕒 Operating Hours:</strong><br/>
+              Monday to Sunday: 8:00 AM – 10:30 PM IST
+            </div>
+            <div style="background:var(--fd-bg); padding:10px 12px; border-radius:8px;">
+              <strong>📞 Support Hotline:</strong><br/>
+              +91 98765 43210 / support@flashdropmahoba.in
             </div>
           </div>
         </div>
 
         <div class="fd-card">
-          <div>
-            <h3 style="font-size:1.05rem; font-weight:800; color:var(--fd-orange-dark); margin-bottom:10px;">
-              💬 Send Us a Message / Order Inquiry
-            </h3>
-            <form onsubmit="handleContactSubmit(event)">
-              <div class="fd-form-group">
-                <label for="contactName">Your Name</label>
-                <input id="contactName" type="text" class="fd-input" placeholder="Enter your full name" required />
-              </div>
-              <div class="fd-form-group">
-                <label for="contactPhone">Mobile Number</label>
-                <input id="contactPhone" type="tel" class="fd-input" placeholder="10-digit mobile number" required />
-              </div>
-              <div class="fd-form-group">
-                <label for="contactTopic">Topic</label>
-                <select id="contactTopic" class="fd-select">
-                  <option value="Order Delivery Support">Order / Delivery Support</option>
-                  <option value="Partner Shop Inquiry">Register My Shop on FlashDrop</option>
-                  <option value="Feedback / Suggestion">Feedback or Suggestion</option>
-                </select>
-              </div>
-              <div class="fd-form-group">
-                <label for="contactMsg">Message</label>
-                <input id="contactMsg" type="text" class="fd-input" placeholder="How can we help you today?" required />
-              </div>
-              <button type="submit" class="fd-btn-primary" style="width:100%; padding:10px;">
-                Send Message
-              </button>
-            </form>
-          </div>
+          <h3 style="font-size:1.05rem; font-weight:800; color:var(--fd-orange-dark); margin-bottom:10px;">
+            💬 Send an Inquiry / Feedback
+          </h3>
+          <form onsubmit="handleContactSubmit(event)">
+            <div class="fd-form-group">
+              <label>Your Name</label>
+              <input type="text" class="fd-input" placeholder="Full name" required />
+            </div>
+            <div class="fd-form-group">
+              <label>Mobile Number</label>
+              <input type="tel" class="fd-input" placeholder="10-digit mobile number" required />
+            </div>
+            <div class="fd-form-group">
+              <label>Message</label>
+              <input type="text" class="fd-input" placeholder="Describe your question or issue" required />
+            </div>
+            <button type="submit" class="fd-btn-primary" style="width:100%; padding:10px;">
+              Submit Message
+            </button>
+          </form>
         </div>
       </div>
     </section>
@@ -376,38 +433,73 @@
   </main>
 
   <!-- ====================================================================
-       CART & SMART 30-MINUTE CHECKOUT MODAL
+       3. MODALS (PRODUCT DETAIL, CART & CHECKOUT, VOICE SEARCH DIALOG)
        ==================================================================== -->
+
+  <!-- Product Detail Modal -->
+  <div id="productDetailModalBackdrop" class="fd-modal-backdrop" onclick="if(event.target===this) closeProductDetailModal()">
+    <div class="fd-modal" id="productDetailModalContent"></div>
+  </div>
+
+  <!-- Cart & Checkout Modal -->
   <div id="cartModalBackdrop" class="fd-modal-backdrop" onclick="if(event.target===this) closeCartModal()">
     <div class="fd-modal">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <h3 style="font-size:1.1rem; font-weight:900;">🛒 Your FlashDrop Cart</h3>
+        <h3 style="font-size:1.15rem; font-weight:900;">🛒 Your FlashDrop Cart</h3>
         <button class="fd-btn-outline" onclick="closeCartModal()">Close ✕</button>
       </div>
       <div id="cartItemsContainer"></div>
     </div>
   </div>
 
+  <!-- Voice Search Listening Modal -->
+  <div id="voiceModalBackdrop" class="fd-modal-backdrop" onclick="if(event.target===this) closeVoiceModal()">
+    <div class="fd-modal" style="text-align:center; max-width:440px;">
+      <div style="width:72px; height:72px; border-radius:50%; background:var(--fd-orange-light); border:2px solid var(--fd-orange-primary); display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:2rem;">
+        🎙️
+      </div>
+      <h3 style="font-size:1.2rem; font-weight:900; margin-bottom:4px;">Listening for Product Name...</h3>
+      <p id="voiceModalStatus" style="font-size:0.85rem; color:var(--fd-text-secondary); margin-bottom:14px;">
+        Speak clearly into your microphone (e.g., "Milk", "Atta", "Biscuits", "Tomatoes")
+      </p>
+      <div id="voiceTranscriptBox" style="display:none; background:var(--fd-green-soft); border:1px solid var(--fd-green-primary); padding:8px 12px; border-radius:8px; font-weight:800; color:var(--fd-green-deep); margin-bottom:12px;"></div>
+      <p style="font-size:0.78rem; color:var(--fd-text-muted); margin-bottom:10px;">
+        Or tap one of these voice shortcuts to test:
+      </p>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-bottom:14px;">
+        <button class="fd-photo-chip" onclick="handleSpokenResult('Milk')">🥛 "Milk"</button>
+        <button class="fd-photo-chip" onclick="handleSpokenResult('Atta')">🌾 "Atta"</button>
+        <button class="fd-photo-chip" onclick="handleSpokenResult('Biscuit')">🍪 "Biscuit"</button>
+        <button class="fd-photo-chip" onclick="handleSpokenResult('Tomato')">🍅 "Tomato"</button>
+        <button class="fd-photo-chip" onclick="handleSpokenResult('Pedha')">🍬 "Pedha"</button>
+      </div>
+      <button class="fd-btn-outline" style="width:100%;" onclick="closeVoiceModal()">Cancel</button>
+    </div>
+  </div>
+
   <!-- ====================================================================
-       FOOTER WITH QUICK LINKS
+       4. FOOTER
        ==================================================================== -->
   <footer class="fd-footer">
     <div style="max-width:1280px; margin:0 auto; display:flex; flex-direction:column; align-items:center; gap:10px;">
-      <img src="assets/flashdrop-logo.png" alt="FlashDrop Logo" style="height:36px; width:auto; object-fit:contain;" />
-      <div><strong>FlashDrop Mahoba</strong> — 30-Minute Local Delivery • Camera Visual Search (Lowest Price First)</div>
+      <img src="assets/flashdrop-logo.png" alt="FlashDrop Logo" style="height:38px; width:auto; object-fit:contain;" />
+      <div><strong>FlashDrop Mahoba</strong> — 30-Minute Local Delivery • Voice Mic &amp; Camera Visual Search (Lowest Price First)</div>
       <div style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-top:4px;">
         <a href="#" onclick="switchPortal('home', document.getElementById('navHomeBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">Home</a>
         <a href="#" onclick="switchPortal('shops', document.getElementById('navShopsBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">Partner Shops</a>
-        <a href="#" onclick="switchPortal('about', document.getElementById('navAboutBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">About Us</a>
-        <a href="#" onclick="switchPortal('terms', document.getElementById('navTermsBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">Terms &amp; Conditions</a>
-        <a href="#" onclick="switchPortal('contact', document.getElementById('navContactBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">Contact &amp; Help</a>
+        <a href="#" onclick="switchPortal('orders', document.getElementById('navOrdersBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">My Orders</a>
+        <a href="#" onclick="switchPortal('portal', document.getElementById('navPortalBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">Merchant Portal</a>
+        <a href="#" onclick="switchPortal('terms', document.getElementById('navTermsBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">Terms &amp; Policies</a>
+        <a href="#" onclick="switchPortal('contact', document.getElementById('navContactBtn')); return false;" style="color:var(--fd-green-deep); font-weight:700; text-decoration:none;">Contact &amp; Support</a>
       </div>
-      <div style="font-size:0.74rem; color:var(--fd-text-muted);">
-        © 2026 FlashDrop Mahoba. All rights reserved.
+      <div style="font-size:0.75rem; color:var(--fd-text-muted);">
+        © 2026 FlashDrop Mahoba (210427). All rights reserved. Built with pure HTML5, CSS3 &amp; JavaScript.
       </div>
     </div>
   </footer>
 
+  <!-- Scripts -->
+  <script src="data/app-data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
