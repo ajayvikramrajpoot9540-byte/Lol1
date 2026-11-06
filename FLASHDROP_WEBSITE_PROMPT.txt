@@ -150,9 +150,16 @@ FEATURE 4: PUBLIC NAVIGATION & STOREFRONT PAGES
 3. My Orders & Live Tracking:
    - Displays placed orders with unique Order ID and payment method.
    - 4-Step visual delivery timeline: Confirmed -> Packing -> On the Way -> Delivered.
-4. Product Quick-View Modal:
-   - Click any product to view high-resolution image, pack size, price, MRP discount,
-     store name, description, and "+ Add to Cart" action.
+4. Product Quick-View Modal & ⚖️ Multi-Shop Price Comparison Card:
+   - Click any product (e.g., 5kg Atta) to view high-resolution image, pack size, price,
+     MRP discount, store name, and description.
+   - ⚖️ MULTI-SHOP PRICE COMPARISON CARD:
+     * Shows a side-by-side comparison list of all local Mahoba shops selling that item
+       or comparable category goods.
+     * Displays Shop Name, Rating (⭐ 4.8), Distance, Live Open/Closed status, Item Price,
+       Delivery Fee, and Net Total Cost (Item + Delivery).
+     * Highlights the #1 cheapest store with a "★ Lowest Price" badge.
+     * Includes 1-tap "Switch Store" and "+ Add" actions for each store.
 5. Terms & Policies:
    - 30-minute delivery policy, lowest-price guarantee, cancellation and refund policy.
 6. Contact & Help Desk:
@@ -201,8 +208,11 @@ Core Public Features:
 3. Smart 30-minute forward delivery engine based on live IST clock (current time + 30 mins).
 4. Store operating hours (10:00 AM - 10:00 PM IST) with automatic Open/Closed badges
    and next-day delivery scheduling when closed.
-5. Interactive Home Storefront, Partner Shops Directory, Cart Drawer with Mahoba locality
+5. ⚖️ Multi-Shop Price Comparison Card on Product Details: When opening any product,
+   display a comparison list of all local Mahoba shops selling that item so customers
+   can compare item price, shop rating, delivery fee, and net total side-by-side.
+6. Interactive Home Storefront, Partner Shops Directory, Cart Drawer with Mahoba locality
    address picker, Cash on Delivery / UPI checkout, and Live Order Tracking timeline.
-6. Product Quick-View modal, Terms & Conditions, and Customer Support page.
-7. Deliver clean, semantic HTML5, modern CSS3, and vanilla JavaScript."
+7. Product Quick-View modal, Terms & Conditions, and Customer Support page.
+8. Deliver clean, semantic HTML5, modern CSS3, and vanilla JavaScript."
 ================================================================================

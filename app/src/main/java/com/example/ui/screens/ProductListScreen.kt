@@ -548,6 +548,20 @@ fun ProductListScreen(
                                                 textDecoration = TextDecoration.LineThrough
                                             )
                                         }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color(0xFFECFDF5))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "⚖️ Compare Stores",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = GreenPrimary
+                                            )
+                                        }
                                     }
                                     if (!product.inStock) {
                                         Box(

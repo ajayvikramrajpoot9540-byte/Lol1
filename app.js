@@ -430,9 +430,12 @@ function renderProducts(rankedProducts) {
             ${discount > 0 ? `<span style="font-size:0.7rem; font-weight:800; background:var(--fd-orange-light); color:var(--fd-orange-deep); padding:2px 6px; border-radius:4px;">${discount}% OFF</span>` : ''}
           </div>
           <h4 style="font-size:0.95rem; font-weight:800; margin-bottom:4px; cursor:pointer;" onclick="openProductDetailModal('${p.id}')">${p.name}</h4>
-          <p style="font-size:0.76rem; color:var(--fd-text-secondary);">
+          <p style="font-size:0.76rem; color:var(--fd-text-secondary); margin-bottom:6px;">
             Pack: <strong>${p.unit}</strong> • ${p.shopName}
           </p>
+          <div onclick="openProductDetailModal('${p.id}')" style="display:inline-flex; align-items:center; gap:4px; background:#ecfdf5; color:var(--fd-green-deep); border:1px solid #86efac; font-size:0.68rem; font-weight:800; padding:2px 8px; border-radius:6px; cursor:pointer;">
+            ⚖️ Compare Stores &amp; Rates
+          </div>
         </div>
 
         <div class="fd-price-row">
