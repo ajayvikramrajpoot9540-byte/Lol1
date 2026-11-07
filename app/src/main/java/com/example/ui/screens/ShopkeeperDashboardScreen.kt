@@ -938,7 +938,13 @@ fun ShopkeeperDashboardScreen(
             contract = ActivityResultContracts.PickVisualMedia()
         ) { uri: Uri? ->
             if (uri != null) {
-                selectedImageUri = uri
+                val persisted = com.example.util.ImageUtils.persistImageToAppStorage(
+                    context = context,
+                    sourceUri = uri,
+                    folderName = "product_photos/${currentShop.id}",
+                    fileNamePrefix = "prod_${currentShop.id}"
+                )
+                selectedImageUri = persisted ?: uri
                 uploadError = null
             }
         }
@@ -946,7 +952,13 @@ fun ShopkeeperDashboardScreen(
         // Camera manager handling runtime permissions, FileProvider URI grant, preview fallback, and errors
         val cameraManager = rememberCameraManager(
             onImageCaptured = { uri: Uri ->
-                selectedImageUri = uri
+                val persisted = com.example.util.ImageUtils.persistImageToAppStorage(
+                    context = context,
+                    sourceUri = uri,
+                    folderName = "product_photos/${currentShop.id}",
+                    fileNamePrefix = "prod_${currentShop.id}"
+                )
+                selectedImageUri = persisted ?: uri
                 uploadError = null
             },
             onError = { err: String ->

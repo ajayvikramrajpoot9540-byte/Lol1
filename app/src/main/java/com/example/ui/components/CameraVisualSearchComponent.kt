@@ -228,7 +228,7 @@ object CameraVisualSearchEngine {
     ): VisualSearchUiState {
         return try {
             val bitmap: Bitmap = withContext(Dispatchers.IO) {
-                val compressedBytes = ImageUtils.compressAndResize(
+                val compressedBytes = ImageUtils.compressAndResizeWithCoilFallback(
                     context = context,
                     uri = imageUri,
                     maxDimension = 768,

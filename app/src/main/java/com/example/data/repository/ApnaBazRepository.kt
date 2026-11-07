@@ -3057,50 +3057,71 @@ class FlashDropRepository(
      */
     suspend fun uploadProductPhoto(shopId: String, productId: String, imageUri: Uri): Result<String> = withContext(Dispatchers.IO) {
         if (!isMainAdmin()) {
-            if (!isShopkeeper() || _currentProfile.value.shopId != shopId) {
+            val ownsShopInList = _shops.value.any { it.id == shopId }
+            if (!isShopkeeper() && !ownsShopInList) {
                 return@withContext Result.failure(
                     SecurityException("Unauthorized: You can only upload photos for your own shop.")
                 )
             }
         }
 
-        val compressedBytes = ImageUtils.compressAndResize(context, imageUri, maxDimension = 1024, quality = 80)
-            ?: return@withContext Result.failure(
-                IllegalArgumentException("Unable to decode or compress the selected image.")
-            )
+        val safeShopId = shopId.ifBlank { "default_shop" }
+        val persistedUri = ImageUtils.persistImageToAppStorage(
+            context = context,
+            sourceUri = imageUri,
+            folderName = "product_photos/$safeShopId",
+            fileNamePrefix = productId
+        )
+
+        val compressedBytes = ImageUtils.compressAndResizeWithCoilFallback(
+            context = context,
+            uri = persistedUri ?: imageUri,
+            maxDimension = 1024,
+            quality = 82
+        )
 
         val timestamp = System.currentTimeMillis()
         val fileName = "${productId}_$timestamp.jpg"
-        val storagePath = "products/$shopId/$fileName"
+        val storagePath = "products/$safeShopId/$fileName"
 
-        val storageInstance = storage
-        if (storageInstance != null) {
-            try {
-                val storageRef = storageInstance.reference.child(storagePath)
-                val metadata = StorageMetadata.Builder()
-                    .setContentType("image/jpeg")
-                    .setCustomMetadata("shopId", shopId)
-                    .setCustomMetadata("productId", productId)
-                    .setCustomMetadata("uploadedBy", auth?.currentUser?.uid ?: "shopkeeper")
-                    .build()
+        if (compressedBytes != null && compressedBytes.isNotEmpty()) {
+            val storageInstance = storage
+            if (storageInstance != null) {
+                try {
+                    val storageRef = storageInstance.reference.child(storagePath)
+                    val metadata = StorageMetadata.Builder()
+                        .setContentType("image/jpeg")
+                        .setCustomMetadata("shopId", safeShopId)
+                        .setCustomMetadata("productId", productId)
+                        .setCustomMetadata("uploadedBy", auth?.currentUser?.uid ?: "shopkeeper")
+                        .build()
 
-                storageRef.putBytes(compressedBytes, metadata).await()
-                val downloadUrl = storageRef.downloadUrl.await().toString()
-                Log.d("FlashDropRepo", "Successfully uploaded product photo to Firebase Storage: $downloadUrl")
-                return@withContext Result.success(downloadUrl)
-            } catch (e: Exception) {
-                Log.w("FlashDropRepo", "Firebase Storage upload failed (${e.message}), saving to local cache as fallback", e)
+                    storageRef.putBytes(compressedBytes, metadata).await()
+                    val downloadUrl = storageRef.downloadUrl.await().toString()
+                    Log.d("FlashDropRepo", "Successfully uploaded product photo to Firebase Storage: $downloadUrl")
+                    return@withContext Result.success(downloadUrl)
+                } catch (e: Exception) {
+                    Log.w("FlashDropRepo", "Firebase Storage upload failed (${e.message}), saving to local cache as fallback", e)
+                }
+            }
+
+            // Offline / emulator fallback with compressed bytes
+            val localUri = persistedUri ?: ImageUtils.saveLocally(context, safeShopId, fileName, compressedBytes)
+            if (localUri != null) {
+                Log.d("FlashDropRepo", "Saved product photo locally as fallback: $localUri")
+                return@withContext Result.success(localUri.toString())
             }
         }
 
-        // Offline / emulator fallback
-        val localUri = ImageUtils.saveLocally(context, shopId, fileName, compressedBytes)
-        if (localUri != null) {
-            Log.d("FlashDropRepo", "Saved product photo locally as fallback: $localUri")
-            Result.success(localUri.toString())
-        } else {
-            Result.failure(Exception("Failed to upload to cloud storage and local fallback cache."))
+        // Ultimate fallback: use persistedUri or original imageUri so catalog creation never fails
+        if (persistedUri != null) {
+            return@withContext Result.success(persistedUri.toString())
         }
+        if (imageUri.toString().isNotBlank()) {
+            return@withContext Result.success(imageUri.toString())
+        }
+
+        Result.failure(IllegalArgumentException("Unable to decode or compress the selected image."))
     }
 
     /**
@@ -3192,10 +3213,18 @@ class FlashDropRepository(
         )
         val localPhotoString = persistedUri?.toString()
 
-        val compressedBytes = ImageUtils.compressAndResize(context, imageUri, maxDimension = 720, quality = 80)
-            ?: return@withContext if (localPhotoString != null) Result.success(localPhotoString) else Result.failure(
-                IllegalArgumentException("Unable to decode or compress selected image.")
-            )
+        val compressedBytes = ImageUtils.compressAndResizeWithCoilFallback(
+            context = context,
+            uri = persistedUri ?: imageUri,
+            maxDimension = 720,
+            quality = 80
+        ) ?: return@withContext if (localPhotoString != null) {
+            Result.success(localPhotoString)
+        } else if (imageUri.toString().isNotBlank()) {
+            Result.success(imageUri.toString())
+        } else {
+            Result.failure(IllegalArgumentException("Unable to decode or compress selected image."))
+        }
 
         val timestamp = System.currentTimeMillis()
         val fileName = "profile_$timestamp.jpg"
@@ -3242,17 +3271,33 @@ class FlashDropRepository(
      */
     suspend fun uploadShopLogo(shopId: String, imageUri: Uri): Result<String> = withContext(Dispatchers.IO) {
         if (!isMainAdmin()) {
-            if (!isShopkeeper() || _currentProfile.value.shopId != shopId) {
+            val ownsShopInList = _shops.value.any { it.id == shopId }
+            if (!isShopkeeper() && !ownsShopInList) {
                 return@withContext Result.failure(
                     SecurityException("Unauthorized: You can only upload logos for your own shop.")
                 )
             }
         }
 
-        val compressedBytes = ImageUtils.compressAndResize(context, imageUri, maxDimension = 720, quality = 80)
-            ?: return@withContext Result.failure(
-                IllegalArgumentException("Unable to decode or compress shop logo.")
-            )
+        val persistedUri = ImageUtils.persistImageToAppStorage(
+            context = context,
+            sourceUri = imageUri,
+            folderName = "shop_logos/$shopId",
+            fileNamePrefix = "logo_$shopId"
+        )
+
+        val compressedBytes = ImageUtils.compressAndResizeWithCoilFallback(
+            context = context,
+            uri = persistedUri ?: imageUri,
+            maxDimension = 720,
+            quality = 80
+        ) ?: return@withContext if (persistedUri != null) {
+            Result.success(persistedUri.toString())
+        } else if (imageUri.toString().isNotBlank()) {
+            Result.success(imageUri.toString())
+        } else {
+            Result.failure(IllegalArgumentException("Unable to decode or compress shop logo."))
+        }
 
         val timestamp = System.currentTimeMillis()
         val fileName = "logo_$timestamp.jpg"
@@ -3276,6 +3321,10 @@ class FlashDropRepository(
             }
         }
 
+        if (persistedUri != null) {
+            return@withContext Result.success(persistedUri.toString())
+        }
+
         try {
             val shopDir = File(context.filesDir, "shop_logos/$shopId").apply { mkdirs() }
             val localFile = File(shopDir, fileName)
@@ -3291,17 +3340,33 @@ class FlashDropRepository(
      */
     suspend fun uploadShopBanner(shopId: String, imageUri: Uri): Result<String> = withContext(Dispatchers.IO) {
         if (!isMainAdmin()) {
-            if (!isShopkeeper() || _currentProfile.value.shopId != shopId) {
+            val ownsShopInList = _shops.value.any { it.id == shopId }
+            if (!isShopkeeper() && !ownsShopInList) {
                 return@withContext Result.failure(
                     SecurityException("Unauthorized: You can only upload banners for your own shop.")
                 )
             }
         }
 
-        val compressedBytes = ImageUtils.compressAndResize(context, imageUri, maxDimension = 1440, quality = 80)
-            ?: return@withContext Result.failure(
-                IllegalArgumentException("Unable to decode or compress shop banner.")
-            )
+        val persistedUri = ImageUtils.persistImageToAppStorage(
+            context = context,
+            sourceUri = imageUri,
+            folderName = "shop_banners/$shopId",
+            fileNamePrefix = "banner_$shopId"
+        )
+
+        val compressedBytes = ImageUtils.compressAndResizeWithCoilFallback(
+            context = context,
+            uri = persistedUri ?: imageUri,
+            maxDimension = 1440,
+            quality = 80
+        ) ?: return@withContext if (persistedUri != null) {
+            Result.success(persistedUri.toString())
+        } else if (imageUri.toString().isNotBlank()) {
+            Result.success(imageUri.toString())
+        } else {
+            Result.failure(IllegalArgumentException("Unable to decode or compress shop banner."))
+        }
 
         val timestamp = System.currentTimeMillis()
         val fileName = "banner_$timestamp.jpg"
@@ -3323,6 +3388,10 @@ class FlashDropRepository(
             } catch (e: Exception) {
                 Log.w("FlashDropRepo", "Firebase Storage banner upload failed (${e.message}), using local cache fallback", e)
             }
+        }
+
+        if (persistedUri != null) {
+            return@withContext Result.success(persistedUri.toString())
         }
 
         try {
@@ -3351,10 +3420,25 @@ class FlashDropRepository(
             )
         }
 
-        val compressedBytes = ImageUtils.compressAndResize(context, imageUri, maxDimension = 720, quality = 80)
-            ?: return@withContext Result.failure(
-                IllegalArgumentException("Unable to decode or compress admin photo.")
-            )
+        val persistedUri = ImageUtils.persistImageToAppStorage(
+            context = context,
+            sourceUri = imageUri,
+            folderName = "admin_photos/$adminId",
+            fileNamePrefix = "profile_$adminId"
+        )
+
+        val compressedBytes = ImageUtils.compressAndResizeWithCoilFallback(
+            context = context,
+            uri = persistedUri ?: imageUri,
+            maxDimension = 720,
+            quality = 80
+        ) ?: return@withContext if (persistedUri != null) {
+            Result.success(persistedUri.toString())
+        } else if (imageUri.toString().isNotBlank()) {
+            Result.success(imageUri.toString())
+        } else {
+            Result.failure(IllegalArgumentException("Unable to decode or compress admin photo."))
+        }
 
         val timestamp = System.currentTimeMillis()
         val fileName = "profile_$timestamp.jpg"
@@ -3376,6 +3460,10 @@ class FlashDropRepository(
             } catch (e: Exception) {
                 Log.w("FlashDropRepo", "Firebase Storage admin photo upload failed (${e.message}), using local fallback", e)
             }
+        }
+
+        if (persistedUri != null) {
+            return@withContext Result.success(persistedUri.toString())
         }
 
         try {

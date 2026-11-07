@@ -91,4 +91,25 @@ class CameraIntegrationTest {
         // Check runs without throwing
         assertTrue(isAvailable || !isAvailable)
     }
+
+    @Test
+    fun testPersistAndCompressProductImage() {
+        val bitmap = Bitmap.createBitmap(300, 300, Bitmap.Config.ARGB_8888)
+        val pair = ImageUtils.saveBitmapToCameraTempUri(context, bitmap)
+        assertNotNull(pair)
+
+        // Persist immediately as ShopkeeperDashboardScreen now does upon gallery/camera selection
+        val persistedUri = ImageUtils.persistImageToAppStorage(
+            context = context,
+            sourceUri = pair!!.first,
+            folderName = "product_photos/test_shop",
+            fileNamePrefix = "prod_test"
+        )
+        assertNotNull("Persisted URI should not be null", persistedUri)
+
+        // Subsequent compressAndResize (as called by uploadProductPhoto) must succeed reliably
+        val compressedBytes = ImageUtils.compressAndResize(context, persistedUri!!, maxDimension = 1024, quality = 82)
+        assertNotNull("Compressed bytes from persisted URI must not be null", compressedBytes)
+        assertTrue("Compressed bytes from persisted URI must not be empty", compressedBytes!!.isNotEmpty())
+    }
 }
