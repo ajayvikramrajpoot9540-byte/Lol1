@@ -3,6 +3,8 @@ package com.example.data.local
 import android.content.Context
 import android.util.Log
 import com.example.data.model.CartItem
+import com.example.data.model.CustomerOrderSummary
+import com.example.data.model.CustomerRecord
 import com.example.data.model.DeliveryAddress
 import com.example.data.model.DeliveryConfig
 import com.example.data.model.DeliveryTracking
@@ -67,6 +69,7 @@ class AppPersistenceManager(private val context: Context) {
         private const val FILE_DELIVERY_TRACKING = "delivery_tracking.json"
         private const val FILE_REGISTERED_USERS = "registered_users.json"
         private const val FILE_SHOP_SCHEDULES = "shop_schedules.json"
+        private const val FILE_CUSTOMERS = "customers.json"
     }
 
     private fun writeJsonFile(fileName: String, content: String) {
@@ -1083,6 +1086,182 @@ class AppPersistenceManager(private val context: Context) {
             map
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load shop schedules: ${e.message}", e)
+            null
+        }
+    }
+
+    // ==========================================
+    // 14. Customer Records (Admin Directory & Data)
+    // ==========================================
+    fun saveCustomers(customers: List<CustomerRecord>) {
+        try {
+            val array = JSONArray()
+            customers.forEach { c ->
+                array.put(JSONObject().apply {
+                    put("id", c.id)
+                    put("fullName", c.fullName)
+                    put("email", c.email)
+                    put("phone", c.phone)
+                    put("photoUrl", c.photoUrl)
+                    put("primaryAddress", c.primaryAddress)
+                    put("locality", c.locality)
+                    put("city", c.city)
+                    put("state", c.state)
+                    put("pinCode", c.pinCode)
+                    put("authMethod", c.authMethod)
+                    put("accountStatus", c.accountStatus)
+                    put("isVerified", c.isVerified)
+                    put("joinedDate", c.joinedDate)
+                    put("lastActive", c.lastActive)
+                    put("totalOrdersCount", c.totalOrdersCount)
+                    put("completedOrdersCount", c.completedOrdersCount)
+                    put("cancelledOrdersCount", c.cancelledOrdersCount)
+                    put("totalSpentAmount", c.totalSpentAmount)
+                    put("upiSpentAmount", c.upiSpentAmount)
+                    put("codSpentAmount", c.codSpentAmount)
+                    put("preferredPaymentMethod", c.preferredPaymentMethod)
+                    put("favoriteShopName", c.favoriteShopName)
+                    put("adminNotes", c.adminNotes)
+
+                    val addrArr = JSONArray()
+                    c.savedAddresses.forEach { a ->
+                        addrArr.put(JSONObject().apply {
+                            put("id", a.id)
+                            put("name", a.name)
+                            put("phone", a.phone)
+                            put("countryCode", a.countryCode)
+                            put("label", a.label)
+                            put("houseNumber", a.houseNumber)
+                            put("buildingBlock", a.buildingBlock)
+                            put("street", a.street)
+                            put("area", a.area)
+                            put("city", a.city)
+                            put("state", a.state)
+                            put("pinCode", a.pinCode)
+                            put("landmark", a.landmark)
+                            put("isDefault", a.isDefault)
+                        })
+                    }
+                    put("savedAddresses", addrArr)
+
+                    val ordArr = JSONArray()
+                    c.recentOrders.forEach { o ->
+                        ordArr.put(JSONObject().apply {
+                            put("orderId", o.orderId)
+                            put("orderNumber", o.orderNumber)
+                            put("shopId", o.shopId)
+                            put("shopName", o.shopName)
+                            put("itemsSummary", o.itemsSummary)
+                            put("itemsCount", o.itemsCount)
+                            put("totalAmount", o.totalAmount)
+                            put("paymentMethod", o.paymentMethod)
+                            put("paymentStatus", o.paymentStatus)
+                            put("orderStatus", o.orderStatus)
+                            put("orderDate", o.orderDate)
+                            put("deliveryAddress", o.deliveryAddress)
+                        })
+                    }
+                    put("recentOrders", ordArr)
+                })
+            }
+            writeJsonFile(FILE_CUSTOMERS, array.toString())
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save customers: ${e.message}", e)
+        }
+    }
+
+    fun loadCustomers(): List<CustomerRecord>? {
+        val raw = readJsonFile(FILE_CUSTOMERS) ?: return null
+        return try {
+            val array = JSONArray(raw)
+            val list = mutableListOf<CustomerRecord>()
+            for (i in 0 until array.length()) {
+                val o = array.getJSONObject(i)
+
+                val addrList = mutableListOf<DeliveryAddress>()
+                val addrArr = o.optJSONArray("savedAddresses")
+                if (addrArr != null) {
+                    for (j in 0 until addrArr.length()) {
+                        val a = addrArr.getJSONObject(j)
+                        addrList.add(
+                            DeliveryAddress(
+                                id = a.optString("id"),
+                                name = a.optString("name"),
+                                phone = a.optString("phone"),
+                                countryCode = a.optString("countryCode", "+91"),
+                                label = a.optString("label", "Home"),
+                                houseNumber = a.optString("houseNumber"),
+                                buildingBlock = a.optString("buildingBlock"),
+                                street = a.optString("street"),
+                                area = a.optString("area", "Subhash Chowk"),
+                                city = a.optString("city", "Mahoba"),
+                                state = a.optString("state", "Uttar Pradesh"),
+                                pinCode = a.optString("pinCode", "210427"),
+                                landmark = a.optString("landmark"),
+                                isDefault = a.optBoolean("isDefault", false)
+                            )
+                        )
+                    }
+                }
+
+                val ordList = mutableListOf<CustomerOrderSummary>()
+                val ordArr = o.optJSONArray("recentOrders")
+                if (ordArr != null) {
+                    for (j in 0 until ordArr.length()) {
+                        val ord = ordArr.getJSONObject(j)
+                        ordList.add(
+                            CustomerOrderSummary(
+                                orderId = ord.optString("orderId"),
+                                orderNumber = ord.optString("orderNumber"),
+                                shopId = ord.optString("shopId"),
+                                shopName = ord.optString("shopName"),
+                                itemsSummary = ord.optString("itemsSummary"),
+                                itemsCount = ord.optInt("itemsCount", 1),
+                                totalAmount = ord.optDouble("totalAmount", 0.0),
+                                paymentMethod = ord.optString("paymentMethod", "UPI"),
+                                paymentStatus = ord.optString("paymentStatus", "Paid"),
+                                orderStatus = ord.optString("orderStatus", "delivered"),
+                                orderDate = ord.optString("orderDate"),
+                                deliveryAddress = ord.optString("deliveryAddress")
+                            )
+                        )
+                    }
+                }
+
+                list.add(
+                    CustomerRecord(
+                        id = o.optString("id"),
+                        fullName = o.optString("fullName"),
+                        email = o.optString("email"),
+                        phone = o.optString("phone"),
+                        photoUrl = o.optString("photoUrl"),
+                        primaryAddress = o.optString("primaryAddress", "Subhash Chowk, Chhatarpur Road"),
+                        locality = o.optString("locality", "Alha Chowk"),
+                        city = o.optString("city", "Mahoba"),
+                        state = o.optString("state", "Uttar Pradesh"),
+                        pinCode = o.optString("pinCode", "210427"),
+                        savedAddresses = addrList,
+                        authMethod = o.optString("authMethod", "Registered Account"),
+                        accountStatus = o.optString("accountStatus", "Active"),
+                        isVerified = o.optBoolean("isVerified", true),
+                        joinedDate = o.optString("joinedDate", "Oct 2026"),
+                        lastActive = o.optString("lastActive", "Today"),
+                        totalOrdersCount = o.optInt("totalOrdersCount", 0),
+                        completedOrdersCount = o.optInt("completedOrdersCount", 0),
+                        cancelledOrdersCount = o.optInt("cancelledOrdersCount", 0),
+                        totalSpentAmount = o.optDouble("totalSpentAmount", 0.0),
+                        upiSpentAmount = o.optDouble("upiSpentAmount", 0.0),
+                        codSpentAmount = o.optDouble("codSpentAmount", 0.0),
+                        preferredPaymentMethod = o.optString("preferredPaymentMethod", "UPI"),
+                        favoriteShopName = o.optString("favoriteShopName", "Sharma General Store"),
+                        recentOrders = ordList,
+                        adminNotes = o.optString("adminNotes", "")
+                    )
+                )
+            }
+            list
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse customers: ${e.message}", e)
             null
         }
     }

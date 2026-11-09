@@ -8,6 +8,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.OpenInNew
 import com.example.ui.navigation.Screen
 import com.example.ui.theme.BorderLight
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -126,11 +129,22 @@ fun AdminDashboardScreen(
     val deliveryConfig by repository.deliveryConfig.collectAsState()
     val currentProfile by repository.currentProfile.collectAsState()
     val shopkeepers by repository.shopkeepers.collectAsState()
+    val customers by repository.customers.collectAsState()
     val pendingActions by repository.pendingAdminActions.collectAsState()
     val shopSchedules by repository.shopSchedules.collectAsState()
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Payments", "Delivery Settings", "Shop Verification & Settings", "Overview", "All Shops", "All Products", "All Orders", "Shopkeepers & Security")
+    val tabs = listOf(
+        "Payments",
+        "Customers (${customers.size})",
+        "Delivery Settings",
+        "Shop Verification & Settings",
+        "Overview",
+        "All Shops",
+        "All Products",
+        "All Orders",
+        "Shopkeepers & Security"
+    )
 
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -236,13 +250,13 @@ fun AdminDashboardScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 1000.dp)
+                    .widthIn(max = 1280.dp)
             ) {
             // Scrollable Tabs
             ScrollableTabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color.White,
-                edgePadding = 16.dp,
+                edgePadding = if (isSmallMobile) 8.dp else 16.dp,
                 indicator = { tabPositions ->
                     TabRowDefaults.SecondaryIndicator(
                         Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
@@ -254,12 +268,13 @@ fun AdminDashboardScreen(
                     Tab(
                         selected = selectedTabIndex == index,
                         onClick = { selectedTabIndex = index },
+                        modifier = Modifier.testTag("admin_tab_$index"),
                         text = {
                             Text(
                                 text = title,
                                 fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal,
                                 color = if (selectedTabIndex == index) Color(0xFF6D28D9) else TextMuted,
-                                fontSize = 13.sp
+                                fontSize = if (isSmallMobile) 12.sp else 13.sp
                             )
                         }
                     )
@@ -354,10 +369,86 @@ fun AdminDashboardScreen(
                             }
                         }
 
+                        // Customer Directory Quick-Access Card
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onNavigate?.invoke(Screen.AdminCustomers.route) ?: run { selectedTabIndex = 1 }
+                                    }
+                                    .testTag("open_admin_customers_card"),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1B4B)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(if (isSmallMobile) 12.dp else 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(if (isSmallMobile) 38.dp else 44.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(OrangeSecondary.copy(alpha = 0.22f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Groups,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFDBA74),
+                                                modifier = Modifier.size(if (isSmallMobile) 20.dp else 24.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text(
+                                                text = "Customers & User Data (${customers.size})",
+                                                color = Color.White,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = if (isSmallMobile) 14.sp else 15.sp
+                                            )
+                                            Text(
+                                                text = "View customer profiles, saved addresses, UPI/COD spend & order history",
+                                                color = Color.White.copy(alpha = 0.8f),
+                                                fontSize = if (isSmallMobile) 11.sp else 12.sp
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Button(
+                                        onClick = {
+                                            onNavigate?.invoke(Screen.AdminCustomers.route) ?: run { selectedTabIndex = 1 }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = OrangeSecondary),
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                        modifier = Modifier.testTag("open_admin_customers_button")
+                                    ) {
+                                        Text(
+                                            text = if (isSmallMobile) "View" else "View Customers",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         // Date Filter Row
                         item {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 dateFilters.forEach { filter ->
@@ -633,7 +724,19 @@ fun AdminDashboardScreen(
                 }
 
                 1 -> {
-                    // TAB 1: DELIVERY CHARGE SETTINGS (Admin-Controlled Delivery System)
+                    // TAB 1: CUSTOMERS DIRECTORY & USER DATA (Responsive Page & Inspector)
+                    AdminCustomersSection(
+                        repository = repository,
+                        snackbarHostState = snackbarHostState,
+                        isEmbeddedInTab = true,
+                        onOpenFullPage = {
+                            onNavigate?.invoke(Screen.AdminCustomers.route)
+                        }
+                    )
+                }
+
+                2 -> {
+                    // TAB 2: DELIVERY CHARGE SETTINGS (Admin-Controlled Delivery System)
                     DeliveryChargeSettingsSection(
                         repository = repository,
                         deliveryConfig = deliveryConfig,
@@ -644,16 +747,16 @@ fun AdminDashboardScreen(
                     )
                 }
 
-                2 -> {
-                    // TAB 2: SHOP VERIFICATION & SETTINGS (Admin-Controlled 3-Step System)
+                3 -> {
+                    // TAB 3: SHOP VERIFICATION & SETTINGS (Admin-Controlled 3-Step System)
                     ShopVerificationSettingsSection(
                         repository = repository,
                         snackbarHostState = snackbarHostState
                     )
                 }
 
-                3 -> {
-                    // TAB 3: OVERVIEW & ANALYTICS
+                4 -> {
+                    // TAB 4: OVERVIEW & ANALYTICS
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -799,6 +902,21 @@ fun AdminDashboardScreen(
                                             Text("Add Shopkeeper", fontSize = 12.sp)
                                         }
                                     }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(
+                                        onClick = {
+                                            onNavigate?.invoke(Screen.AdminCustomers.route) ?: run { selectedTabIndex = 1 }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("overview_open_customers_button"),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E1B4B))
+                                    ) {
+                                        Icon(Icons.Default.Groups, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Open Customers & User Data (${customers.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
@@ -867,8 +985,8 @@ fun AdminDashboardScreen(
                     }
                 }
 
-                4 -> {
-                    // TAB 4: ALL SHOPS (Approve, Suspend, Edit, Delete)
+                5 -> {
+                    // TAB 5: ALL SHOPS (Approve, Suspend, Edit, Delete)
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -1191,8 +1309,8 @@ fun AdminDashboardScreen(
                     }
                 }
 
-                5 -> {
-                    // TAB 5: ALL PRODUCTS (Moderate across all shops)
+                6 -> {
+                    // TAB 6: ALL PRODUCTS (Moderate across all shops)
                     var filterShopId by remember { mutableStateOf("ALL") }
 
                     Column(modifier = Modifier.fillMaxSize()) {
@@ -1255,8 +1373,8 @@ fun AdminDashboardScreen(
                     }
                 }
 
-                6 -> {
-                    // TAB 6: ALL ORDERS (Across Mahoba)
+                7 -> {
+                    // TAB 7: ALL ORDERS (Across Mahoba)
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -1327,8 +1445,8 @@ fun AdminDashboardScreen(
                     }
                 }
 
-                7 -> {
-                    // TAB 7: SHOPKEEPERS & SECURITY SAFEGUARDS
+                8 -> {
+                    // TAB 8: SHOPKEEPERS & SECURITY SAFEGUARDS
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)

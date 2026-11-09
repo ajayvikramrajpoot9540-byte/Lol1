@@ -18,6 +18,8 @@ import com.example.data.model.PrintingPriceCalculator
 import com.example.data.model.ShopkeeperAccount
 import com.example.data.model.UserProfile
 import com.example.data.local.AppPersistenceManager
+import com.example.data.model.CustomerOrderSummary
+import com.example.data.model.CustomerRecord
 import com.example.data.model.DeliveryAddress
 import com.example.data.model.NotificationItem
 import com.example.data.model.DaySchedule
@@ -254,6 +256,10 @@ class FlashDropRepository(
         )
     )
     val registeredUsers: StateFlow<List<RegisteredAccount>> = _registeredUsers.asStateFlow()
+
+    // Customers directory and rich customer data for Main Admin Portal
+    private val _customers = MutableStateFlow<List<CustomerRecord>>(SeedData.sampleCustomers)
+    val customers: StateFlow<List<CustomerRecord>> = _customers.asStateFlow()
 
     // Notification Center for Admin, Shopkeeper, and Customer
     private val _notifications = MutableStateFlow<List<NotificationItem>>(
@@ -675,6 +681,13 @@ class FlashDropRepository(
                 persistence.saveRegisteredUsers(_registeredUsers.value)
             }
 
+            val loadedCustomers = persistence.loadCustomers()
+            if (loadedCustomers != null && loadedCustomers.isNotEmpty()) {
+                _customers.value = loadedCustomers
+            } else {
+                persistence.saveCustomers(_customers.value)
+            }
+
             val loadedSchedules = persistence.loadShopSchedules()
             if (loadedSchedules != null && loadedSchedules.isNotEmpty()) {
                 _shopSchedules.value = loadedSchedules
@@ -859,10 +872,264 @@ class FlashDropRepository(
                 } catch (e: Exception) {
                     Log.w("FlashDropRepo", "ShopSchedules Firestore load deferred: ${e.message}")
                 }
+
+                if (isMainAdmin()) {
+                    try {
+                        val usersSnap = firestore.collection("users").get().await()
+                        if (!usersSnap.isEmpty) {
+                            usersSnap.documents.forEach { doc ->
+                                val prof = doc.toObject(UserProfile::class.java)
+                                if (prof != null && prof.role.equals("customer", ignoreCase = true) &&
+                                    prof.name.isNotBlank() && !prof.name.equals("Guest", ignoreCase = true)
+                                ) {
+                                    upsertCustomerFromProfile(prof.copy(id = prof.id.ifBlank { doc.id }))
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("FlashDropRepo", "Customers Firestore sync deferred: ${e.message}")
+                    }
+                }
             } catch (e: Exception) {
                 Log.w("FlashDropRepo", "Sync exception: ${e.message}")
             }
         }
+    }
+
+    /**
+     * Synchronizes a customer UserProfile into the Admin customer directory (_customers)
+     * and persists it locally so the Admin Customers page always reflects real-time customer data.
+     */
+    fun upsertCustomerFromProfile(profile: UserProfile, authMethodOverride: String? = null) {
+        if (!profile.role.equals("customer", ignoreCase = true)) return
+        if (profile.name.isBlank() || profile.name.equals("Guest", ignoreCase = true) || profile.id.equals("guest", ignoreCase = true)) return
+
+        val existingList = _customers.value.toMutableList()
+        val matchIndex = existingList.indexOfFirst {
+            it.id == profile.id ||
+            (profile.email.isNotBlank() && it.email.equals(profile.email, ignoreCase = true)) ||
+            (it.fullName.equals(profile.name, ignoreCase = true) && it.phone == profile.phone)
+        }
+
+        val defaultAddr = profile.savedAddresses.find { it.isDefault } ?: profile.savedAddresses.firstOrNull()
+        val resolvedAddress = defaultAddr?.formatDisplay()?.takeIf { it.isNotBlank() }
+            ?: profile.address.ifBlank { "Subhash Chowk, Chhatarpur Road" }
+        val resolvedLocality = defaultAddr?.area?.takeIf { it.isNotBlank() }
+            ?: profile.locality.ifBlank { "Alha Chowk" }
+        val resolvedPin = defaultAddr?.pinCode?.takeIf { it.isNotBlank() }
+            ?: profile.pinCode.ifBlank { "210427" }
+        val nowDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
+
+        val updatedRecord = if (matchIndex >= 0) {
+            val prev = existingList[matchIndex]
+            prev.copy(
+                id = profile.id.ifBlank { prev.id },
+                fullName = profile.name.ifBlank { prev.fullName },
+                email = profile.email.ifBlank { prev.email },
+                phone = profile.phone.ifBlank { prev.phone },
+                photoUrl = profile.photoUrl.ifBlank { prev.photoUrl },
+                primaryAddress = resolvedAddress,
+                locality = resolvedLocality,
+                pinCode = resolvedPin,
+                city = profile.city.ifBlank { prev.city },
+                state = profile.state.ifBlank { prev.state },
+                savedAddresses = if (profile.savedAddresses.isNotEmpty()) profile.savedAddresses else prev.savedAddresses,
+                authMethod = authMethodOverride ?: prev.authMethod,
+                lastActive = "Just now",
+                isVerified = true
+            )
+        } else {
+            val initialAddresses = if (profile.savedAddresses.isNotEmpty()) {
+                profile.savedAddresses
+            } else {
+                listOf(
+                    DeliveryAddress(
+                        id = "addr_${profile.id.takeLast(4)}",
+                        label = "Home",
+                        name = profile.name,
+                        phone = profile.phone.replace("+91", "").trim(),
+                        houseNumber = resolvedAddress.substringBefore(",").trim(),
+                        street = resolvedAddress.substringAfter(",", "Main Road").trim(),
+                        area = resolvedLocality,
+                        city = profile.city.ifBlank { "Mahoba" },
+                        state = profile.state.ifBlank { "Uttar Pradesh" },
+                        pinCode = resolvedPin,
+                        isDefault = true
+                    )
+                )
+            }
+            CustomerRecord(
+                id = profile.id.ifBlank { "cust_${UUID.randomUUID().toString().take(6)}" },
+                fullName = profile.name,
+                email = profile.email,
+                phone = profile.phone.ifBlank { "+91 98765 12345" },
+                photoUrl = profile.photoUrl,
+                accountStatus = CustomerRecord.STATUS_ACTIVE,
+                authMethod = authMethodOverride ?: "Password",
+                joinedDate = nowDate,
+                lastActive = "Just now",
+                locality = resolvedLocality,
+                primaryAddress = resolvedAddress,
+                pinCode = resolvedPin,
+                city = profile.city.ifBlank { "Mahoba" },
+                state = profile.state.ifBlank { "Uttar Pradesh" },
+                savedAddresses = initialAddresses,
+                isVerified = true
+            )
+        }
+
+        if (matchIndex >= 0) {
+            existingList[matchIndex] = updatedRecord
+        } else {
+            existingList.add(0, updatedRecord)
+        }
+        _customers.value = existingList
+        persistence.saveCustomers(_customers.value)
+    }
+
+    /**
+     * Admin Customer Management: Update customer status (Active, VIP, Suspended) and optional notes.
+     */
+    fun updateCustomerStatus(customerId: String, newStatus: String, adminNotes: String? = null): Boolean {
+        if (!isMainAdmin()) return false
+        val currentList = _customers.value
+        if (currentList.none { it.id == customerId }) return false
+
+        _customers.value = currentList.map { cust ->
+            if (cust.id == customerId) {
+                cust.copy(
+                    accountStatus = newStatus,
+                    adminNotes = adminNotes ?: cust.adminNotes
+                )
+            } else cust
+        }
+        persistence.saveCustomers(_customers.value)
+        return true
+    }
+
+    /**
+     * Admin Customer Management: Edit customer profile & governance details from Admin Portal.
+     */
+    fun updateCustomerDetailsByAdmin(
+        customerId: String,
+        fullName: String,
+        phone: String,
+        email: String,
+        locality: String,
+        primaryAddress: String,
+        accountStatus: String,
+        adminNotes: String
+    ): Result<CustomerRecord> {
+        if (!isMainAdmin()) {
+            return Result.failure(SecurityException("Only authorized Main Admins can modify customer records."))
+        }
+        val trimmedName = fullName.trim()
+        if (trimmedName.isBlank()) {
+            return Result.failure(IllegalArgumentException("Customer full name is required."))
+        }
+        val cleanPhone = phone.trim()
+        if (cleanPhone.replace("+91", "").filter { it.isDigit() }.length < 10) {
+            return Result.failure(IllegalArgumentException("Please enter a valid 10-digit phone number."))
+        }
+
+        val target = _customers.value.find { it.id == customerId }
+            ?: return Result.failure(IllegalArgumentException("Customer record not found."))
+
+        val formattedPhone = if (cleanPhone.startsWith("+91")) cleanPhone else "+91 ${cleanPhone.filter { it.isDigit() }.takeLast(10)}"
+        val updated = target.copy(
+            fullName = trimmedName,
+            phone = formattedPhone,
+            email = email.trim().ifBlank { target.email },
+            locality = locality.trim().ifBlank { target.locality },
+            primaryAddress = primaryAddress.trim().ifBlank { target.primaryAddress },
+            accountStatus = accountStatus.ifBlank { target.accountStatus },
+            adminNotes = adminNotes.trim()
+        )
+
+        _customers.value = _customers.value.map { if (it.id == customerId) updated else it }
+        persistence.saveCustomers(_customers.value)
+
+        if (_currentProfile.value.id == customerId) {
+            val syncedProfile = _currentProfile.value.copy(
+                name = updated.fullName,
+                phone = updated.phone,
+                email = updated.email,
+                locality = updated.locality,
+                address = updated.primaryAddress
+            )
+            _currentProfile.value = syncedProfile
+            saveSessionToPrefs(syncedProfile)
+        }
+        return Result.success(updated)
+    }
+
+    /**
+     * Admin Customer Management: Add a new customer record directly from the Admin Portal.
+     */
+    fun addCustomerByAdmin(
+        fullName: String,
+        phone: String,
+        email: String,
+        locality: String,
+        primaryAddress: String,
+        accountStatus: String = CustomerRecord.STATUS_ACTIVE,
+        adminNotes: String = ""
+    ): Result<CustomerRecord> {
+        if (!isMainAdmin()) {
+            return Result.failure(SecurityException("Only authorized Main Admins can add customer records."))
+        }
+        val trimmedName = fullName.trim()
+        if (trimmedName.isBlank()) {
+            return Result.failure(IllegalArgumentException("Customer full name is required."))
+        }
+        val digits = phone.replace("+91", "").filter { it.isDigit() }
+        if (digits.length < 10) {
+            return Result.failure(IllegalArgumentException("Please enter a valid 10-digit mobile number."))
+        }
+
+        val newId = "cust_${UUID.randomUUID().toString().take(6)}"
+        val formattedPhone = "+91 ${digits.takeLast(10)}"
+        val resolvedEmail = email.trim().ifBlank { "${normalizeName(trimmedName).replace(" ", ".")}@flashdrop.local" }
+        val resolvedLocality = locality.trim().ifBlank { "Alha Chowk" }
+        val resolvedAddress = primaryAddress.trim().ifBlank { "$resolvedLocality, Mahoba" }
+        val nowDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
+
+        val defaultDeliveryAddr = DeliveryAddress(
+            id = "addr_${UUID.randomUUID().toString().take(6)}",
+            label = "Home",
+            name = trimmedName,
+            phone = digits.takeLast(10),
+            houseNumber = resolvedAddress.substringBefore(",").trim().ifBlank { "H.No. 1" },
+            street = resolvedAddress.substringAfter(",", "Main Road").trim(),
+            area = resolvedLocality,
+            city = "Mahoba",
+            state = "Uttar Pradesh",
+            pinCode = "210427",
+            isDefault = true
+        )
+
+        val newRecord = CustomerRecord(
+            id = newId,
+            fullName = trimmedName,
+            email = resolvedEmail,
+            phone = formattedPhone,
+            accountStatus = accountStatus,
+            authMethod = "Admin Onboarded",
+            joinedDate = nowDate,
+            lastActive = "Just now",
+            locality = resolvedLocality,
+            primaryAddress = resolvedAddress,
+            pinCode = "210427",
+            city = "Mahoba",
+            state = "Uttar Pradesh",
+            savedAddresses = listOf(defaultDeliveryAddr),
+            isVerified = true,
+            adminNotes = adminNotes.trim()
+        )
+
+        _customers.value = listOf(newRecord) + _customers.value
+        persistence.saveCustomers(_customers.value)
+        return Result.success(newRecord)
     }
 
     // Helper functions for user registration
@@ -1044,6 +1311,7 @@ class FlashDropRepository(
         )
         _currentProfile.value = profile
         saveSessionToPrefs(profile)
+        upsertCustomerFromProfile(profile, authMethodOverride = "Password")
 
         repoScope.launch {
             try {
@@ -1110,6 +1378,7 @@ class FlashDropRepository(
                 )
                 _currentProfile.value = profile
                 saveSessionToPrefs(profile)
+                upsertCustomerFromProfile(profile, authMethodOverride = "Password")
                 return Result.success(profile)
             } else {
                 return Result.failure(IllegalArgumentException("Invalid password. Please check your credentials."))
@@ -1441,6 +1710,7 @@ class FlashDropRepository(
         )
         _currentProfile.value = profile
         saveSessionToPrefs(profile)
+        upsertCustomerFromProfile(profile, authMethodOverride = "Phone / Quick Login")
         repoScope.launch {
             try {
                 firestore.collection("users").document(newId).set(profile).await()
@@ -1493,6 +1763,7 @@ class FlashDropRepository(
             )
             _currentProfile.value = immediateProfile
             saveSessionToPrefs(immediateProfile)
+            upsertCustomerFromProfile(immediateProfile, authMethodOverride = "Google OAuth")
             loadUserProfileForFirebaseUser(user)
             return immediateProfile
         }
@@ -1533,6 +1804,7 @@ class FlashDropRepository(
         )
         _currentProfile.value = profile
         saveSessionToPrefs(profile)
+        upsertCustomerFromProfile(profile, authMethodOverride = "Google OAuth")
         repoScope.launch {
             try {
                 firestore.collection("users").document(cleanUid).set(profile).await()
@@ -3508,6 +3780,7 @@ class FlashDropRepository(
 
         _currentProfile.value = updated
         saveSessionToPrefs(updated)
+        upsertCustomerFromProfile(updated)
 
         // Persist to Firestore if authenticated
         if (current.id.isNotBlank() && current.id != "guest" && auth?.currentUser != null) {
@@ -3575,6 +3848,7 @@ class FlashDropRepository(
 
         _currentProfile.value = updated
         saveSessionToPrefs(updated)
+        upsertCustomerFromProfile(updated)
 
         if (current.id.isNotBlank() && current.id != "guest" && auth?.currentUser != null) {
             repoScope.launch {
@@ -3615,6 +3889,7 @@ class FlashDropRepository(
 
         _currentProfile.value = updated
         saveSessionToPrefs(updated)
+        upsertCustomerFromProfile(updated)
 
         if (current.id.isNotBlank() && current.id != "guest" && auth?.currentUser != null) {
             repoScope.launch {
@@ -3649,6 +3924,7 @@ class FlashDropRepository(
 
         _currentProfile.value = updated
         saveSessionToPrefs(updated)
+        upsertCustomerFromProfile(updated)
 
         if (current.id.isNotBlank() && current.id != "guest" && auth?.currentUser != null) {
             repoScope.launch {
@@ -3987,6 +4263,42 @@ class FlashDropRepository(
         _orders.value = listOf(order) + _orders.value
         persistence.saveOrders(_orders.value)
 
+        // Synchronize placed order into CustomerRecord for Admin Customers Directory
+        try {
+            upsertCustomerFromProfile(_currentProfile.value)
+            val summary = CustomerOrderSummary(
+                orderId = order.id,
+                orderNumber = order.orderNumber,
+                shopId = order.shopId,
+                shopName = order.shopName,
+                totalAmount = order.totalAmount,
+                itemsCount = order.itemsCount,
+                paymentMethod = if (order.paymentMethod == "cash_on_delivery") "COD" else "UPI",
+                orderStatus = order.status,
+                orderDate = order.billingSnapshot?.calculationTimestamp?.takeIf { it.isNotBlank() }
+                    ?: SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date()),
+                deliveryAddress = order.deliveryAddress
+            )
+            _customers.value = _customers.value.map { cust ->
+                if (cust.id == order.userId || cust.fullName.equals(order.customerName, ignoreCase = true)) {
+                    val isUpi = order.paymentMethod != "cash_on_delivery"
+                    cust.copy(
+                        totalOrdersCount = cust.totalOrdersCount + 1,
+                        totalSpentAmount = cust.totalSpentAmount + order.totalAmount,
+                        upiSpentAmount = if (isUpi) cust.upiSpentAmount + order.totalAmount else cust.upiSpentAmount,
+                        codSpentAmount = if (!isUpi) cust.codSpentAmount + order.totalAmount else cust.codSpentAmount,
+                        lastOrderDate = "Today",
+                        lastActive = "Just now",
+                        favoriteShopName = cust.favoriteShopName.ifBlank { order.shopName },
+                        recentOrders = listOf(summary) + cust.recentOrders
+                    )
+                } else cust
+            }
+            persistence.saveCustomers(_customers.value)
+        } catch (e: Exception) {
+            Log.w("FlashDropRepo", "Customer order stats update warning: ${e.message}")
+        }
+
         if (isNearClosing) {
             addNotification(
                 NotificationItem(
@@ -4118,6 +4430,26 @@ class FlashDropRepository(
         }
         _orders.value = updated
         persistence.saveOrders(_orders.value)
+
+        // Reflect order status update in CustomerRecord recentOrders & counts
+        val targetOrder = updated.find { it.id == orderId }
+        if (targetOrder != null) {
+            _customers.value = _customers.value.map { cust ->
+                if (cust.id == targetOrder.userId || cust.recentOrders.any { it.orderId == orderId }) {
+                    val updatedRecent = cust.recentOrders.map { ro ->
+                        if (ro.orderId == orderId) ro.copy(orderStatus = newStatus) else ro
+                    }
+                    val deliveredDelta = if (newStatus == "delivered") 1 else 0
+                    val cancelledDelta = if (newStatus == "cancelled" || newStatus == "rejected") 1 else 0
+                    cust.copy(
+                        completedOrdersCount = cust.completedOrdersCount + deliveredDelta,
+                        cancelledOrdersCount = cust.cancelledOrdersCount + cancelledDelta,
+                        recentOrders = updatedRecent
+                    )
+                } else cust
+            }
+            persistence.saveCustomers(_customers.value)
+        }
 
         if (auth?.currentUser != null) {
             repoScope.launch {
@@ -4256,6 +4588,7 @@ class FlashDropRepository(
         )
         _currentProfile.value = updated
         saveSessionToPrefs(updated)
+        upsertCustomerFromProfile(updated)
     }
 
     fun updateDeliveryConfig(fee: Double, minOrder: Double, freeThreshold: Double) {

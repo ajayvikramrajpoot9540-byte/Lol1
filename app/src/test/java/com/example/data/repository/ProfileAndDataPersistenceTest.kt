@@ -252,4 +252,37 @@ class ProfileAndDataPersistenceTest {
         // Verify orders is empty initially so Orders icon is hidden when nothing ordered
         assertEquals("Orders should start empty when customer has not ordered anything", 0, repo.orders.value.size)
     }
+
+    @Test
+    fun testAdminCustomersDirectoryAndManagement_Persistence() {
+        val repo1 = ApnaBazRepository(context)
+        assertTrue("Initial customers list should be populated", repo1.customers.value.size >= 7)
+
+        // Authenticate as Main Admin (PR12) and add a new customer record
+        setAdminProfile(repo1, "PR12", "Pranjal Rajpoot")
+        val addRes = repo1.addCustomerByAdmin(
+            fullName = "Vikash Chaurasia",
+            phone = "9876509988",
+            email = "vikash.c@flashdrop.local",
+            locality = "Alha Chowk",
+            primaryAddress = "House 19, Alha Chowk, Mahoba",
+            accountStatus = "VIP",
+            adminNotes = "Frequent bulk grocery buyer"
+        )
+        assertTrue("Admin adding customer should succeed", addRes.isSuccess)
+        val created = addRes.getOrNull()
+        assertNotNull(created)
+
+        // Update status to Active and back to VIP
+        val statusUpdated = repo1.updateCustomerStatus(created!!.id, "Active", "Updated note")
+        assertTrue("Status update by Main Admin should succeed", statusUpdated)
+
+        // Simulate app restart and verify customer record persists
+        val repo2 = ApnaBazRepository(context)
+        val restoredCustomer = repo2.customers.value.find { it.id == created.id }
+        assertNotNull("Added customer must survive restart", restoredCustomer)
+        assertEquals("Vikash Chaurasia", restoredCustomer?.fullName)
+        assertEquals("Active", restoredCustomer?.accountStatus)
+        assertEquals("Updated note", restoredCustomer?.adminNotes)
+    }
 }

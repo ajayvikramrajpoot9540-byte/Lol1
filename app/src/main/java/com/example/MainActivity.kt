@@ -22,6 +22,7 @@ import com.example.data.model.ShopkeeperAccount
 import com.example.data.repository.ApnaBazRepository
 import com.example.ui.auth.AuthManager
 import com.example.ui.navigation.Screen
+import com.example.ui.screens.AdminCustomersScreen
 import com.example.ui.screens.AdminDashboardScreen
 import com.example.ui.screens.AdminLoginScreen
 import com.example.ui.screens.AdminTransactionsScreen
@@ -563,6 +564,13 @@ fun FlashDropApp(repository: ApnaBazRepository) {
 
         Screen.ShopTimingSchedule.route -> {
             com.example.ui.screens.ShopTimingScheduleScreen(
+                repository = repository,
+                onBack = { navigateBack() }
+            )
+        }
+
+        Screen.AdminCustomers.route -> {
+            AdminCustomersScreen(
                 repository = repository,
                 onBack = { navigateBack() }
             )

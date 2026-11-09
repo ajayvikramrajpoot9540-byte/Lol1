@@ -1,5 +1,8 @@
 package com.example.data.local
 
+import com.example.data.model.CustomerOrderSummary
+import com.example.data.model.CustomerRecord
+import com.example.data.model.DeliveryAddress
 import com.example.data.model.Order
 import com.example.data.model.OrderItemRecord
 import com.example.data.model.Product
@@ -1150,6 +1153,464 @@ object SeedData {
             isActive = true,
             assignedBy = "PR12",
             createdAt = "2026-10-14"
+        )
+    )
+
+    val sampleCustomers = listOf(
+        CustomerRecord(
+            id = "cust_ajay",
+            fullName = "Ajay Rajput",
+            email = "ajay.rajput@flashdrop.local",
+            phone = "+91 98765 12345",
+            primaryAddress = "House No. 14, Near Alha Statue, Alha Chowk, Mahoba - 210427",
+            locality = "Alha Chowk",
+            city = "Mahoba",
+            state = "Uttar Pradesh",
+            pinCode = "210427",
+            savedAddresses = listOf(
+                DeliveryAddress(
+                    id = "addr_ajay_1",
+                    name = "Ajay Rajput",
+                    phone = "9876512345",
+                    label = "Home",
+                    houseNumber = "House No. 14",
+                    street = "Chhatarpur Road",
+                    area = "Alha Chowk",
+                    landmark = "Alha Statue",
+                    city = "Mahoba",
+                    state = "Uttar Pradesh",
+                    pinCode = "210427",
+                    isDefault = true
+                ),
+                DeliveryAddress(
+                    id = "addr_ajay_2",
+                    name = "Ajay Rajput",
+                    phone = "9876512345",
+                    label = "Work",
+                    houseNumber = "2nd Floor, Chamber 4",
+                    street = "Main Market",
+                    area = "Subhash Chowk",
+                    landmark = "SBI Main Branch",
+                    city = "Mahoba",
+                    state = "Uttar Pradesh",
+                    pinCode = "210427",
+                    isDefault = false
+                )
+            ),
+            authMethod = "Google Sign-In",
+            accountStatus = "VIP",
+            isVerified = true,
+            joinedDate = "10 Oct 2026",
+            lastActive = "Today, 09:40 PM",
+            totalOrdersCount = 6,
+            completedOrdersCount = 5,
+            cancelledOrdersCount = 0,
+            totalSpentAmount = 2480.0,
+            upiSpentAmount = 1960.0,
+            codSpentAmount = 520.0,
+            preferredPaymentMethod = "UPI",
+            favoriteShopName = "Sharma General Store",
+            recentOrders = listOf(
+                CustomerOrderSummary(
+                    orderId = "ord_ajay_01",
+                    orderNumber = "#FD20261105A104",
+                    shopId = "sharma_general",
+                    shopName = "Sharma General Store",
+                    itemsSummary = "Aashirvaad Atta (5kg) x1, Amul Butter (500g) x1, Tata Salt x2",
+                    itemsCount = 4,
+                    totalAmount = 555.0,
+                    paymentMethod = "UPI",
+                    paymentStatus = "Paid",
+                    orderStatus = "delivered",
+                    orderDate = "05 Nov 2026, 06:15 PM",
+                    deliveryAddress = "House No. 14, Alha Chowk, Mahoba - 210427"
+                ),
+                CustomerOrderSummary(
+                    orderId = "ord_ajay_02",
+                    orderNumber = "#FD20261102A089",
+                    shopId = "hemu_printing",
+                    shopName = "Hemu Printing Shop",
+                    itemsSummary = "Premium Matte Visiting Cards (100 Pcs) x2, Spiral Binding x1",
+                    itemsCount = 3,
+                    totalAmount = 658.0,
+                    paymentMethod = "UPI",
+                    paymentStatus = "Paid",
+                    orderStatus = "delivered",
+                    orderDate = "02 Nov 2026, 02:30 PM",
+                    deliveryAddress = "Main Market, Subhash Chowk, Mahoba - 210427"
+                )
+            ),
+            adminNotes = "Frequent repeat customer in Alha Chowk. Prefers contactless UPI doorstep delivery."
+        ),
+        CustomerRecord(
+            id = "cust_raju_001",
+            fullName = "Raju Kumar",
+            email = "raju.kumar@flashdrop.local",
+            phone = "+91 98765 12345",
+            primaryAddress = "Lane 3, Behind Tehsil Office, Alha Chowk, Mahoba - 210427",
+            locality = "Alha Chowk",
+            city = "Mahoba",
+            state = "Uttar Pradesh",
+            pinCode = "210427",
+            savedAddresses = listOf(
+                DeliveryAddress(
+                    id = "addr_raju_1",
+                    name = "Raju Kumar",
+                    phone = "9876512345",
+                    label = "Home",
+                    houseNumber = "House No. 28, Lane 3",
+                    street = "Behind Tehsil Office",
+                    area = "Alha Chowk",
+                    landmark = "Tehsil Gate",
+                    city = "Mahoba",
+                    state = "Uttar Pradesh",
+                    pinCode = "210427",
+                    isDefault = true
+                )
+            ),
+            authMethod = "Registered Account",
+            accountStatus = "Active",
+            isVerified = true,
+            joinedDate = "12 Oct 2026",
+            lastActive = "Today, 07:15 PM",
+            totalOrdersCount = 4,
+            completedOrdersCount = 3,
+            cancelledOrdersCount = 0,
+            totalSpentAmount = 1425.0,
+            upiSpentAmount = 1145.0,
+            codSpentAmount = 280.0,
+            preferredPaymentMethod = "UPI",
+            favoriteShopName = "Sharma General Store",
+            recentOrders = listOf(
+                CustomerOrderSummary(
+                    orderId = "ord_fd20261021a001",
+                    orderNumber = "#FD20261021A001",
+                    shopId = "sharma_general",
+                    shopName = "Sharma General Store",
+                    itemsSummary = "Aashirvaad Atta (5kg) x1, Parle-G Biscuits x2, Maggi Noodles x1",
+                    itemsCount = 4,
+                    totalAmount = 315.0,
+                    paymentMethod = "UPI",
+                    paymentStatus = "Paid",
+                    orderStatus = "preparing",
+                    orderDate = "Today, 10:32 AM",
+                    deliveryAddress = "Alha Chowk, Mahoba - 210427"
+                ),
+                CustomerOrderSummary(
+                    orderId = "ord_raju_prev",
+                    orderNumber = "#FD20261018A042",
+                    shopId = "bundelkhand_organics",
+                    shopName = "Bundelkhand Organics & Spices",
+                    itemsSummary = "Desi Cow Bilona Ghee (1L) x1, Fortune Refined Oil x1",
+                    itemsCount = 2,
+                    totalAmount = 792.0,
+                    paymentMethod = "UPI",
+                    paymentStatus = "Paid",
+                    orderStatus = "delivered",
+                    orderDate = "18 Oct 2026, 05:20 PM",
+                    deliveryAddress = "Alha Chowk, Mahoba - 210427"
+                )
+            ),
+            adminNotes = "Active grocery buyer in Alha Chowk."
+        ),
+        CustomerRecord(
+            id = "cust_anita_002",
+            fullName = "Anita Singh",
+            email = "anita.singh@flashdrop.local",
+            phone = "+91 98765 44332",
+            primaryAddress = "Flat 2B, Shanti Bhawan, Subhash Chowk, Mahoba - 210427",
+            locality = "Subhash Chowk",
+            city = "Mahoba",
+            state = "Uttar Pradesh",
+            pinCode = "210427",
+            savedAddresses = listOf(
+                DeliveryAddress(
+                    id = "addr_anita_1",
+                    name = "Anita Singh",
+                    phone = "9876544332",
+                    label = "Home",
+                    houseNumber = "Flat 2B, Shanti Bhawan",
+                    street = "Main Bazaar Road",
+                    area = "Subhash Chowk",
+                    landmark = "Subhash Park",
+                    city = "Mahoba",
+                    state = "Uttar Pradesh",
+                    pinCode = "210427",
+                    isDefault = true
+                )
+            ),
+            authMethod = "Google Sign-In",
+            accountStatus = "VIP",
+            isVerified = true,
+            joinedDate = "14 Oct 2026",
+            lastActive = "Today, 04:50 PM",
+            totalOrdersCount = 5,
+            completedOrdersCount = 5,
+            cancelledOrdersCount = 0,
+            totalSpentAmount = 3175.0,
+            upiSpentAmount = 2395.0,
+            codSpentAmount = 780.0,
+            preferredPaymentMethod = "UPI",
+            favoriteShopName = "Rani Fashion Hub",
+            recentOrders = listOf(
+                CustomerOrderSummary(
+                    orderId = "ord_fd20261021a002",
+                    orderNumber = "#FD20261021A002",
+                    shopId = "sharma_general",
+                    shopName = "Sharma General Store",
+                    itemsSummary = "Amul Butter (500g) x1, Parle-G Biscuits x1",
+                    itemsCount = 2,
+                    totalAmount = 280.0,
+                    paymentMethod = "COD",
+                    paymentStatus = "Collected",
+                    orderStatus = "delivered",
+                    orderDate = "21 Oct 2026, 11:15 AM",
+                    deliveryAddress = "Subhash Chowk, Mahoba - 210427"
+                ),
+                CustomerOrderSummary(
+                    orderId = "ord_anita_fashion",
+                    orderNumber = "#FD20261019A077",
+                    shopId = "rani_fashion",
+                    shopName = "Rani Fashion Hub",
+                    itemsSummary = "Chanderi Art Silk Saree x1, Handloom Cotton Kurti x1",
+                    itemsCount = 2,
+                    totalAmount = 1698.0,
+                    paymentMethod = "UPI",
+                    paymentStatus = "Paid",
+                    orderStatus = "delivered",
+                    orderDate = "19 Oct 2026, 03:40 PM",
+                    deliveryAddress = "Flat 2B, Shanti Bhawan, Subhash Chowk, Mahoba - 210427"
+                )
+            ),
+            adminNotes = "High-value fashion and daily essentials customer."
+        ),
+        CustomerRecord(
+            id = "cust_sunil_003",
+            fullName = "Sunil Verma",
+            email = "sunil.verma@flashdrop.local",
+            phone = "+91 98765 88776",
+            primaryAddress = "Bungalow 9, Near District Hospital, Civil Lines, Mahoba - 210427",
+            locality = "Civil Lines",
+            city = "Mahoba",
+            state = "Uttar Pradesh",
+            pinCode = "210427",
+            savedAddresses = listOf(
+                DeliveryAddress(
+                    id = "addr_sunil_1",
+                    name = "Sunil Verma",
+                    phone = "9876588776",
+                    label = "Home",
+                    houseNumber = "Bungalow 9",
+                    street = "Collectorate Road",
+                    area = "Civil Lines",
+                    landmark = "District Hospital",
+                    city = "Mahoba",
+                    state = "Uttar Pradesh",
+                    pinCode = "210427",
+                    isDefault = true
+                )
+            ),
+            authMethod = "Registered Account",
+            accountStatus = "Active",
+            isVerified = true,
+            joinedDate = "15 Oct 2026",
+            lastActive = "Today, 01:15 PM",
+            totalOrdersCount = 3,
+            completedOrdersCount = 2,
+            cancelledOrdersCount = 0,
+            totalSpentAmount = 1240.0,
+            upiSpentAmount = 1240.0,
+            codSpentAmount = 0.0,
+            preferredPaymentMethod = "UPI",
+            favoriteShopName = "Sharma General Store",
+            recentOrders = listOf(
+                CustomerOrderSummary(
+                    orderId = "ord_fd20261021a003",
+                    orderNumber = "#FD20261021A003",
+                    shopId = "sharma_general",
+                    shopName = "Sharma General Store",
+                    itemsSummary = "Aashirvaad Atta (5kg) x2, Tata Salt (1kg) x1",
+                    itemsCount = 3,
+                    totalAmount = 520.0,
+                    paymentMethod = "UPI",
+                    paymentStatus = "Pending",
+                    orderStatus = "pending",
+                    orderDate = "21 Oct 2026, 12:03 PM",
+                    deliveryAddress = "Civil Lines, Mahoba - 210427"
+                )
+            ),
+            adminNotes = "Civil Lines resident. Orders monthly family groceries and pharmacy items."
+        ),
+        CustomerRecord(
+            id = "cust_manish_004",
+            fullName = "Manish Tiwari",
+            email = "manish.tiwari@flashdrop.local",
+            phone = "+91 98765 33221",
+            primaryAddress = "Shop 12, Opposite Railway Platform 1, Station Road, Mahoba - 210427",
+            locality = "Station Road",
+            city = "Mahoba",
+            state = "Uttar Pradesh",
+            pinCode = "210427",
+            savedAddresses = listOf(
+                DeliveryAddress(
+                    id = "addr_manish_1",
+                    name = "Manish Tiwari",
+                    phone = "9876533221",
+                    label = "Work",
+                    houseNumber = "House 12",
+                    street = "Station Road",
+                    area = "Station Road",
+                    landmark = "Railway Station",
+                    city = "Mahoba",
+                    state = "Uttar Pradesh",
+                    pinCode = "210427",
+                    isDefault = true
+                )
+            ),
+            authMethod = "Mobile & Password",
+            accountStatus = "Active",
+            isVerified = true,
+            joinedDate = "16 Oct 2026",
+            lastActive = "Yesterday",
+            totalOrdersCount = 4,
+            completedOrdersCount = 4,
+            cancelledOrdersCount = 0,
+            totalSpentAmount = 1890.0,
+            upiSpentAmount = 450.0,
+            codSpentAmount = 1440.0,
+            preferredPaymentMethod = "COD",
+            favoriteShopName = "Sahu Sweets & Namkeen",
+            recentOrders = listOf(
+                CustomerOrderSummary(
+                    orderId = "ord_fd20261020a097",
+                    orderNumber = "#FD20261020A097",
+                    shopId = "sharma_general",
+                    shopName = "Sharma General Store",
+                    itemsSummary = "Fortune Refined Sunlite Oil (1L) x5",
+                    itemsCount = 5,
+                    totalAmount = 760.0,
+                    paymentMethod = "COD",
+                    paymentStatus = "Collected",
+                    orderStatus = "delivered",
+                    orderDate = "20 Oct 2026, 04:32 PM",
+                    deliveryAddress = "Station Road, Mahoba - 210427"
+                )
+            ),
+            adminNotes = "Prefers Cash on Delivery at Station Road."
+        ),
+        CustomerRecord(
+            id = "cust_pooja_005",
+            fullName = "Pooja Gupta",
+            email = "pooja.gupta@flashdrop.local",
+            phone = "+91 98765 99881",
+            primaryAddress = "Ward No. 8, Near Saraswati Mandir, Gandhi Nagar, Mahoba - 210427",
+            locality = "Gandhi Nagar",
+            city = "Mahoba",
+            state = "Uttar Pradesh",
+            pinCode = "210427",
+            savedAddresses = listOf(
+                DeliveryAddress(
+                    id = "addr_pooja_1",
+                    name = "Pooja Gupta",
+                    phone = "9876599881",
+                    label = "Home",
+                    houseNumber = "Ward No. 8, House 54",
+                    street = "Mandir Marg",
+                    area = "Gandhi Nagar",
+                    landmark = "Saraswati Mandir",
+                    city = "Mahoba",
+                    state = "Uttar Pradesh",
+                    pinCode = "210427",
+                    isDefault = true
+                )
+            ),
+            authMethod = "Google Sign-In",
+            accountStatus = "Active",
+            isVerified = true,
+            joinedDate = "17 Oct 2026",
+            lastActive = "2 days ago",
+            totalOrdersCount = 3,
+            completedOrdersCount = 2,
+            cancelledOrdersCount = 1,
+            totalSpentAmount = 840.0,
+            upiSpentAmount = 840.0,
+            codSpentAmount = 0.0,
+            preferredPaymentMethod = "UPI",
+            favoriteShopName = "Sahu Sweets & Namkeen",
+            recentOrders = listOf(
+                CustomerOrderSummary(
+                    orderId = "ord_fd20261020a098",
+                    orderNumber = "#FD20261020A098",
+                    shopId = "sharma_general",
+                    shopName = "Sharma General Store",
+                    itemsSummary = "Mahoba Special Khoya Pedha (400g) x1",
+                    itemsCount = 1,
+                    totalAmount = 199.0,
+                    paymentMethod = "UPI",
+                    paymentStatus = "Failed",
+                    orderStatus = "cancelled",
+                    orderDate = "20 Oct 2026, 05:21 PM",
+                    deliveryAddress = "Gandhi Nagar, Mahoba - 210427"
+                )
+            ),
+            adminNotes = "Orders sweets and beauty care products in Gandhi Nagar."
+        ),
+        CustomerRecord(
+            id = "cust_rakesh_006",
+            fullName = "Rakesh Kumar",
+            email = "rakesh.kumar@flashdrop.local",
+            phone = "+91 98765 77661",
+            primaryAddress = "House 19, Opposite Govt. Degree College, Degree College Road, Mahoba - 210427",
+            locality = "Degree College Road",
+            city = "Mahoba",
+            state = "Uttar Pradesh",
+            pinCode = "210427",
+            savedAddresses = listOf(
+                DeliveryAddress(
+                    id = "addr_rakesh_1",
+                    name = "Rakesh Kumar",
+                    phone = "9876577661",
+                    label = "Home",
+                    houseNumber = "House 19",
+                    street = "Degree College Road",
+                    area = "Degree College Road",
+                    landmark = "Govt. Degree College Gate",
+                    city = "Mahoba",
+                    state = "Uttar Pradesh",
+                    pinCode = "210427",
+                    isDefault = true
+                )
+            ),
+            authMethod = "Registered Account",
+            accountStatus = "Active",
+            isVerified = true,
+            joinedDate = "18 Oct 2026",
+            lastActive = "3 days ago",
+            totalOrdersCount = 2,
+            completedOrdersCount = 1,
+            cancelledOrdersCount = 1,
+            totalSpentAmount = 695.0,
+            upiSpentAmount = 695.0,
+            codSpentAmount = 0.0,
+            preferredPaymentMethod = "UPI",
+            favoriteShopName = "Gupta Medical & Health Care",
+            recentOrders = listOf(
+                CustomerOrderSummary(
+                    orderId = "ord_fd20261020a096",
+                    orderNumber = "#FD20261020A096",
+                    shopId = "sharma_general",
+                    shopName = "Sharma General Store",
+                    itemsSummary = "Dabur Chyawanprash (1kg) x1",
+                    itemsCount = 1,
+                    totalAmount = 345.0,
+                    paymentMethod = "UPI",
+                    paymentStatus = "Refunded",
+                    orderStatus = "refunded",
+                    orderDate = "20 Oct 2026, 02:17 PM",
+                    deliveryAddress = "Degree College Road, Mahoba - 210427"
+                )
+            ),
+            adminNotes = "Student & stationery/pharmacy buyer on Degree College Road."
         )
     )
 }
