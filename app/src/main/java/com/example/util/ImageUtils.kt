@@ -40,7 +40,7 @@ object ImageUtils {
     fun getFileProviderUri(context: Context, file: File): Uri? {
         val authoritiesToTry = listOf(
             "${context.packageName}.fileprovider",
-            "com.aistudio.apnabaz.mhbaz.fileprovider",
+            "${com.example.BuildConfig.APPLICATION_ID}.fileprovider",
             "com.example.fileprovider"
         )
         for (authority in authoritiesToTry) {

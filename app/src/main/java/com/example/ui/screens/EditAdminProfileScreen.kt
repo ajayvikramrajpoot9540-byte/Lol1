@@ -69,7 +69,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.components.CircularProfileAvatar
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.TextDark
@@ -80,7 +80,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditAdminProfileScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     onBack: () -> Unit
 ) {
     BackHandler { onBack() }

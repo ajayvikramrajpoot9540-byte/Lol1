@@ -51,7 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.auth.AuthManager
 import com.example.ui.theme.GreenLight
 import com.example.ui.theme.GreenPrimary
@@ -63,7 +63,7 @@ import com.example.ui.theme.TextMuted
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderSignInBottomSheet(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     onDismiss: () -> Unit,
     onSignInSuccess: () -> Unit
 ) {

@@ -61,7 +61,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.GoldRating
 import com.example.ui.theme.GreenLight
@@ -73,7 +73,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductDetailScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     productId: String,
     onBack: () -> Unit,
     onViewCart: () -> Unit,

@@ -50,8 +50,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-typealias ApnaBazRepository = FlashDropRepository
-
 sealed class ShopkeeperLoginResult {
     data class Success(val profile: UserProfile) : ShopkeeperLoginResult()
     data class PendingApproval(val shop: Shop, val account: ShopkeeperAccount?) : ShopkeeperLoginResult()
@@ -641,7 +639,19 @@ class FlashDropRepository(
 
             val loadedDeliveryConfig = persistence.loadDeliveryConfig()
             if (loadedDeliveryConfig != null) {
-                _deliveryConfig.value = loadedDeliveryConfig
+                // If the persisted config is still the unedited initial default with old 10/20/40/70 charges,
+                // upgrade it to the new 9/19/39/69 default tiers from DeliveryConfig()
+                val charges = loadedDeliveryConfig.distanceTiers.map { it.charge }
+                val isOldInitialDefault = loadedDeliveryConfig.version <= 1L &&
+                    loadedDeliveryConfig.lastUpdatedAtFormatted == "System Initial Setup" &&
+                    charges == listOf(10.0, 20.0, 40.0, 70.0)
+                if (isOldInitialDefault) {
+                    val upgraded = loadedDeliveryConfig.copy(distanceTiers = DeliveryConfig().distanceTiers)
+                    _deliveryConfig.value = upgraded
+                    persistence.saveDeliveryConfig(upgraded)
+                } else {
+                    _deliveryConfig.value = loadedDeliveryConfig
+                }
             } else {
                 persistence.saveDeliveryConfig(_deliveryConfig.value)
             }
@@ -669,7 +679,22 @@ class FlashDropRepository(
 
             val loadedTransactions = persistence.loadTransactions()
             if (loadedTransactions != null && loadedTransactions.isNotEmpty()) {
-                _transactions.value = loadedTransactions
+                val seedById = SeedData.sampleTransactions.associateBy { it.id }
+                val upgradedLoaded = loadedTransactions.map { existing ->
+                    val seedMatch = seedById[existing.id]
+                    if (seedMatch != null && existing.itemsSummary.isBlank()) {
+                        seedMatch
+                    } else {
+                        existing
+                    }
+                }
+                val existingIds = upgradedLoaded.map { it.id }.toSet()
+                val missingSeeds = SeedData.sampleTransactions.filter { it.id !in existingIds }
+                val merged = upgradedLoaded + missingSeeds
+                _transactions.value = merged
+                if (missingSeeds.isNotEmpty() || upgradedLoaded != loadedTransactions) {
+                    persistence.saveTransactions(merged)
+                }
             } else {
                 persistence.saveTransactions(_transactions.value)
             }
@@ -4313,6 +4338,8 @@ class FlashDropRepository(
             )
         }
 
+        val commissionAmt = (order.subtotal * 0.08).toInt().toDouble()
+        val payoutAmt = (order.totalAmount - commissionAmt - order.deliveryFee).coerceAtLeast(order.subtotal * 0.85)
         val newTxn = com.example.data.model.Transaction(
             id = "txn_${UUID.randomUUID().toString().take(8)}",
             orderId = order.id,
@@ -4320,6 +4347,7 @@ class FlashDropRepository(
             shopId = order.shopId,
             shopName = order.shopName,
             customerName = order.customerName,
+            customerPhone = order.customerPhone,
             amount = order.totalAmount,
             paymentMethod = if (paymentMethod == "cash_on_delivery") "COD" else "UPI",
             status = if (resolvedPaymentStatus == "paid") "Paid" else if (paymentMethod == "cash_on_delivery") "Collected" else "Pending",
@@ -4327,7 +4355,14 @@ class FlashDropRepository(
             timeOnly = "Just now",
             providerTxnId = resolvedTxnId.ifBlank { "COD-REC-${order.orderNumber.takeLast(3)}" },
             referenceId = resolvedRef.ifBlank { "CASH-AUTH-${order.orderNumber.takeLast(3)}" },
-            verificationProof = if (resolvedPaymentStatus == "paid") "NPCI Verified / Bank Auth" else "Cash On Delivery (Handover Verification)"
+            verificationProof = if (resolvedPaymentStatus == "paid") "NPCI Verified / Bank Auth" else "Cash On Delivery (Handover Verification)",
+            daysAgo = 0,
+            itemsSummary = order.items.joinToString(", ") { "${it.productName} x${it.quantity}" }.ifBlank { "${order.itemsCount} items" },
+            deliveryFee = order.deliveryFee,
+            platformCommission = commissionAmt,
+            discountSubsidy = order.discount,
+            shopkeeperPayoutAmount = payoutAmt,
+            shopkeeperSettlementStatus = "Pending Settlement"
         )
         _transactions.value = listOf(newTxn) + _transactions.value
         persistence.saveTransactions(_transactions.value)
@@ -4651,11 +4686,12 @@ class FlashDropRepository(
             lastUpdatedByAdminId = adminId,
             lastUpdatedByAdminName = adminName,
             lastUpdatedAtFormatted = nowFormatted,
-            defaultDeliveryFee = config.distanceTiers.firstOrNull()?.charge ?: 10.0,
+            defaultDeliveryFee = config.distanceTiers.firstOrNull()?.charge ?: 9.0,
             freeDeliveryThreshold = config.minOrderThreshold
         )
 
         _deliveryConfig.value = updated
+        persistence.saveDeliveryConfig(updated)
 
         repoScope.launch {
             try {
@@ -4820,4 +4856,61 @@ class FlashDropRepository(
     fun stopRiderGpsService() {
         DeliveryLocationService.stopTracking(context)
     }
+
+    /**
+     * Marks all pending payments and shopkeeper settlements for a given shop as Settled/Paid
+     * so Main Admins can easily disburse payments to the shopkeeper.
+     */
+    fun settleShopkeeperPendingPayments(shopId: String): Int {
+        var settledCount = 0
+        val updated = _transactions.value.map { txn ->
+            val matchesShop = shopId == "ALL" || txn.shopId.equals(shopId, ignoreCase = true) || txn.shopName.equals(shopId, ignoreCase = true)
+            if (matchesShop && (txn.status.equals("Pending", ignoreCase = true) || txn.shopkeeperSettlementStatus.equals("Pending Settlement", ignoreCase = true))) {
+                settledCount++
+                val nextStatus = if (txn.status.equals("Pending", ignoreCase = true)) {
+                    if (txn.isCodPayment) "Collected" else "Paid"
+                } else {
+                    txn.status
+                }
+                txn.copy(
+                    status = nextStatus,
+                    shopkeeperSettlementStatus = "Settled",
+                    verificationProof = "Shopkeeper Payout Settled by Main Admin (${_currentProfile.value.loginId.ifBlank { "PR12" }})"
+                )
+            } else {
+                txn
+            }
+        }
+        if (settledCount > 0) {
+            _transactions.value = updated
+            persistence.saveTransactions(updated)
+        }
+        return settledCount
+    }
+
+    /**
+     * Resolves an online payment problem (Failed / Pending gateway issue) for a transaction.
+     */
+    fun resolveOnlinePaymentIssue(transactionId: String, newStatus: String = "Paid"): Boolean {
+        var changed = false
+        val updated = _transactions.value.map { txn ->
+            if (txn.id == transactionId) {
+                changed = true
+                txn.copy(
+                    status = newStatus,
+                    shopkeeperSettlementStatus = if (newStatus == "Paid") "Settled" else txn.shopkeeperSettlementStatus,
+                    verificationProof = "Online Payment Issue Resolved by Admin (${_currentProfile.value.loginId.ifBlank { "PR12" }})",
+                    failureReason = if (txn.failureReason.isNotBlank()) "${txn.failureReason} (Resolved)" else "Resolved by Admin"
+                )
+            } else {
+                txn
+            }
+        }
+        if (changed) {
+            _transactions.value = updated
+            persistence.saveTransactions(updated)
+        }
+        return changed
+    }
 }
+

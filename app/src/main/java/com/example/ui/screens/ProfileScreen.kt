@@ -70,7 +70,7 @@ import androidx.credentials.CredentialManager
 import android.app.Activity
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.auth.AuthManager
 import com.example.ui.components.BottomNavBar
 import com.example.ui.components.CircularProfileAvatar
@@ -88,7 +88,7 @@ import com.google.firebase.auth.FirebaseAuth
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     onNavigate: (String) -> Unit
 ) {
     val profile by repository.currentProfile.collectAsState()

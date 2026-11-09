@@ -63,7 +63,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.Product
 import com.example.data.model.Shop
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.navigation.Screen
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.BorderLight
@@ -105,7 +105,7 @@ import com.example.util.rememberCameraManager
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductListScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     categoryName: String = "All",
     shopId: String? = null,
     onProductSelected: (String) -> Unit,

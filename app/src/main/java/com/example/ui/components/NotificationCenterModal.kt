@@ -60,7 +60,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.NotificationItem
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.theme.GreenLight
 import com.example.ui.theme.GreenPrimary
 import com.example.ui.theme.OrangeLight
@@ -75,7 +75,7 @@ import com.example.ui.theme.TextMuted
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationBellButton(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     role: String,
     modifier: Modifier = Modifier,
     tint: Color = TextDark,
@@ -133,7 +133,7 @@ fun NotificationBellButton(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationCenterBottomSheet(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     role: String,
     shopId: String = "",
     onDismiss: () -> Unit

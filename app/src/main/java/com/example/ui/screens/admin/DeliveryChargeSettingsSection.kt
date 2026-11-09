@@ -62,7 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.DeliveryConfig
 import com.example.data.model.DistanceTier
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.GreenLight
 import com.example.ui.theme.GreenPrimary
@@ -79,7 +79,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun DeliveryChargeSettingsSection(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     deliveryConfig: DeliveryConfig,
     ownerName: String,
     ownerId: String,
@@ -98,19 +98,19 @@ fun DeliveryChargeSettingsSection(
         mutableStateOf(deliveryConfig.isManualFreeDeliveryOn)
     }
 
-    // Distance Tier Rate States (Default: 0-2 km: ₹10, >2-5 km: ₹20, >5-10 km: ₹40, >10 km: ₹70)
+    // Distance Tier Rate States (Default: 0-2 km: ₹9, >2-5 km: ₹19, >5-10 km: ₹39, >10 km: ₹69)
     val tiers = deliveryConfig.distanceTiers
     var tier1ChargeInput by remember(deliveryConfig) {
-        mutableStateOf(tiers.getOrNull(0)?.charge?.toInt()?.toString() ?: "10")
+        mutableStateOf(tiers.getOrNull(0)?.charge?.toInt()?.toString() ?: "9")
     }
     var tier2ChargeInput by remember(deliveryConfig) {
-        mutableStateOf(tiers.getOrNull(1)?.charge?.toInt()?.toString() ?: "20")
+        mutableStateOf(tiers.getOrNull(1)?.charge?.toInt()?.toString() ?: "19")
     }
     var tier3ChargeInput by remember(deliveryConfig) {
-        mutableStateOf(tiers.getOrNull(2)?.charge?.toInt()?.toString() ?: "40")
+        mutableStateOf(tiers.getOrNull(2)?.charge?.toInt()?.toString() ?: "39")
     }
     var tier4ChargeInput by remember(deliveryConfig) {
-        mutableStateOf(tiers.getOrNull(3)?.charge?.toInt()?.toString() ?: "70")
+        mutableStateOf(tiers.getOrNull(3)?.charge?.toInt()?.toString() ?: "69")
     }
 
     // Maximum Permitted Delivery Distance State
@@ -254,7 +254,11 @@ fun DeliveryChargeSettingsSection(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                        ) {
                             Text(
                                 text = "Free Delivery Policy",
                                 fontWeight = FontWeight.Bold,
@@ -277,7 +281,8 @@ fun DeliveryChargeSettingsSection(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = GreenPrimary
+                                color = GreenPrimary,
+                                maxLines = 1
                             )
                         }
                     }
@@ -348,7 +353,11 @@ fun DeliveryChargeSettingsSection(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column {
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 8.dp)
+                                ) {
                                     Text(
                                         text = if (isManualFreeDeliverySwitchOn) "Manual Free Delivery: ON" else "Manual Free Delivery: OFF",
                                         fontWeight = FontWeight.Bold,
@@ -390,7 +399,11 @@ fun DeliveryChargeSettingsSection(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                        ) {
                             Text(
                                 text = "Distance-Based Delivery Rates",
                                 fontWeight = FontWeight.Bold,
@@ -398,7 +411,7 @@ fun DeliveryChargeSettingsSection(
                                 color = TextDark
                             )
                             Text(
-                                text = "Rates per distinct shop in Mahoba (Default: ₹10, ₹20, ₹40, ₹70)",
+                                text = "Rates per distinct shop in Mahoba (Default: ₹9, ₹19, ₹39, ₹69)",
                                 fontSize = 12.sp,
                                 color = TextMuted
                             )
@@ -408,49 +421,49 @@ fun DeliveryChargeSettingsSection(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Tier 1: 0 - 2 km (Default ₹10)
+                    // Tier 1: 0 - 2 km (Default ₹9)
                     DistanceRateTierRow(
                         tierLabel = "0 to 2 km",
                         description = "Short-distance local neighborhood delivery",
                         value = tier1ChargeInput,
                         onValueChange = { tier1ChargeInput = it },
-                        defaultHint = "Default: ₹10",
+                        defaultHint = "Default: ₹9",
                         tag = "tier_1_charge_input"
                     )
 
                     HorizontalDivider(color = Color(0xFFF3F4F6), modifier = Modifier.padding(vertical = 10.dp))
 
-                    // Tier 2: > 2 - 5 km (Default ₹20)
+                    // Tier 2: > 2 - 5 km (Default ₹19)
                     DistanceRateTierRow(
                         tierLabel = "> 2 km up to 5 km",
                         description = "Mid-distance city cross-town delivery",
                         value = tier2ChargeInput,
                         onValueChange = { tier2ChargeInput = it },
-                        defaultHint = "Default: ₹20",
+                        defaultHint = "Default: ₹19",
                         tag = "tier_2_charge_input"
                     )
 
                     HorizontalDivider(color = Color(0xFFF3F4F6), modifier = Modifier.padding(vertical = 10.dp))
 
-                    // Tier 3: > 5 - 10 km (Default ₹40)
+                    // Tier 3: > 5 - 10 km (Default ₹39)
                     DistanceRateTierRow(
                         tierLabel = "> 5 km up to 10 km",
                         description = "Outer city and peri-urban delivery",
                         value = tier3ChargeInput,
                         onValueChange = { tier3ChargeInput = it },
-                        defaultHint = "Default: ₹40",
+                        defaultHint = "Default: ₹39",
                         tag = "tier_3_charge_input"
                     )
 
                     HorizontalDivider(color = Color(0xFFF3F4F6), modifier = Modifier.padding(vertical = 10.dp))
 
-                    // Tier 4: > 10 km (Default ₹70)
+                    // Tier 4: > 10 km (Default ₹69)
                     DistanceRateTierRow(
                         tierLabel = "> 10 km (up to max limit)",
                         description = "Extended peripheral and rural fringe delivery",
                         value = tier4ChargeInput,
                         onValueChange = { tier4ChargeInput = it },
-                        defaultHint = "Default: ₹70",
+                        defaultHint = "Default: ₹69",
                         tag = "tier_4_charge_input"
                     )
                 }

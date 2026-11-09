@@ -101,7 +101,7 @@ import com.example.data.model.CartItem
 import com.example.data.model.Product
 import com.example.data.model.Shop
 import com.example.data.model.ShopLiveStatus
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.components.BottomNavBar
 import com.example.ui.components.CameraVisualSearchEngine
 import com.example.ui.components.LowestPriceFirstBadge
@@ -127,7 +127,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     onNavigate: (String) -> Unit,
     onShopSelected: (String) -> Unit,
     onProductSelected: (String) -> Unit,

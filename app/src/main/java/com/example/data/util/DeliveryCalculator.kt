@@ -51,7 +51,7 @@ object DeliveryCalculator {
      */
     fun findMatchingTier(distanceKm: Double, tiers: List<DistanceTier>): DistanceTier {
         if (tiers.isEmpty()) {
-            return DistanceTier(0.0, 2.0, 10.0, "0 – 2 km")
+            return DistanceTier(0.0, 2.0, 9.0, "0 – 2 km")
         }
         for (tier in tiers) {
             val matches = if (tier.minDistanceKm <= 0.0) {

@@ -79,7 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.Shop
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.GreenLight
 import com.example.ui.theme.GreenPrimary
@@ -94,7 +94,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditShopProfileScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     shopId: String? = null,
     onBack: () -> Unit
 ) {

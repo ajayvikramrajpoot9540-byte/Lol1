@@ -25,16 +25,16 @@ import org.robolectric.annotation.Config
 class DeliveryChargeManagementTest {
 
     private lateinit var context: Context
-    private lateinit var repository: ApnaBazRepository
+    private lateinit var repository: FlashDropRepository
 
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
-        repository = ApnaBazRepository(context)
+        repository = FlashDropRepository(context)
     }
 
     private fun setProfile(loginId: String, name: String, role: String, email: String, isVerifiedAdmin: Boolean) {
-        val field = ApnaBazRepository::class.java.getDeclaredField("_currentProfile")
+        val field = FlashDropRepository::class.java.getDeclaredField("_currentProfile")
         field.isAccessible = true
         val stateFlow = field.get(repository) as kotlinx.coroutines.flow.MutableStateFlow<UserProfile>
         stateFlow.value = UserProfile(
@@ -125,29 +125,29 @@ class DeliveryChargeManagementTest {
         assertEquals("Default max delivery distance should be 15 km", 15.0, config.maxDeliveryDistanceKm, 0.01)
         assertEquals(4, config.distanceTiers.size)
 
-        // Tier 1: 0 - 2 km -> ₹10
+        // Tier 1: 0 - 2 km -> ₹9
         val t1 = config.distanceTiers[0]
         assertEquals(0.0, t1.minDistanceKm, 0.01)
         assertEquals(2.0, t1.maxDistanceKm, 0.01)
-        assertEquals(10.0, t1.charge, 0.01)
+        assertEquals(9.0, t1.charge, 0.01)
 
-        // Tier 2: >2 - 5 km -> ₹20
+        // Tier 2: >2 - 5 km -> ₹19
         val t2 = config.distanceTiers[1]
         assertEquals(2.0, t2.minDistanceKm, 0.01)
         assertEquals(5.0, t2.maxDistanceKm, 0.01)
-        assertEquals(20.0, t2.charge, 0.01)
+        assertEquals(19.0, t2.charge, 0.01)
 
-        // Tier 3: >5 - 10 km -> ₹40
+        // Tier 3: >5 - 10 km -> ₹39
         val t3 = config.distanceTiers[2]
         assertEquals(5.0, t3.minDistanceKm, 0.01)
         assertEquals(10.0, t3.maxDistanceKm, 0.01)
-        assertEquals(40.0, t3.charge, 0.01)
+        assertEquals(39.0, t3.charge, 0.01)
 
-        // Tier 4: >10 km -> ₹70
+        // Tier 4: >10 km -> ₹69
         val t4 = config.distanceTiers[3]
         assertEquals(10.0, t4.minDistanceKm, 0.01)
         assertEquals(15.0, t4.maxDistanceKm, 0.01)
-        assertEquals(70.0, t4.charge, 0.01)
+        assertEquals(69.0, t4.charge, 0.01)
     }
 
     @Test
@@ -195,14 +195,14 @@ class DeliveryChargeManagementTest {
             minOrderThreshold = 199.0
         )
 
-        // Subtotal ₹150 (< ₹199) -> charges apply (1.2 km = ₹10)
+        // Subtotal ₹150 (< ₹199) -> charges apply (1.2 km = ₹9)
         val billUnder = DeliveryCalculator.calculateBill(
             cartItems = listOf(CartItem(p1, 1)),
             config = minOrderConfig,
             shops = shops
         )
         assertFalse("Under threshold order should not get free delivery", billUnder.isFreeDeliveryEligible)
-        assertEquals(10.0, billUnder.netDeliveryFee, 0.01)
+        assertEquals(9.0, billUnder.netDeliveryFee, 0.01)
         assertEquals(0.0, billUnder.totalDeliveryDiscount, 0.01)
 
         // Subtotal ₹250 (>= ₹199) -> Free delivery
@@ -213,7 +213,7 @@ class DeliveryChargeManagementTest {
         )
         assertTrue("Order over threshold should get free delivery", billOver.isFreeDeliveryEligible)
         assertEquals(0.0, billOver.netDeliveryFee, 0.01)
-        assertEquals(10.0, billOver.totalDeliveryDiscount, 0.01)
+        assertEquals(9.0, billOver.totalDeliveryDiscount, 0.01)
 
         // Policy 2: NO_FREE_DELIVERY
         val noFreeConfig = DeliveryConfig(
@@ -226,7 +226,7 @@ class DeliveryChargeManagementTest {
             shops = shops
         )
         assertFalse("No-free-delivery mode must never grant free delivery", billNoFree.isFreeDeliveryEligible)
-        assertEquals(10.0, billNoFree.netDeliveryFee, 0.01)
+        assertEquals(9.0, billNoFree.netDeliveryFee, 0.01)
         assertEquals(0.0, billNoFree.totalDeliveryDiscount, 0.01)
 
         // Policy 3: MANUAL (Switch ON vs OFF)
@@ -252,7 +252,7 @@ class DeliveryChargeManagementTest {
             shops = shops
         )
         assertFalse("Manual OFF must charge standard distance fees", billManualOff.isFreeDeliveryEligible)
-        assertEquals(10.0, billManualOff.netDeliveryFee, 0.01)
+        assertEquals(9.0, billManualOff.netDeliveryFee, 0.01)
     }
 
     @Test
@@ -287,15 +287,15 @@ class DeliveryChargeManagementTest {
 
         val sharmaBreakdown = bill.shopDeliveries.find { it.shopId == "sharma_general" }
         assertNotNull(sharmaBreakdown)
-        assertEquals("Sharma delivery fee should be ₹10 despite having 2 distinct products", 10.0, sharmaBreakdown?.finalDeliveryCharge ?: 0.0, 0.01)
+        assertEquals("Sharma delivery fee should be ₹9 despite having 2 distinct products", 9.0, sharmaBreakdown?.finalDeliveryCharge ?: 0.0, 0.01)
 
         val hemuBreakdown = bill.shopDeliveries.find { it.shopId == "hemu_printing" }
         assertNotNull(hemuBreakdown)
-        assertEquals("Hemu delivery fee for 3.5 km should be ₹20", 20.0, hemuBreakdown?.finalDeliveryCharge ?: 0.0, 0.01)
+        assertEquals("Hemu delivery fee for 3.5 km should be ₹19", 19.0, hemuBreakdown?.finalDeliveryCharge ?: 0.0, 0.01)
 
-        // Total delivery before discount: 10 + 20 = 30
-        assertEquals(30.0, bill.totalDeliveryBeforeDiscount, 0.01)
-        assertEquals(30.0, bill.netDeliveryFee, 0.01)
+        // Total delivery before discount: 9 + 19 = 28
+        assertEquals(28.0, bill.totalDeliveryBeforeDiscount, 0.01)
+        assertEquals(28.0, bill.netDeliveryFee, 0.01)
     }
 
     @Test
@@ -349,7 +349,7 @@ class DeliveryChargeManagementTest {
         val savedSnapshot = placedOrder.billingSnapshot
         assertNotNull("Placed order must have an immutable billing snapshot", savedSnapshot)
         assertEquals(0.0, savedSnapshot!!.netDeliveryFee, 0.01)
-        assertEquals(10.0, savedSnapshot.totalDeliveryDiscount, 0.01)
+        assertEquals(9.0, savedSnapshot.totalDeliveryDiscount, 0.01)
         assertEquals("MINIMUM_ORDER", savedSnapshot.appliedPolicy)
         val originalVersion = savedSnapshot.configVersion
 

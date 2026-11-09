@@ -18,12 +18,12 @@ import org.robolectric.annotation.Config
 class EditProfileTest {
 
     private lateinit var context: Context
-    private lateinit var repository: ApnaBazRepository
+    private lateinit var repository: FlashDropRepository
 
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
-        repository = ApnaBazRepository(context)
+        repository = FlashDropRepository(context)
     }
 
     @Test

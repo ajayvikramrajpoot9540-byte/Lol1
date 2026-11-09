@@ -76,7 +76,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import com.example.data.model.Product
 import com.example.data.model.Shop
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.components.CameraVisualSearchEngine
 import com.example.ui.components.LowestPriceFirstBadge
 import com.example.ui.components.SearchBarCameraTrailingActions
@@ -98,7 +98,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShopDetailScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     shopId: String,
     onProductSelected: (String) -> Unit,
     onNavigate: (String) -> Unit,

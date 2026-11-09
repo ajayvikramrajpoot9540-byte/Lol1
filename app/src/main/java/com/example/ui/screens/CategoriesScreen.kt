@@ -44,7 +44,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -78,7 +78,7 @@ fun CategoriesScreen(
     onNavigate: (String) -> Unit,
     onCategorySelected: (String) -> Unit,
     onBack: () -> Unit,
-    repository: ApnaBazRepository? = null
+    repository: FlashDropRepository? = null
 ) {
     val categories = listOf(
         CategoryTile("Grocery", Icons.Default.ShoppingCart, GreenPrimary, GreenLight, "Kirana & Ration"),

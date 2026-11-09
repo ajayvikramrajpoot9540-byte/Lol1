@@ -13,7 +13,7 @@ import com.google.firebase.firestore.ServerTimestamp
 data class DistanceTier(
     val minDistanceKm: Double = 0.0,
     val maxDistanceKm: Double = 2.0,
-    val charge: Double = 10.0,
+    val charge: Double = 9.0,
     val label: String = "0 – 2 km"
 )
 
@@ -27,7 +27,7 @@ enum class FreeDeliveryPolicy(val code: String, val displayName: String, val des
     MINIMUM_ORDER(
         code = "MINIMUM_ORDER",
         displayName = "Minimum Order Threshold",
-        description = "Free delivery when merchandise subtotal reaches minimum threshold (default ₹199)"
+        description = "Free delivery when merchandise subtotal reaches minimum threshold (default ₹599)"
     ),
     NO_FREE_DELIVERY(
         code = "NO_FREE_DELIVERY",
@@ -50,10 +50,10 @@ data class DeliveryConfig(
 
     // Distance-based rate tiers (Default: 0-2 km: ₹10, >2-5 km: ₹20, >5-10 km: ₹40, >10 km: ₹70)
     val distanceTiers: List<DistanceTier> = listOf(
-        DistanceTier(minDistanceKm = 0.0, maxDistanceKm = 2.0, charge = 10.0, label = "0 – 2 km"),
-        DistanceTier(minDistanceKm = 2.0, maxDistanceKm = 5.0, charge = 20.0, label = "2 – 5 km"),
-        DistanceTier(minDistanceKm = 5.0, maxDistanceKm = 10.0, charge = 40.0, label = "5 – 10 km"),
-        DistanceTier(minDistanceKm = 10.0, maxDistanceKm = 15.0, charge = 70.0, label = "> 10 km")
+        DistanceTier(minDistanceKm = 0.0, maxDistanceKm = 2.0, charge = 9.0, label = "0 – 2 km"),
+        DistanceTier(minDistanceKm = 2.0, maxDistanceKm = 5.0, charge = 19.0, label = "2 – 5 km"),
+        DistanceTier(minDistanceKm = 5.0, maxDistanceKm = 10.0, charge = 39.0, label = "5 – 10 km"),
+        DistanceTier(minDistanceKm = 10.0, maxDistanceKm = 15.0, charge = 69.0, label = "> 10 km")
     ),
 
     // Maximum permitted delivery distance (Default: 15.0 km)

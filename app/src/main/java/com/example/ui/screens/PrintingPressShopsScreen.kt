@@ -67,7 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.Shop
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.components.BottomNavBar
 import com.example.ui.navigation.Screen
 import com.example.ui.theme.BackgroundWarm
@@ -81,7 +81,7 @@ import com.example.ui.theme.TextMuted
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrintingPressShopsScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     onShopSelected: (String) -> Unit,
     onDocumentPrintSelected: (String) -> Unit,
     onNavigate: (String) -> Unit,

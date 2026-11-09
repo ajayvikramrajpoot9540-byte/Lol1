@@ -105,10 +105,3 @@ fun FlashDropCompactLogo(
         }
     }
 }
-
-@Composable
-fun ApnaBazLogo(
-    modifier: Modifier = Modifier,
-    iconSize: Dp = Dp.Unspecified,
-    showTagline: Boolean = true
-) = FlashDropLogo(modifier, iconSize, showTagline)

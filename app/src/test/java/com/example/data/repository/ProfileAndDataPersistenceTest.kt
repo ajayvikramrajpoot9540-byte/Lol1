@@ -43,7 +43,7 @@ class ProfileAndDataPersistenceTest {
 
     @Test
     fun testUserProfilePersistence_SurvivesSimulatedRestart() {
-        val repo1 = ApnaBazRepository(context)
+        val repo1 = FlashDropRepository(context)
 
         // Customer updates profile
         val addr = DeliveryAddress(
@@ -76,7 +76,7 @@ class ProfileAndDataPersistenceTest {
         assertEquals("Civil Lines", savedProfile?.savedAddresses?.first()?.area)
 
         // Simulate app restart by instantiating a brand-new repository instance
-        val repo2 = ApnaBazRepository(context)
+        val repo2 = FlashDropRepository(context)
         val restoredProfile = repo2.currentProfile.value
         assertEquals("Ramesh Kumar", restoredProfile.name)
         assertEquals("ramesh.kumar@flashdrop.local", restoredProfile.email)
@@ -84,8 +84,8 @@ class ProfileAndDataPersistenceTest {
         assertEquals(1, restoredProfile.savedAddresses.size)
     }
 
-    private fun setAdminProfile(repo: ApnaBazRepository, loginId: String = "PR12", name: String = "Pranjal Rajpoot") {
-        val field = ApnaBazRepository::class.java.getDeclaredField("_currentProfile")
+    private fun setAdminProfile(repo: FlashDropRepository, loginId: String = "PR12", name: String = "Pranjal Rajpoot") {
+        val field = FlashDropRepository::class.java.getDeclaredField("_currentProfile")
         field.isAccessible = true
         @Suppress("UNCHECKED_CAST")
         val stateFlow = field.get(repo) as kotlinx.coroutines.flow.MutableStateFlow<UserProfile>
@@ -103,7 +103,7 @@ class ProfileAndDataPersistenceTest {
 
     @Test
     fun testProductPersistence_AddAndEdit_SurvivesRestart() {
-        val repo1 = ApnaBazRepository(context)
+        val repo1 = FlashDropRepository(context)
         setAdminProfile(repo1, "PR12", "Pranjal Rajpoot")
 
         val newProduct = Product(
@@ -125,7 +125,7 @@ class ProfileAndDataPersistenceTest {
         assertTrue("Admin saveProduct should succeed", saved)
 
         // Simulate app restart
-        val repo2 = ApnaBazRepository(context)
+        val repo2 = FlashDropRepository(context)
         val loadedProduct = repo2.products.value.find { it.id == "prod_custom_999" }
         assertNotNull("Product should exist after restart", loadedProduct)
         assertEquals("Organic Bundelkhand Wheat", loadedProduct?.name)
@@ -137,14 +137,14 @@ class ProfileAndDataPersistenceTest {
         assertTrue("Delete product should succeed", deleted)
 
         // Simulate another restart
-        val repo3 = ApnaBazRepository(context)
+        val repo3 = FlashDropRepository(context)
         val deletedProduct = repo3.products.value.find { it.id == "prod_custom_999" }
         assertTrue("Product should remain deleted after restart", deletedProduct == null)
     }
 
     @Test
     fun testCartPersistence_AcrossSimulatedRestart() {
-        val repo1 = ApnaBazRepository(context)
+        val repo1 = FlashDropRepository(context)
         val sampleProduct = repo1.products.value.first()
 
         repo1.clearCart()
@@ -156,7 +156,7 @@ class ProfileAndDataPersistenceTest {
         assertEquals(3, repo1.cartItems.value.first().quantity)
 
         // Simulate app restart
-        val repo2 = ApnaBazRepository(context)
+        val repo2 = FlashDropRepository(context)
         assertEquals(1, repo2.cartItems.value.size)
         assertEquals(sampleProduct.id, repo2.cartItems.value.first().product.id)
         assertEquals(3, repo2.cartItems.value.first().quantity)
@@ -164,7 +164,7 @@ class ProfileAndDataPersistenceTest {
 
     @Test
     fun testAdminSettingsPersistence_3StepRegistrationAndDeliveryConfig() {
-        val repo1 = ApnaBazRepository(context)
+        val repo1 = FlashDropRepository(context)
         setAdminProfile(repo1, "PR12", "Pranjal Rajpoot")
 
         // Toggle 3-step registration ON
@@ -179,7 +179,7 @@ class ProfileAndDataPersistenceTest {
         assertEquals(499.0, repo1.deliveryConfig.value.freeDeliveryThreshold, 0.01)
 
         // Simulate app restart
-        val repo2 = ApnaBazRepository(context)
+        val repo2 = FlashDropRepository(context)
         assertTrue("3-step registration toggle must remain ON after restart", repo2.shopRegistrationConfig.value.threeStepEnabled)
         assertEquals("PR12", repo2.shopRegistrationConfig.value.lastUpdatedByAdminId)
         assertEquals(35.0, repo2.deliveryConfig.value.defaultDeliveryFee, 0.01)
@@ -189,7 +189,7 @@ class ProfileAndDataPersistenceTest {
 
     @Test
     fun testPrintingPressShopsAndCategory_Persistence() {
-        val repo = ApnaBazRepository(context)
+        val repo = FlashDropRepository(context)
         val printingShops = repo.getPrintingPressShops()
 
         assertFalse("Printing Press shops must exist and not be empty", printingShops.isEmpty())
@@ -199,7 +199,7 @@ class ProfileAndDataPersistenceTest {
 
     @Test
     fun testRegisterShop_WithPrintingPressCategory_Step1() {
-        val repo = ApnaBazRepository(context)
+        val repo = FlashDropRepository(context)
         val result = repo.submitShopRegistrationStep1(
             name = "Mahoba Digital Printers",
             ownerName = "Sunil Sahu",
@@ -240,7 +240,7 @@ class ProfileAndDataPersistenceTest {
 
     @Test
     fun testCartAndOrdersEmptyInitialStateForFreshCustomer() {
-        val repo = ApnaBazRepository(context)
+        val repo = FlashDropRepository(context)
         // Verify cart is empty initially so floating cart pill is NOT displayed
         assertEquals("Cart should start empty when customer chose nothing", 0, repo.cartItems.value.size)
 
@@ -255,7 +255,7 @@ class ProfileAndDataPersistenceTest {
 
     @Test
     fun testAdminCustomersDirectoryAndManagement_Persistence() {
-        val repo1 = ApnaBazRepository(context)
+        val repo1 = FlashDropRepository(context)
         assertTrue("Initial customers list should be populated", repo1.customers.value.size >= 7)
 
         // Authenticate as Main Admin (PR12) and add a new customer record
@@ -278,7 +278,7 @@ class ProfileAndDataPersistenceTest {
         assertTrue("Status update by Main Admin should succeed", statusUpdated)
 
         // Simulate app restart and verify customer record persists
-        val repo2 = ApnaBazRepository(context)
+        val repo2 = FlashDropRepository(context)
         val restoredCustomer = repo2.customers.value.find { it.id == created.id }
         assertNotNull("Added customer must survive restart", restoredCustomer)
         assertEquals("Vikash Chaurasia", restoredCustomer?.fullName)

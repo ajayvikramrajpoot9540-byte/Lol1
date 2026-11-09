@@ -666,7 +666,7 @@ class AppPersistenceManager(private val context: Context) {
                         DistanceTier(
                             minDistanceKm = t.optDouble("minDistanceKm", 0.0),
                             maxDistanceKm = t.optDouble("maxDistanceKm", 2.0),
-                            charge = t.optDouble("charge", 10.0),
+                            charge = t.optDouble("charge", 9.0),
                             label = t.optString("label", "0 – 2 km")
                         )
                     )
@@ -949,6 +949,7 @@ class AppPersistenceManager(private val context: Context) {
                     put("shopId", t.shopId)
                     put("shopName", t.shopName)
                     put("customerName", t.customerName)
+                    put("customerPhone", t.customerPhone)
                     put("amount", t.amount)
                     put("paymentMethod", t.paymentMethod)
                     put("status", t.status)
@@ -958,6 +959,15 @@ class AppPersistenceManager(private val context: Context) {
                     put("referenceId", t.referenceId)
                     put("verificationProof", t.verificationProof)
                     put("failureReason", t.failureReason)
+                    put("daysAgo", t.daysAgo)
+                    put("itemsSummary", t.itemsSummary)
+                    put("deliveryFee", t.deliveryFee)
+                    put("platformCommission", t.platformCommission)
+                    put("discountSubsidy", t.discountSubsidy)
+                    put("shopkeeperPayoutAmount", t.shopkeeperPayoutAmount)
+                    put("shopkeeperSettlementStatus", t.shopkeeperSettlementStatus)
+                    put("onlineProblemCount", t.onlineProblemCount)
+                    put("onlineProblemType", t.onlineProblemType)
                 })
             }
             writeJsonFile(FILE_TRANSACTIONS, array.toString())
@@ -981,6 +991,7 @@ class AppPersistenceManager(private val context: Context) {
                         shopId = o.optString("shopId"),
                         shopName = o.optString("shopName"),
                         customerName = o.optString("customerName"),
+                        customerPhone = o.optString("customerPhone"),
                         amount = o.optDouble("amount", 0.0),
                         paymentMethod = o.optString("paymentMethod", "UPI"),
                         status = o.optString("status", "Paid"),
@@ -989,7 +1000,16 @@ class AppPersistenceManager(private val context: Context) {
                         providerTxnId = o.optString("providerTxnId"),
                         referenceId = o.optString("referenceId"),
                         verificationProof = o.optString("verificationProof", "Verified by FlashDrop Gateway"),
-                        failureReason = o.optString("failureReason")
+                        failureReason = o.optString("failureReason"),
+                        daysAgo = o.optInt("daysAgo", 0),
+                        itemsSummary = o.optString("itemsSummary"),
+                        deliveryFee = o.optDouble("deliveryFee", 19.0),
+                        platformCommission = o.optDouble("platformCommission", 0.0),
+                        discountSubsidy = o.optDouble("discountSubsidy", 0.0),
+                        shopkeeperPayoutAmount = o.optDouble("shopkeeperPayoutAmount", 0.0),
+                        shopkeeperSettlementStatus = o.optString("shopkeeperSettlementStatus", "Settled"),
+                        onlineProblemCount = o.optInt("onlineProblemCount", 0),
+                        onlineProblemType = o.optString("onlineProblemType")
                     )
                 )
             }

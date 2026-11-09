@@ -115,7 +115,7 @@ import coil.compose.AsyncImage
 import com.example.data.model.PrintFileItem
 import com.example.data.model.PrintingOrderSpec
 import com.example.data.model.PrintingPriceCalculator
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.navigation.Screen
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.BorderLight
@@ -153,7 +153,7 @@ enum class UploadZoneState {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DocumentPrintingUploadScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     shopId: String = "hemu_printing",
     onNavigate: (String) -> Unit,
     onBack: () -> Unit

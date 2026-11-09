@@ -182,10 +182,11 @@ fun AdminDashboardScreen(
                                 Text(
                                     text = if (isSmallMobile) "Admin Portal" else "Main Admin Portal",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = if (isSmallMobile) 13.sp else 16.sp,
+                                    fontSize = if (isSmallMobile) 13.sp else 15.sp,
                                     color = TextDark,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Box(
@@ -194,7 +195,13 @@ fun AdminDashboardScreen(
                                         .background(Color(0xFFEDE9FE))
                                         .padding(horizontal = 5.dp, vertical = 2.dp)
                                 ) {
-                                    Text(ownerTitle, fontSize = 10.sp, color = Color(0xFF6D28D9), fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = ownerTitle,
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF6D28D9),
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
                                 }
                             }
                             if (!isSmallMobile) {
@@ -283,444 +290,166 @@ fun AdminDashboardScreen(
 
             when (selectedTabIndex) {
                 0 -> {
-                    // TAB 0: SCREEN 8 - ADMIN PAYMENT DASHBOARD
-                    var selectedDateFilter by remember { mutableStateOf("Last 7 Days") }
-                    val dateFilters = listOf("Today", "Last 7 Days", "Last 30 Days", "Custom Range")
-
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Co-Owners Banner
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFEDE9FE))
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Main Admin • Financial Governance",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF6D28D9)
-                                        )
-                                        Text(
-                                            text = "$ownerName ($ownerId) • Equal Admin Authority",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = TextDark
-                                        )
-                                        Text(
-                                            text = "Verified Co-Owner with Chanchal Didi & Pranjal Rajpoot",
-                                            fontSize = 11.sp,
-                                            color = TextMuted
-                                        )
-                                    }
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        OutlinedButton(
-                                            onClick = { onNavigate?.invoke(Screen.EditAdminProfile.route) },
-                                            shape = RoundedCornerShape(8.dp),
-                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                            border = BorderStroke(1.dp, Color(0xFF6D28D9)),
-                                            modifier = Modifier.testTag("admin_banner_edit_profile_button")
-                                        ) {
-                                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF6D28D9))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Edit Profile", fontSize = 12.sp, color = Color(0xFF6D28D9), fontWeight = FontWeight.Bold)
-                                        }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(0xFF6D28D9))
-                                                .clickable { onNavigate?.invoke(Screen.EditAdminProfile.route) },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            if (currentProfile.photoUrl.isNotBlank()) {
-                                                AsyncImage(
-                                                    model = currentProfile.photoUrl,
-                                                    contentDescription = "Admin Photo",
-                                                    contentScale = ContentScale.Crop,
-                                                    modifier = Modifier.fillMaxSize().clip(CircleShape)
-                                                )
-                                            } else {
-                                                Text(
-                                                    text = if (ownerId == "CD12") "CD" else "PR",
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color.White,
-                                                    fontSize = 15.sp
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Customer Directory Quick-Access Card
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onNavigate?.invoke(Screen.AdminCustomers.route) ?: run { selectedTabIndex = 1 }
-                                    }
-                                    .testTag("open_admin_customers_card"),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1B4B)),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(if (isSmallMobile) 12.dp else 16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                    // TAB 0: SCREEN 8 - ADMIN PAYMENTS, SHOP PAYOUTS, P&L & REPORT EXPORTER
+                    AdminPaymentsAnalyticsSection(
+                        repository = repository,
+                        snackbarHostState = snackbarHostState,
+                        isEmbeddedInDashboard = true,
+                        headerBannerContent = {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                // Co-Owners Banner
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEDE9FE))
                                 ) {
                                     Row(
-                                        modifier = Modifier.weight(1f),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(if (isSmallMobile) 38.dp else 44.dp)
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(OrangeSecondary.copy(alpha = 0.22f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Groups,
-                                                contentDescription = null,
-                                                tint = Color(0xFFFDBA74),
-                                                modifier = Modifier.size(if (isSmallMobile) 20.dp else 24.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Column {
-                                            Text(
-                                                text = "Customers & User Data (${customers.size})",
-                                                color = Color.White,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                fontSize = if (isSmallMobile) 14.sp else 15.sp
-                                            )
-                                            Text(
-                                                text = "View customer profiles, saved addresses, UPI/COD spend & order history",
-                                                color = Color.White.copy(alpha = 0.8f),
-                                                fontSize = if (isSmallMobile) 11.sp else 12.sp
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Button(
-                                        onClick = {
-                                            onNavigate?.invoke(Screen.AdminCustomers.route) ?: run { selectedTabIndex = 1 }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = OrangeSecondary),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                                        modifier = Modifier.testTag("open_admin_customers_button")
-                                    ) {
-                                        Text(
-                                            text = if (isSmallMobile) "View" else "View Customers",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Date Filter Row
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                dateFilters.forEach { filter ->
-                                    val isSelected = selectedDateFilter == filter
-                                    Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(20.dp))
-                                            .background(if (isSelected) GreenPrimary else Color.White)
-                                            .border(
-                                                width = 1.dp,
-                                                color = if (isSelected) GreenPrimary else BorderLight,
-                                                shape = RoundedCornerShape(20.dp)
-                                            )
-                                            .clickable { selectedDateFilter = filter }
-                                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                                    ) {
-                                        Text(
-                                            text = filter,
-                                            fontSize = 12.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) Color.White else TextDark
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // 4 Metric Cards in 2x2 Grid
-                        item {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    // Total Orders
-                                    Card(
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(14.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                                    ) {
-                                        Column(modifier = Modifier.padding(14.dp)) {
-                                            Text("Total Orders", fontSize = 12.sp, color = TextMuted)
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text("248", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(Icons.Default.TrendingUp, contentDescription = null, tint = GreenPrimary, modifier = Modifier.size(14.dp))
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("+12% vs last week", fontSize = 10.sp, color = GreenPrimary, fontWeight = FontWeight.SemiBold)
-                                            }
-                                        }
-                                    }
-
-                                    // Online Payments
-                                    Card(
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(14.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                                    ) {
-                                        Column(modifier = Modifier.padding(14.dp)) {
-                                            Text("Online Payments", fontSize = 12.sp, color = TextMuted)
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text("182", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = GreenPrimary)
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text("73.4% success rate", fontSize = 10.sp, color = TextMuted)
-                                        }
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    // COD Amount
-                                    Card(
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(14.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                                    ) {
-                                        Column(modifier = Modifier.padding(14.dp)) {
-                                            Text("COD Amount", fontSize = 12.sp, color = TextMuted)
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text("₹34,560", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = OrangeSecondary)
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text("66 orders collected", fontSize = 10.sp, color = TextMuted)
-                                        }
-                                    }
-
-                                    // Pending Payments
-                                    Card(
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(14.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                                    ) {
-                                        Column(modifier = Modifier.padding(14.dp)) {
-                                            Text("Pending Payments", fontSize = 12.sp, color = TextMuted)
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text("14", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFFDC2626))
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text("Awaiting confirmation", fontSize = 10.sp, color = TextMuted)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Payment Overview Card with Donut Chart
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = "Payment Overview",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = TextDark
-                                    )
-                                    Spacer(modifier = Modifier.height(14.dp))
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceAround
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        // Donut Chart Canvas
-                                        Box(
-                                            modifier = Modifier.size(130.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                                val strokeWidth = 18.dp.toPx()
-                                                // UPI: 60% -> 216 deg
-                                                drawArc(
-                                                    color = Color(0xFF087443),
-                                                    startAngle = -90f,
-                                                    sweepAngle = 216f,
-                                                    useCenter = false,
-                                                    style = Stroke(width = strokeWidth)
-                                                )
-                                                // COD: 38% -> 136.8 deg
-                                                drawArc(
-                                                    color = Color(0xFFFF8A24),
-                                                    startAngle = 126f,
-                                                    sweepAngle = 136.8f,
-                                                    useCenter = false,
-                                                    style = Stroke(width = strokeWidth)
-                                                )
-                                                // Refunds: 2% -> 7.2 deg
-                                                drawArc(
-                                                    color = Color(0xFFDC2626),
-                                                    startAngle = 262.8f,
-                                                    sweepAngle = 7.2f,
-                                                    useCenter = false,
-                                                    style = Stroke(width = strokeWidth)
-                                                )
-                                            }
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Text("Total", fontSize = 10.sp, color = TextMuted)
-                                                Text("₹84.2K", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                                            }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Main Admin • Financial Governance",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF6D28D9)
+                                            )
+                                            Text(
+                                                text = "$ownerName ($ownerId) • Equal Admin Authority",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TextDark
+                                            )
+                                            Text(
+                                                text = "Verified Co-Owner with Chanchal Didi & Pranjal Rajpoot",
+                                                fontSize = 11.sp,
+                                                color = TextMuted
+                                            )
                                         }
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            OutlinedButton(
+                                                onClick = { onNavigate?.invoke(Screen.EditAdminProfile.route) },
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                                border = BorderStroke(1.dp, Color(0xFF6D28D9)),
+                                                modifier = Modifier.testTag("admin_banner_edit_profile_button")
+                                            ) {
+                                                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF6D28D9))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Edit Profile", fontSize = 12.sp, color = Color(0xFF6D28D9), fontWeight = FontWeight.Bold)
+                                            }
 
-                                        // Donut Legend
-                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF087443)))
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text("UPI: 60% (₹50,520)", fontSize = 12.sp, color = TextDark, fontWeight = FontWeight.Medium)
-                                            }
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFF8A24)))
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text("COD: 38% (₹32,000)", fontSize = 12.sp, color = TextDark, fontWeight = FontWeight.Medium)
-                                            }
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFDC2626)))
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text("Refunds: 2% (₹1,680)", fontSize = 12.sp, color = TextDark, fontWeight = FontWeight.Medium)
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(44.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFF6D28D9))
+                                                    .clickable { onNavigate?.invoke(Screen.EditAdminProfile.route) },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (currentProfile.photoUrl.isNotBlank()) {
+                                                    AsyncImage(
+                                                        model = currentProfile.photoUrl,
+                                                        contentDescription = "Admin Photo",
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                                                    )
+                                                } else {
+                                                    Text(
+                                                        text = if (ownerId == "CD12") "CD" else "PR",
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color.White,
+                                                        fontSize = 15.sp
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        }
 
-                        // Shop-wise Order Summary
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Shop-wise Order Summary",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
-                                            color = TextDark
-                                        )
-                                        TextButton(
-                                            onClick = {
-                                                onNavigate?.invoke(com.example.ui.navigation.Screen.AdminTransactions.route)
-                                            }
-                                        ) {
-                                            Text("View All", color = GreenPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                // Customer Directory Quick-Access Card
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onNavigate?.invoke(Screen.AdminCustomers.route) ?: run { selectedTabIndex = 1 }
                                         }
-                                    }
-                                    Spacer(modifier = Modifier.height(6.dp))
-
-                                    val shopSummaries = listOf(
-                                        Triple("Sharma General Store", "84 orders", "₹24,850"),
-                                        Triple("Hemu Printing Shop", "42 orders", "₹12,600"),
-                                        Triple("Bundelkhand Organics", "36 orders", "₹9,450"),
-                                        Triple("Sahu Sweets & Namkeen", "28 orders", "₹7,200"),
-                                        Triple("Rani Fashion Hub", "25 orders", "₹8,150")
-                                    )
-
-                                    shopSummaries.forEachIndexed { index, (shop, ordersCount, amount) ->
+                                        .testTag("open_admin_customers_card"),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1B4B)),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(if (isSmallMobile) 12.dp else 16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
                                         Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 8.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.weight(1f),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Column {
-                                                Text(shop, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = TextDark)
-                                                Text(ordersCount, fontSize = 11.sp, color = TextMuted)
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(if (isSmallMobile) 38.dp else 44.dp)
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(OrangeSecondary.copy(alpha = 0.22f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Groups,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFFDBA74),
+                                                    modifier = Modifier.size(if (isSmallMobile) 20.dp else 24.dp)
+                                                )
                                             }
-                                            Text(amount, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = GreenPrimary)
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text(
+                                                    text = "Customers & User Data (${customers.size})",
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    fontSize = if (isSmallMobile) 14.sp else 15.sp
+                                                )
+                                                Text(
+                                                    text = "View customer profiles, saved addresses, UPI/COD spend & order history",
+                                                    color = Color.White.copy(alpha = 0.8f),
+                                                    fontSize = if (isSmallMobile) 11.sp else 12.sp
+                                                )
+                                            }
                                         }
-                                        if (index < shopSummaries.size - 1) {
-                                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Button(
+                                            onClick = {
+                                                onNavigate?.invoke(Screen.AdminCustomers.route) ?: run { selectedTabIndex = 1 }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = OrangeSecondary),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                            modifier = Modifier.testTag("open_admin_customers_button")
+                                        ) {
+                                            Text(
+                                                text = if (isSmallMobile) "View" else "View Customers",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
                                         }
                                     }
                                 }
                             }
+                        },
+                        onOpenFullLedgerScreen = {
+                            onNavigate?.invoke(Screen.AdminTransactions.route)
                         }
-
-                        // CTA to View Full Transaction History
-                        item {
-                            Button(
-                                onClick = {
-                                    onNavigate?.invoke(com.example.ui.navigation.Screen.AdminTransactions.route)
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                                    .testTag("view_all_transactions_button"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
-                            ) {
-                                Icon(Icons.Default.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Open Transaction History & Audit Ledger", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            }
-                        }
-                    }
+                    )
                 }
 
                 1 -> {

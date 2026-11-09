@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.credentials.CredentialManager
 import com.example.data.model.Shop
 import com.example.data.model.ShopkeeperAccount
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.auth.AuthManager
 import com.example.ui.navigation.Screen
 import com.example.ui.screens.AdminCustomersScreen
@@ -60,13 +60,13 @@ import com.example.ui.theme.BackgroundWarm
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var repository: ApnaBazRepository
+    private lateinit var repository: FlashDropRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.example.util.configureAppCheck(this, intent)
         enableEdgeToEdge()
-        repository = ApnaBazRepository(applicationContext)
+        repository = FlashDropRepository(applicationContext)
 
         setContent {
             FlashDropTheme {
@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun FlashDropApp(repository: ApnaBazRepository) {
+fun FlashDropApp(repository: FlashDropRepository) {
     val coroutineScope = rememberCoroutineScope()
     var currentScreen by remember { mutableStateOf<String>(Screen.Splash.route) }
     val backStack = remember { mutableStateListOf<String>() }

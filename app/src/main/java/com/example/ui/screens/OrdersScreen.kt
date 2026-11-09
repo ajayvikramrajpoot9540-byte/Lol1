@@ -53,7 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Order
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.components.BottomNavBar
 import com.example.ui.components.StatusBadge
 import com.example.ui.navigation.Screen
@@ -66,7 +66,7 @@ import com.example.ui.theme.TextMuted
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrdersScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     onNavigate: (String) -> Unit,
     onOrderSelected: (String) -> Unit,
     onBack: () -> Unit

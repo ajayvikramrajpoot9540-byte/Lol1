@@ -15,15 +15,15 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
-class ApnaBazRepositoryRuleTest {
+class FlashDropRepositoryRuleTest {
 
     private lateinit var context: Context
-    private lateinit var repository: ApnaBazRepository
+    private lateinit var repository: FlashDropRepository
 
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
-        repository = ApnaBazRepository(context)
+        repository = FlashDropRepository(context)
     }
 
     @Test
@@ -175,7 +175,7 @@ class ApnaBazRepositoryRuleTest {
         assertEquals("Cart is cleared after successful order placement", 0, repository.cartItems.value.size)
 
         // 6. A signed-in user remains signed in after closing and reopening the app.
-        val restartedRepository = ApnaBazRepository(context)
+        val restartedRepository = FlashDropRepository(context)
         assertTrue("Signed-in session must persist across app restarts", restartedRepository.isUserSignedIn())
         assertEquals("google_uid_rahul_101", restartedRepository.currentProfile.value.id)
         assertEquals("Rahul Verma", restartedRepository.currentProfile.value.name)

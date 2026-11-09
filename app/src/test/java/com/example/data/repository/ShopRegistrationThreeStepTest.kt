@@ -21,16 +21,16 @@ import org.robolectric.annotation.Config
 class ShopRegistrationThreeStepTest {
 
     private lateinit var context: Context
-    private lateinit var repository: ApnaBazRepository
+    private lateinit var repository: FlashDropRepository
 
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
-        repository = ApnaBazRepository(context)
+        repository = FlashDropRepository(context)
     }
 
     private fun setProfile(loginId: String, name: String, role: String, email: String, isVerifiedAdmin: Boolean) {
-        val field = ApnaBazRepository::class.java.getDeclaredField("_currentProfile")
+        val field = FlashDropRepository::class.java.getDeclaredField("_currentProfile")
         field.isAccessible = true
         val stateFlow = field.get(repository) as MutableStateFlow<UserProfile>
         stateFlow.value = UserProfile(

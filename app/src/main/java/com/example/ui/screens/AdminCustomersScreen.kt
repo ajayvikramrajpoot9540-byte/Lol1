@@ -38,7 +38,7 @@ import com.example.data.model.CustomerOrderSummary
 import com.example.data.model.CustomerRecord
 import com.example.data.model.DeliveryAddress
 import com.example.data.model.Order
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.components.CircularProfileAvatar
 import com.example.ui.theme.*
 import com.example.ui.util.ScreenType
@@ -55,7 +55,7 @@ private val TextSecondary = TextMuted
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminCustomersScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     onBack: () -> Unit
 ) {
     BackHandler { onBack() }
@@ -171,7 +171,7 @@ fun AdminCustomersScreen(
 
 @Composable
 fun AdminCustomersSection(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     snackbarHostState: SnackbarHostState,
     isEmbeddedInTab: Boolean = false,
     onOpenFullPage: (() -> Unit)? = null,

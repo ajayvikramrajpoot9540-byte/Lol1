@@ -82,7 +82,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.util.rememberCameraManager
 import com.example.data.model.DeliveryAddress
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.components.AddNewAddressDialog
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.BorderLight
@@ -102,7 +102,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditCustomerProfileScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     onBack: () -> Unit
 ) {
     BackHandler { onBack() }

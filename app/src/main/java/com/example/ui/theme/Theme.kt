@@ -59,10 +59,3 @@ fun FlashDropTheme(
         content = content
     )
 }
-
-@Composable
-fun ApnaBazTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) = FlashDropTheme(darkTheme, content)
-

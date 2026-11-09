@@ -79,7 +79,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.data.model.DeliveryTracking
 import com.example.data.model.Order
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import com.example.ui.components.StatusBadge
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.GreenLight
@@ -101,7 +101,7 @@ import com.google.maps.android.compose.rememberCameraPositionState
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderDetailScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     orderId: String,
     onBack: () -> Unit
 ) {
@@ -1026,7 +1026,7 @@ private fun DeliveryProgressTimelineCard(
 private fun DeliveryPartnerConsoleCard(
     order: Order,
     tracking: DeliveryTracking,
-    repository: ApnaBazRepository
+    repository: FlashDropRepository
 ) {
     Card(
         modifier = Modifier

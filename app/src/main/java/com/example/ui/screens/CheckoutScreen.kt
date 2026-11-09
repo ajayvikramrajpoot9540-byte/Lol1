@@ -87,7 +87,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.CartItem
-import com.example.data.repository.ApnaBazRepository
+import com.example.data.repository.FlashDropRepository
 import kotlinx.coroutines.launch
 import com.example.ui.theme.BackgroundWarm
 import com.example.ui.theme.BorderLight
@@ -102,7 +102,7 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CheckoutScreen(
-    repository: ApnaBazRepository,
+    repository: FlashDropRepository,
     onOrderPlaced: (String, String) -> Unit,
     onBack: () -> Unit
 ) {
