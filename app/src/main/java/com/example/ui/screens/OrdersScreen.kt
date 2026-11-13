@@ -328,6 +328,52 @@ fun OrderCardItem(
                 )
             }
 
+            if (order.status in listOf("pending", "accepted", "preparing", "out_for_delivery")) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFEDE9FE), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = "Delivery Handover OTP (Share on Arrival)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6D28D9)
+                        )
+                        Text(
+                            text = "Give this 4-digit PIN to Shopkeeper / Rider at delivery",
+                            fontSize = 10.sp,
+                            color = TextMuted
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFF6D28D9), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "OTP: ${order.resolvedDeliveryOtp}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                    }
+                }
+            } else if (order.status == "delivered") {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "✓ Delivered & Verified with 4-Digit Handover OTP (${order.resolvedDeliveryOtp})",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = GreenPrimary
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(

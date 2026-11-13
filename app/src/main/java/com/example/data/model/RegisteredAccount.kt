@@ -8,7 +8,9 @@ data class RegisteredAccount(
     val fullName: String = "",
     val normalizedName: String = "",
     val passwordHash: String = "",
-    val role: String = "customer",
+    val role: String = "customer", // Set by Admin: "customer", "shopkeeper", "delivery_partner", "MAIN_ADMIN"
+    val assignedShopId: String = "",
+    val assignedShopName: String = "",
     val phone: String = "+91 98765 12345",
     val email: String = "customer@flashdrop.local",
     val createdAt: Long = System.currentTimeMillis()

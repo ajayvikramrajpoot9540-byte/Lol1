@@ -425,6 +425,9 @@ fun FlashDropApp(repository: FlashDropRepository) {
                 onRegisterShop = {
                     navigateTo(Screen.ShopRegistration.route)
                 },
+                onOpenInstructions = {
+                    navigateTo(Screen.ShopkeeperInstructions.route)
+                },
                 onBack = { navigateBack() }
             )
         }
@@ -483,6 +486,21 @@ fun FlashDropApp(repository: FlashDropRepository) {
                     navigateTo(Screen.ShopkeeperPendingApproval.route, clearBackStack = true)
                 },
                 onSignInAsShopkeeper = {
+                    navigateTo(Screen.ShopkeeperSignIn.route)
+                },
+                onOpenInstructions = {
+                    navigateTo(Screen.ShopkeeperInstructions.route)
+                },
+                onBack = { navigateBack() }
+            )
+        }
+
+        Screen.ShopkeeperInstructions.route -> {
+            com.example.ui.screens.ShopkeeperInstructionsScreen(
+                onNavigateToRegistration = {
+                    navigateTo(Screen.ShopRegistration.route)
+                },
+                onNavigateToSignIn = {
                     navigateTo(Screen.ShopkeeperSignIn.route)
                 },
                 onBack = { navigateBack() }

@@ -972,7 +972,7 @@ fun CheckoutScreen(
                             .padding(8.dp)
                     ) {
                         Text(
-                            text = "🛡️ Delivery charges governed by FlashDrop Main Admins (Pranjal Rajpoot & Chanchal Didi). Route distances strictly verified in Mahoba.",
+                            text = "🛡️ Delivery charges governed by FlashDrop Main Admins. Route distances strictly verified in Mahoba.",
                             fontSize = 10.sp,
                             color = TextMuted,
                             lineHeight = 14.sp

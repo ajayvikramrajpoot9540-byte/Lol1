@@ -354,8 +354,8 @@ fun ShopkeeperStatusScreen(
                         Icon(imageVector = Icons.Default.Phone, contentDescription = null, tint = OrangePrimary, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
-                            Text("Pranjal Rajpoot (PR12): +91 98765 00012", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = FieldTextColor)
-                            Text("Chanchal Didi (CD12): +91 98765 00013", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = FieldTextColor)
+                            Text("Main Admin Desk 1: +91 98765 00012", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = FieldTextColor)
+                            Text("Main Admin Desk 2: +91 98765 00013", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = FieldTextColor)
                         }
                     }
 

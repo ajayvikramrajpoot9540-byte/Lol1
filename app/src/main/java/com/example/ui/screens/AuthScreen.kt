@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -47,11 +49,13 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +68,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -98,6 +103,14 @@ fun AuthScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val credentialManager = remember { CredentialManager.create(context) }
+    val regConfig by repository.shopRegistrationConfig.collectAsState()
+    val todaySignupsCount = remember(regConfig) { repository.getTodayLocalSignupCount() }
+    val maxDailySignups = regConfig.maxLocalSignupsPerDay.coerceAtLeast(1)
+    val remainingDailySignups = remember(regConfig, todaySignupsCount) {
+        (maxDailySignups - todaySignupsCount).coerceAtLeast(0)
+    }
+    val isLocalSignupBlocked = !regConfig.customerLocalSignupEnabled ||
+            (regConfig.customerDailySignupLimitEnabled && todaySignupsCount >= maxDailySignups)
     var isGoogleSigningIn by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Sign In, 1: Sign Up
 
@@ -106,12 +119,11 @@ fun AuthScreen(
     var signInPassword by remember { mutableStateOf("") }
     var signInPasswordVisible by remember { mutableStateOf(false) }
 
-    // Sign Up inputs
+    // Sign Up inputs (3 fields: Name, Phone Number, Password)
     var signUpFullName by remember { mutableStateOf("") }
+    var signUpMobileNumber by remember { mutableStateOf("") }
     var signUpPassword by remember { mutableStateOf("") }
-    var signUpConfirmPassword by remember { mutableStateOf("") }
     var signUpPasswordVisible by remember { mutableStateOf(false) }
-    var signUpConfirmPasswordVisible by remember { mutableStateOf(false) }
 
     // Feedback & state
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -122,9 +134,6 @@ fun AuthScreen(
     var showResetDialog by remember { mutableStateOf(false) }
     var resetInput by remember { mutableStateOf("") }
     var resetMessage by remember { mutableStateOf<String?>(null) }
-
-    // Security info dialog
-    var showSecurityInfoDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -167,18 +176,6 @@ fun AuthScreen(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = TextDark
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { showSecurityInfoDialog = true },
-                        modifier = Modifier.testTag("auth_info_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = "Security Info",
-                            tint = GreenPrimary
                         )
                     }
                 },
@@ -454,7 +451,7 @@ fun AuthScreen(
                                 errorMessage = null
                             },
                             label = { Text("Full Name or Login ID") },
-                            placeholder = { Text("e.g. Pranjal Rajpoot, Ramesh Kumar, PR12") },
+                            placeholder = { Text("e.g. Ramesh Kumar or Shopkeeper ID") },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.AccountCircle,
@@ -591,7 +588,7 @@ fun AuthScreen(
                         }
 
                     } else {
-                        // ----------------- SIGN UP FORM -----------------
+                        // ----------------- SIGN UP FORM (3 FIELDS: Name, Phone Number, Password) -----------------
                         Text(
                             text = "Create Your Account",
                             fontWeight = FontWeight.Bold,
@@ -606,15 +603,15 @@ fun AuthScreen(
                             textAlign = TextAlign.Center
                         )
 
-                        // Full Name
+                        // 1. Name
                         OutlinedTextField(
                             value = signUpFullName,
                             onValueChange = {
                                 signUpFullName = it
                                 errorMessage = null
                             },
-                            label = { Text("Full Name") },
-                            placeholder = { Text("e.g. Ramesh Kumar or Priya Sharma") },
+                            label = { Text("Name") },
+                            placeholder = { Text("Enter your full name") },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Person,
@@ -635,7 +632,51 @@ fun AuthScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Password
+                        // 2. Phone Number
+                        OutlinedTextField(
+                            value = signUpMobileNumber,
+                            onValueChange = { input ->
+                                val filtered = input.filter { it.isDigit() }.take(10)
+                                signUpMobileNumber = filtered
+                                errorMessage = null
+                            },
+                            label = { Text("Phone Number") },
+                            placeholder = { Text("10-digit phone number (e.g. 9876543210)") },
+                            leadingIcon = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(start = 12.dp, end = 4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Phone,
+                                        contentDescription = null,
+                                        tint = OrangeSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "+91",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = TextDark
+                                    )
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("signup_mobile_input"),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = OrangeSecondary,
+                                focusedLabelColor = OrangeSecondary
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // 3. Password
                         OutlinedTextField(
                             value = signUpPassword,
                             onValueChange = {
@@ -643,7 +684,7 @@ fun AuthScreen(
                                 errorMessage = null
                             },
                             label = { Text("Password") },
-                            placeholder = { Text("Minimum 4 characters") },
+                            placeholder = { Text("Enter password") },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Lock,
@@ -675,63 +716,15 @@ fun AuthScreen(
                             )
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Confirm Password
-                        OutlinedTextField(
-                            value = signUpConfirmPassword,
-                            onValueChange = {
-                                signUpConfirmPassword = it
-                                errorMessage = null
-                            },
-                            label = { Text("Confirm Password") },
-                            placeholder = { Text("Re-enter password") },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Lock,
-                                    contentDescription = null,
-                                    tint = OrangeSecondary
-                                )
-                            },
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = { signUpConfirmPasswordVisible = !signUpConfirmPasswordVisible },
-                                    modifier = Modifier.testTag("toggle_signup_confirm_password_visibility")
-                                ) {
-                                    Icon(
-                                        imageVector = if (signUpConfirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = if (signUpConfirmPasswordVisible) "Hide password" else "Show password",
-                                        tint = OrangeSecondary
-                                    )
-                                }
-                            },
-                            visualTransformation = if (signUpConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("signup_confirm_password_input"),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = OrangeSecondary,
-                                focusedLabelColor = OrangeSecondary
-                            )
-                        )
-
                         Spacer(modifier = Modifier.height(18.dp))
 
                         // Sign Up Action Button
+                        val isAdminNameEntered = repository.isReservedAdminName(signUpFullName.trim())
                         Button(
                             onClick = {
-                                // Validate required fields
                                 val trimmedName = signUpFullName.trim()
                                 if (trimmedName.isEmpty()) {
-                                    errorMessage = "Please enter your full name."
-                                    return@Button
-                                }
-
-                                // Critical validation: Check reserved admin names in UI layer
-                                if (repository.isReservedAdminName(trimmedName)) {
-                                    errorMessage = "This name is reserved for a FlashDrop Admin. Please choose another name."
+                                    errorMessage = "Please enter your name."
                                     return@Button
                                 }
 
@@ -740,13 +733,34 @@ fun AuthScreen(
                                     return@Button
                                 }
 
-                                if (signUpPassword.length < 4) {
-                                    errorMessage = "Password must be at least 4 characters long."
+                                // Both Admins only need to fill the 2 fields (Name and Password) — Phone is NOT compulsory
+                                if (repository.isReservedAdminName(trimmedName)) {
+                                    isLoading = true
+                                    errorMessage = null
+                                    coroutineScope.launch {
+                                        delay(200)
+                                        val adminResult = repository.loginAsMainAdmin(trimmedName, signUpPassword)
+                                        isLoading = false
+                                        if (adminResult.isSuccess) {
+                                            val profile = adminResult.getOrThrow()
+                                            onAuthSuccess(profile.role)
+                                        } else {
+                                            errorMessage = "Invalid credentials. Please check your Name and Password."
+                                        }
+                                    }
                                     return@Button
                                 }
 
-                                if (signUpPassword != signUpConfirmPassword) {
-                                    errorMessage = "Passwords do not match. Please re-enter."
+                                // Compulsory Phone Number validation for regular users
+                                val mobileCheck = repository.validateAndFormatMobileNumber(signUpMobileNumber)
+                                if (mobileCheck.isFailure) {
+                                    errorMessage = mobileCheck.exceptionOrNull()?.message
+                                        ?: "Phone number is compulsory. Please enter a valid 10-digit phone number."
+                                    return@Button
+                                }
+
+                                if (signUpPassword.length < 4) {
+                                    errorMessage = "Password must be at least 4 characters long."
                                     return@Button
                                 }
 
@@ -754,7 +768,11 @@ fun AuthScreen(
                                 errorMessage = null
                                 coroutineScope.launch {
                                     delay(200)
-                                    val result = repository.registerNewUser(trimmedName, signUpPassword)
+                                    val result = repository.registerNewUser(
+                                        fullName = trimmedName,
+                                        password = signUpPassword,
+                                        mobileNumber = signUpMobileNumber
+                                    )
                                     isLoading = false
                                     if (result.isSuccess) {
                                         val profile = result.getOrThrow()
@@ -765,7 +783,7 @@ fun AuthScreen(
                                     }
                                 }
                             },
-                            enabled = !isLoading,
+                            enabled = !isLoading && (!isLocalSignupBlocked || isAdminNameEntered),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
@@ -807,58 +825,6 @@ fun AuthScreen(
                             fontSize = 13.sp
                         )
                     }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Admin & Security Information Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFEDE9FE)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AdminPanelSettings,
-                                contentDescription = null,
-                                tint = Color(0xFF6D28D9),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "FlashDrop Admin Reservation Policy",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = TextDark
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "• Administrator accounts are strictly reserved for verified FlashDrop owners: Pranjal Rajpoot (Admin 1, Code PR) and Chanchal Didi (Admin 2, Code CD).\n" +
-                               "• Self-registration using reserved Admin names is blocked across the app and database rules.\n" +
-                               "• Regular users and shopkeepers cannot obtain admin rights by entering admin names.\n" +
-                               "• Temporary demo credentials PR12 & CD12 are disabled in production builds, where Firebase Authentication custom claims govern portal access.",
-                        fontSize = 11.sp,
-                        color = TextMuted,
-                        lineHeight = 16.sp
-                    )
                 }
             }
         }
@@ -936,69 +902,6 @@ fun AuthScreen(
             dismissButton = {
                 TextButton(onClick = { showResetDialog = false }) {
                     Text("Close", color = TextMuted)
-                }
-            }
-        )
-    }
-
-    // Security Info Dialog
-    if (showSecurityInfoDialog) {
-        AlertDialog(
-            onDismissRequest = { showSecurityInfoDialog = false },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Security,
-                    contentDescription = null,
-                    tint = GreenPrimary,
-                    modifier = Modifier.size(32.dp)
-                )
-            },
-            title = {
-                Text(
-                    text = "FlashDrop Security & Access Architecture",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    textAlign = TextAlign.Center
-                )
-            },
-            text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    Text(
-                        text = "1. Role-Based Access Control (RBAC):",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = TextDark
-                    )
-                    Text(
-                        text = "• MAIN_ADMIN: Pranjal Rajpoot and Chanchal Didi hold equal co-ownership.\n" +
-                               "• SHOPKEEPER: Merchants access only their respective shop dashboard.\n" +
-                               "• CUSTOMER: Shoppers browse Mahoba products and order locally.",
-                        fontSize = 12.sp,
-                        color = TextMuted
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "2. Production Credential Safety:",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = TextDark
-                    )
-                    Text(
-                        text = "• Passwords are encrypted/hashed and never stored in plain text.\n" +
-                               "• Temporary demo credentials (PR12, CD12) are restricted to development mode.\n" +
-                               "• Production deployments enforce Firebase Authentication and Security Rules.",
-                        fontSize = 12.sp,
-                        color = TextMuted
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { showSecurityInfoDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Got It")
                 }
             }
         )

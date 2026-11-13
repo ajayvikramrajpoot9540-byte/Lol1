@@ -328,13 +328,23 @@ fun ProfileScreen(
                                 color = Color.White.copy(alpha = 0.9f)
                             )
                         } else {
-                            val hasCustomName = profile.name.isNotBlank() && !profile.name.equals("Guest", ignoreCase = true)
+                            val isAdminRole = profile.role.uppercase() in listOf("MAIN_ADMIN", "ADMIN")
+                            val hasCustomName = profile.name.isNotBlank() &&
+                                    !profile.name.equals("Guest", ignoreCase = true) &&
+                                    !profile.name.contains("Pranjal", ignoreCase = true) &&
+                                    !profile.name.contains("Chanchal", ignoreCase = true)
                             val displayName = when {
+                                isAdminRole && !hasCustomName -> if (profile.loginId.equals("CD12", ignoreCase = true)) "Main Admin 2" else "Main Admin 1"
                                 hasCustomName -> profile.name
                                 auth?.currentUser?.displayName?.isNotBlank() == true -> auth.currentUser?.displayName!!
                                 else -> "Customer (Mahoba)"
                             }
-                            val displayEmail = profile.email.ifBlank { auth?.currentUser?.email ?: "" }
+                            val rawEmail = profile.email.ifBlank { auth?.currentUser?.email ?: "" }
+                            val displayEmail = if (isAdminRole && (rawEmail.contains("pranjal", ignoreCase = true) || rawEmail.contains("chanchal", ignoreCase = true))) {
+                                "admin@flashdrop.local"
+                            } else {
+                                rawEmail
+                            }
                             Text(
                                 text = displayName,
                                 fontWeight = FontWeight.Bold,
@@ -346,7 +356,7 @@ fun ProfileScreen(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = when (profile.role.uppercase()) {
-                                    "MAIN_ADMIN", "ADMIN" -> "Main Admin (${profile.loginId.ifBlank { "PR12" }}) • ${profile.ownerTitle.ifBlank { "Owner" }}"
+                                    "MAIN_ADMIN", "ADMIN" -> "Main Admin • ${profile.ownerTitle.ifBlank { "Owner" }}"
                                     "SHOPKEEPER" -> "Shopkeeper (${profile.shopName.ifBlank { "Mahoba Merchant" }})"
                                     else -> if (hasCustomName || isUserAuthenticated) "Customer (Mahoba Shopper)" else "Customer (Local Shopper)"
                                 },

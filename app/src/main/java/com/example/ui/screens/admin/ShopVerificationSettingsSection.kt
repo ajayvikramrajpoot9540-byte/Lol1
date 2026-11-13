@@ -73,6 +73,7 @@ import coil.compose.AsyncImage
 import com.example.data.model.ShopVerificationRequest
 import com.example.data.repository.FlashDropRepository
 import com.example.ui.components.StockToggleSwitch
+import com.example.ui.screens.AdminLocalCustomerSignupLimitCard
 import com.example.ui.theme.BorderLight
 import com.example.ui.theme.GreenLight
 import com.example.ui.theme.GreenPrimary
@@ -95,6 +96,7 @@ fun ShopVerificationSettingsSection(
     val coroutineScope = rememberCoroutineScope()
     val registrationConfig by repository.shopRegistrationConfig.collectAsState()
     val verificationRequests by repository.shopVerificationRequests.collectAsState()
+    val shops by repository.shops.collectAsState()
     val currentProfile by repository.currentProfile.collectAsState()
 
     var selectedStatusFilter by remember { mutableStateOf("ALL") }
@@ -274,13 +276,131 @@ fun ShopVerificationSettingsSection(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
+                            val safeAdminLabel = if (registrationConfig.lastUpdatedByAdminId.equals("CD12", ignoreCase = true)) "Main Admin 2 (Owner 2)" else "Main Admin 1 (Owner 1)"
                             Text(
-                                text = "Updated: ${registrationConfig.lastUpdatedAtFormatted} by ${registrationConfig.lastUpdatedByAdminName} (${registrationConfig.lastUpdatedByAdminId}) • Equal co-admin control",
+                                text = "Updated: ${registrationConfig.lastUpdatedAtFormatted} by $safeAdminLabel • Equal co-admin control",
                                 fontSize = 11.sp,
                                 color = TextMuted,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
+                        }
+                    }
+                }
+            }
+        }
+
+        // CARD 1.5: LOCAL CUSTOMER DAILY SIGN-UP LIMIT (100/DAY) ADMIN CONTROL
+        item {
+            AdminLocalCustomerSignupLimitCard(
+                repository = repository,
+                snackbarHostState = snackbarHostState
+            )
+        }
+
+        // CARD 1.8: SHOPKEEPER CHANGE / PHOTO UPDATE PERMISSION CONTROL
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("admin_shopkeeper_photo_permission_card"),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, BorderLight),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(WarningBg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = WarningAmber,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Shopkeeper Change & Photo Update Permission",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = TextDark
+                            )
+                            Text(
+                                text = "If a shopkeeper needs to be changed in the future, Admin permission is required before they can update their real-time photo.",
+                                fontSize = 11.sp,
+                                color = TextMuted,
+                                lineHeight = 15.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val requestedShops = shops.filter { it.shopkeeperPhotoChangeRequested || it.shopkeeperPhotoChangeApprovedByAdmin }
+                    val displayShops = if (requestedShops.isNotEmpty()) requestedShops else shops.take(4)
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        displayShops.forEach { shop ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFFF9FAFB))
+                                    .border(1.dp, BorderLight, RoundedCornerShape(10.dp))
+                                    .padding(10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = shop.name,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = TextDark
+                                    )
+                                    Text(
+                                        text = "Operator: ${shop.ownerName.ifBlank { "Shopkeeper" }} • ${
+                                            when {
+                                                shop.shopkeeperPhotoChangeApprovedByAdmin -> "Permission Granted"
+                                                shop.shopkeeperPhotoChangeRequested -> "Permission Requested!"
+                                                else -> "Photo Locked"
+                                            }
+                                        }",
+                                        fontSize = 11.sp,
+                                        color = if (shop.shopkeeperPhotoChangeRequested) WarningAmber else if (shop.shopkeeperPhotoChangeApprovedByAdmin) GreenPrimary else TextMuted
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(
+                                    onClick = {
+                                        val res = repository.grantShopkeeperPhotoChangePermission(shop.id)
+                                        coroutineScope.launch {
+                                            if (res.isSuccess) {
+                                                snackbarHostState.showSnackbar("Granted permission for '${shop.name}' to update shopkeeper photo.")
+                                            } else {
+                                                snackbarHostState.showSnackbar("Failed: ${res.exceptionOrNull()?.message}")
+                                            }
+                                        }
+                                    },
+                                    enabled = !shop.shopkeeperPhotoChangeApprovedByAdmin,
+                                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = if (shop.shopkeeperPhotoChangeApprovedByAdmin) "Granted" else "Allow Photo Update",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -521,7 +641,15 @@ fun ShopVerificationSettingsSection(
                     }
 
                     // Verification Documents Section
-                    Text("Submitted Business Documents", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+                    Text("Submitted Business Documents & Shopkeeper Photo", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+
+                    // Real-Time Photo of Shopkeeper (Person Operating the Shop)
+                    DocumentDetailCard(
+                        title = "Real-Time Photo of Shopkeeper (Operator)",
+                        detail = "Operator: ${req.ownerName.ifBlank { "Verified Applicant" }}",
+                        imageUri = req.shopkeeperPhotoUri.ifBlank { null },
+                        complianceNote = "If the shopkeeper needs to be changed in the future, Admin permission is required before updating the photo."
+                    )
 
                     // 1. Aadhaar Card Card
                     DocumentDetailCard(

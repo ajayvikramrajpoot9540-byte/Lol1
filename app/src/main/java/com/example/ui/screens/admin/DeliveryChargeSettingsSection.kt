@@ -164,7 +164,7 @@ fun DeliveryChargeSettingsSection(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Pranjal Rajpoot (PR12) & Chanchal Didi (CD12)",
+                            text = "Main Admin 1 (Owner 1) & Main Admin 2 (Owner 2)",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 15.sp,
                             color = TextDark
@@ -178,7 +178,7 @@ fun DeliveryChargeSettingsSection(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Current Session: $ownerName ($ownerId) • Config Version #${deliveryConfig.version}",
+                            text = "Current Session: $ownerName ($ownerTitle) • Config Version #${deliveryConfig.version}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF6D28D9)
@@ -228,7 +228,7 @@ fun DeliveryChargeSettingsSection(
                                 color = Color(0xFFDC2626)
                             )
                             Text(
-                                text = "Only authorized Main Admins (Pranjal Rajpoot & Chanchal Didi) can modify delivery charges or save policies.",
+                                text = "Only authorized FlashDrop Main Admins can modify delivery charges or save policies.",
                                 fontSize = 11.sp,
                                 color = Color(0xFF991B1B)
                             )
@@ -635,7 +635,7 @@ fun DeliveryChargeSettingsSection(
                 Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isSaving) "Saving Settings..." else "Save Delivery Configuration ($ownerId Auth)",
+                    text = if (isSaving) "Saving Settings..." else "Save Delivery Configuration ($ownerTitle)",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )

@@ -38,6 +38,9 @@ data class CustomerRecord(
     val savedAddresses: List<DeliveryAddress> = emptyList(),
     val authMethod: String = "Registered Account", // "Google Sign-In", "Mobile & Password", "Registered Account"
     val accountStatus: String = "Active", // "Active", "VIP", "Suspended"
+    val assignedRole: String = ROLE_CUSTOMER, // Set by Main Admin: "customer", "shopkeeper", "delivery_partner", "MAIN_ADMIN"
+    val assignedShopId: String = "",
+    val assignedShopName: String = "",
     val isVerified: Boolean = true,
     val joinedDate: String = "Oct 2026",
     val lastActive: String = "Today",
@@ -60,5 +63,17 @@ data class CustomerRecord(
         const val STATUS_ACTIVE = "Active"
         const val STATUS_VIP = "VIP"
         const val STATUS_SUSPENDED = "Suspended"
+
+        const val ROLE_CUSTOMER = "customer"
+        const val ROLE_SHOPKEEPER = "shopkeeper"
+        const val ROLE_DELIVERY_PARTNER = "delivery_partner"
+        const val ROLE_ADMIN = "MAIN_ADMIN"
+
+        fun roleDisplayName(role: String): String = when (role.lowercase()) {
+            "main_admin", "admin" -> "Admin"
+            "shopkeeper" -> "Shopkeeper"
+            "delivery_partner" -> "Delivery Partner"
+            else -> "Customer"
+        }
     }
 }

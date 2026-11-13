@@ -390,58 +390,71 @@ class FlashDropRepositoryRuleTest {
         val expectedMessage = "This name is reserved for a FlashDrop Admin. Please choose another name."
 
         // Exact match
-        val res1 = repository.registerNewUser("Pranjal Rajpoot", "userPass123")
+        val res1 = repository.registerNewUser("Pranjal Rajpoot", "userPass123", "9876543210")
         assertTrue("Pranjal Rajpoot registration should fail", res1.isFailure)
         assertEquals(expectedMessage, res1.exceptionOrNull()?.message)
 
-        val res2 = repository.registerNewUser("Chanchal Didi", "userPass123")
+        val res2 = repository.registerNewUser("Chanchal Didi", "userPass123", "9876543211")
         assertTrue("Chanchal Didi registration should fail", res2.isFailure)
         assertEquals(expectedMessage, res2.exceptionOrNull()?.message)
 
         // Case-insensitivity & extra whitespace variations
-        val res3 = repository.registerNewUser("   pranjal   rajpoot  ", "userPass123")
+        val res3 = repository.registerNewUser("   pranjal   rajpoot  ", "userPass123", "9876543212")
         assertTrue("Normalized Pranjal Rajpoot should fail", res3.isFailure)
         assertEquals(expectedMessage, res3.exceptionOrNull()?.message)
 
-        val res4 = repository.registerNewUser("chanchal didi", "userPass123")
+        val res4 = repository.registerNewUser("chanchal didi", "userPass123", "9876543213")
         assertTrue("Lowercase chanchal didi should fail", res4.isFailure)
         assertEquals(expectedMessage, res4.exceptionOrNull()?.message)
 
-        val res5 = repository.registerNewUser("Pranjal", "userPass123")
+        val res5 = repository.registerNewUser("Pranjal", "userPass123", "9876543214")
         assertTrue("Pranjal short name should fail", res5.isFailure)
         assertEquals(expectedMessage, res5.exceptionOrNull()?.message)
 
-        val res6 = repository.registerNewUser("Chanchal", "userPass123")
+        val res6 = repository.registerNewUser("Chanchal", "userPass123", "9876543215")
         assertTrue("Chanchal short name should fail", res6.isFailure)
         assertEquals(expectedMessage, res6.exceptionOrNull()?.message)
 
-        val res7 = repository.registerNewUser("PR", "userPass123")
+        val res7 = repository.registerNewUser("PR", "userPass123", "9876543216")
         assertTrue("PR code should fail", res7.isFailure)
         assertEquals(expectedMessage, res7.exceptionOrNull()?.message)
 
-        val res8 = repository.registerNewUser("CD", "userPass123")
+        val res8 = repository.registerNewUser("CD", "userPass123", "9876543217")
         assertTrue("CD code should fail", res8.isFailure)
         assertEquals(expectedMessage, res8.exceptionOrNull()?.message)
     }
 
     @Test
     fun testSuccessfulUserRegistrationAndDuplicateValidation() {
-        // Register a regular new user
-        val regResult = repository.registerNewUser("Sunil Verma", "securePass99")
+        // Blank mobile number should fail (compulsory check)
+        val blankMobileResult = repository.registerNewUser("Sunil Verma", "securePass99", "")
+        assertTrue("Blank mobile number should fail", blankMobileResult.isFailure)
+
+        // Invalid mobile number should fail
+        val invalidMobileResult = repository.registerNewUser("Sunil Verma", "securePass99", "12345")
+        assertTrue("Short mobile number should fail", invalidMobileResult.isFailure)
+
+        // Register a regular new user with valid 10-digit mobile number
+        val regResult = repository.registerNewUser("Sunil Verma", "securePass99", "9123456789")
         assertTrue("Sunil Verma registration should succeed", regResult.isSuccess)
         val profile = regResult.getOrThrow()
         assertEquals("Sunil Verma", profile.name)
+        assertEquals("+91 91234 56789", profile.phone)
         assertEquals("customer", profile.role)
         assertFalse(profile.isVerifiedAdmin)
         assertFalse(profile.isVerifiedShopkeeper)
 
         // Duplicate registration with same name (ignoring case)
-        val duplicateResult = repository.registerNewUser("  sunil verma  ", "otherPass123")
+        val duplicateResult = repository.registerNewUser("  sunil verma  ", "otherPass123", "9988776655")
         assertTrue("Duplicate registration should fail", duplicateResult.isFailure)
         assertTrue(
             "Error should state duplicate account",
             duplicateResult.exceptionOrNull()?.message?.contains("already exists") == true
         )
+
+        // Duplicate registration with same mobile number
+        val duplicateMobileResult = repository.registerNewUser("Anil Verma", "otherPass123", "9123456789")
+        assertTrue("Duplicate mobile number should fail", duplicateMobileResult.isFailure)
     }
 
     @Test
@@ -469,7 +482,7 @@ class FlashDropRepositoryRuleTest {
         assertEquals("sharma_general", skAuth.getOrThrow().shopId)
 
         // 5. Customer authentication
-        repository.registerNewUser("Geeta Devi", "geetaPass1")
+        repository.registerNewUser("Geeta Devi", "geetaPass1", "9812345670")
         val customerAuth = repository.authenticateUser("Geeta Devi", "geetaPass1")
         assertTrue("Customer authentication should succeed", customerAuth.isSuccess)
         assertEquals("customer", customerAuth.getOrThrow().role)

@@ -299,4 +299,97 @@ class ShopRegistrationThreeStepTest {
         assertEquals(ShopVerificationRequest.STATUS_REJECTED, rejectedReq?.status)
         assertEquals("Entity not operating at specified address", rejectedReq?.rejectionReason)
     }
+
+    @Test
+    fun testStep2RealTimeShopkeeperPhotoAndAdminPermissionForFutureChange() = runBlocking {
+        // 1. Submit Step 1
+        val step1Res = repository.submitShopRegistrationStep1(
+            name = "Mahoba Fresh Dairy",
+            ownerName = "Deepak Tiwari",
+            phone = "9812345679",
+            category = "Grocery",
+            address = "Civil Lines, Mahoba",
+            description = "Fresh milk & paneer",
+            gstNumber = "09EEEEE4444E1Z5",
+            password = "DairyPassword123",
+            confirmPassword = "DairyPassword123"
+        )
+        val req = step1Res.getOrThrow()
+
+        // 2. Step 2 with requireShopkeeperPhoto = true fails if shopkeeperPhotoUri is blank
+        val missingPhotoRes = repository.submitShopRegistrationStep2(
+            requestId = req.id,
+            aadhaarNumberRaw = "987654321098",
+            aadhaarDocUri = "content://media/aadhaar.jpg",
+            panNumber = "ABCDE1234F",
+            panDocUri = "content://media/pan.jpg",
+            gstCertificateDocUri = "content://media/gst.jpg",
+            shopkeeperPhotoUri = "",
+            requireShopkeeperPhoto = true
+        )
+        assertTrue("Step 2 must fail when real-time shopkeeper photo is missing", missingPhotoRes.isFailure)
+
+        // 3. Step 2 succeeds when real-time shopkeeper photo is captured
+        val validStep2Res = repository.submitShopRegistrationStep2(
+            requestId = req.id,
+            aadhaarNumberRaw = "987654321098",
+            aadhaarDocUri = "content://media/aadhaar.jpg",
+            panNumber = "ABCDE1234F",
+            panDocUri = "content://media/pan.jpg",
+            gstCertificateDocUri = "content://media/gst.jpg",
+            shopkeeperPhotoUri = "content://media/realtime_shopkeeper_deepak.jpg",
+            requireShopkeeperPhoto = true
+        )
+        assertTrue("Step 2 with real-time shopkeeper photo should succeed", validStep2Res.isSuccess)
+        val submittedReq = validStep2Res.getOrThrow()
+        assertEquals("content://media/realtime_shopkeeper_deepak.jpg", submittedReq.shopkeeperPhotoUri)
+
+        // 4. Non-admin shopkeeper cannot update shopkeeper photo without Admin permission
+        setProfile(
+            loginId = "SK_DEEPAK",
+            name = "Deepak Tiwari",
+            role = "shopkeeper",
+            email = "deepak@example.com",
+            isVerifiedAdmin = false
+        )
+        val unauthorizedUpdate = repository.updateShopkeeperRealTimePhoto(
+            shopId = submittedReq.shopId,
+            newPhotoUrl = "content://media/new_operator_photo.jpg"
+        )
+        assertTrue("Updating shopkeeper photo without Admin permission must fail", unauthorizedUpdate.isFailure)
+
+        // 5. Shopkeeper requests permission, Admin grants permission
+        val requestPermRes = repository.requestShopkeeperPhotoChangePermission(submittedReq.shopId)
+        assertTrue(requestPermRes.isSuccess)
+        assertTrue(requestPermRes.getOrThrow().shopkeeperPhotoChangeRequested)
+
+        setProfile(
+            loginId = "PR12",
+            name = "Main Admin",
+            role = "MAIN_ADMIN",
+            email = "admin@flashdrop.local",
+            isVerifiedAdmin = true
+        )
+        val grantRes = repository.grantShopkeeperPhotoChangePermission(submittedReq.shopId)
+        assertTrue(grantRes.isSuccess)
+        assertTrue(grantRes.getOrThrow().shopkeeperPhotoChangeApprovedByAdmin)
+
+        // 6. Now shopkeeper can update real-time photo once, after which permission locks again
+        setProfile(
+            loginId = "SK_DEEPAK",
+            name = "Deepak Tiwari",
+            role = "shopkeeper",
+            email = "deepak@example.com",
+            isVerifiedAdmin = false
+        )
+        val authorizedUpdate = repository.updateShopkeeperRealTimePhoto(
+            shopId = submittedReq.shopId,
+            newPhotoUrl = "content://media/new_operator_photo.jpg"
+        )
+        assertTrue("Updating shopkeeper photo after Admin permission should succeed", authorizedUpdate.isSuccess)
+        val updatedShop = authorizedUpdate.getOrThrow()
+        assertEquals("content://media/new_operator_photo.jpg", updatedShop.shopkeeperPhotoUrl)
+        assertFalse("Permission should reset to false after photo is updated", updatedShop.shopkeeperPhotoChangeApprovedByAdmin)
+    }
 }
+

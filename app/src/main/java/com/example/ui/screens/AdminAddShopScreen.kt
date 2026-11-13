@@ -148,8 +148,8 @@ fun AdminAddShopScreen(
         "Other"
     )
 
-    val adminOwnerName = if (currentProfile.loginId == "CD12") "Chanchal Didi" else "Pranjal Rajpoot"
-    val adminLoginId = if (currentProfile.loginId == "CD12") "CD12" else "PR12"
+    val adminOwnerName = if (currentProfile.loginId == "CD12") "Main Admin 2" else "Main Admin 1"
+    val adminLoginId = if (currentProfile.loginId == "CD12") "Owner 2" else "Owner 1"
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -611,7 +611,8 @@ fun AdminAddShopScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // 6. GST Number (required)
+                        // 6. GST Number (Optional for Printing Press, required for other categories)
+                        val isPrintingPressCategory = category.equals("Printing Press", ignoreCase = true)
                         AdminInputField(
                             value = gstNumber,
                             onValueChange = { input ->
@@ -621,11 +622,14 @@ fun AdminAddShopScreen(
                                     generalErrorMessage = null
                                 }
                             },
-                            label = "GST Number *",
-                            placeholder = "15-character GSTIN (e.g. 09AABCU9603R1ZV)",
+                            label = if (isPrintingPressCategory) "GST Number (Optional for Printing Press)" else "GST Number *",
+                            placeholder = if (isPrintingPressCategory) "Optional 15-character GSTIN (leave blank if none)" else "15-character GSTIN (e.g. 09AABCU9603R1ZV)",
                             leadingIcon = Icons.Default.ReceiptLong,
                             isError = gstError != null,
-                            errorMessage = gstError ?: "Mandatory for shopkeeper verification & billing compliance",
+                            errorMessage = gstError ?: if (isPrintingPressCategory)
+                                "Optional for Printing Press shops — leave blank if unregistered"
+                            else
+                                "Mandatory for shopkeeper verification & billing compliance",
                             isSupporting = gstError == null,
                             testTag = "admin_gstin_input"
                         )
@@ -722,10 +726,10 @@ fun AdminAddShopScreen(
 
                                 val cleanGst = gstNumber.trim().uppercase()
                                 val gstRegex = Regex("^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$")
-                                if (cleanGst.isEmpty()) {
+                                if (!isPrintingPressCategory && cleanGst.isEmpty()) {
                                     gstError = "GST Number is required."
                                     hasError = true
-                                } else if (!gstRegex.matches(cleanGst)) {
+                                } else if (cleanGst.isNotEmpty() && !gstRegex.matches(cleanGst)) {
                                     gstError = "Invalid GSTIN format (must be 15-character e.g. 09AABCU9603R1ZV)."
                                     hasError = true
                                 }

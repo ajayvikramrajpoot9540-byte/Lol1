@@ -500,7 +500,7 @@ object AdminPaymentReportExporter {
             y += 18f
             canvas.drawText("Report: ${exportType.title}  |  Period: ${period.label}  |  Scope: $selectedShopName", 36f, y, headerPaint)
             y += 14f
-            canvas.drawText("Generated: $nowStr  |  Authorized Main Admins: Pranjal Rajpoot (PR12) & Chanchal Didi (CD12)", 36f, y, bodyPaint)
+            canvas.drawText("Generated: $nowStr  |  Authorized by: FlashDrop Main Admin Governance", 36f, y, bodyPaint)
             y += 10f
             canvas.drawLine(36f, y, (pageWidth - 36).toFloat(), y, linePaint)
             y += 18f

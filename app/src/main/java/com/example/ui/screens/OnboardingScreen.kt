@@ -299,7 +299,7 @@ fun OnboardingScreen(
                                 color = TextDark
                             )
                             Text(
-                                text = "Customer • Shopkeeper • Admin Access",
+                                text = "Sign in or create your account",
                                 fontSize = 12.sp,
                                 color = TextMuted
                             )
@@ -400,7 +400,7 @@ fun OnboardingScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Sign In / Sign Up (Customer • Shop • Admin)",
+                            text = "Sign In / Sign Up",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             color = OrangeSecondary

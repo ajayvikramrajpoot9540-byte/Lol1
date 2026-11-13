@@ -244,6 +244,9 @@ class AppPersistenceManager(private val context: Context) {
                     put("phone", s.phone)
                     put("imageUrl", s.imageUrl)
                     put("bannerUrl", s.bannerUrl)
+                    put("shopkeeperPhotoUrl", s.shopkeeperPhotoUrl)
+                    put("shopkeeperPhotoChangeApprovedByAdmin", s.shopkeeperPhotoChangeApprovedByAdmin)
+                    put("shopkeeperPhotoChangeRequested", s.shopkeeperPhotoChangeRequested)
                     put("openingHours", s.openingHours)
                     put("pendingGstNumber", s.pendingGstNumber)
                     put("gstApprovalStatus", s.gstApprovalStatus)
@@ -288,6 +291,9 @@ class AppPersistenceManager(private val context: Context) {
                         phone = o.optString("phone", "+91 98765 43210"),
                         imageUrl = o.optString("imageUrl"),
                         bannerUrl = o.optString("bannerUrl"),
+                        shopkeeperPhotoUrl = o.optString("shopkeeperPhotoUrl"),
+                        shopkeeperPhotoChangeApprovedByAdmin = o.optBoolean("shopkeeperPhotoChangeApprovedByAdmin", false),
+                        shopkeeperPhotoChangeRequested = o.optBoolean("shopkeeperPhotoChangeRequested", false),
                         openingHours = o.optString("openingHours", "08:00 AM - 10:00 PM"),
                         pendingGstNumber = o.optString("pendingGstNumber"),
                         gstApprovalStatus = o.optString("gstApprovalStatus", "verified"),
@@ -703,6 +709,11 @@ class AppPersistenceManager(private val context: Context) {
             val json = JSONObject().apply {
                 put("id", config.id)
                 put("threeStepEnabled", config.threeStepEnabled)
+                put("customerLocalSignupEnabled", config.customerLocalSignupEnabled)
+                put("customerDailySignupLimitEnabled", config.customerDailySignupLimitEnabled)
+                put("maxLocalSignupsPerDay", config.maxLocalSignupsPerDay)
+                put("todayDateKey", config.todayDateKey)
+                put("todayLocalSignupCount", config.todayLocalSignupCount)
                 put("lastUpdatedByAdminId", config.lastUpdatedByAdminId)
                 put("lastUpdatedByAdminName", config.lastUpdatedByAdminName)
                 put("lastUpdatedAtFormatted", config.lastUpdatedAtFormatted)
@@ -718,13 +729,19 @@ class AppPersistenceManager(private val context: Context) {
         val raw = readJsonFile(FILE_REGISTRATION_CONFIG) ?: return null
         return try {
             val json = JSONObject(raw)
+            val ver = json.optLong("version", 1L)
             ShopRegistrationConfig(
                 id = json.optString("id", "shopRegistration"),
-                threeStepEnabled = json.optBoolean("threeStepEnabled", false),
+                threeStepEnabled = if (ver <= 1L) true else json.optBoolean("threeStepEnabled", true),
+                customerLocalSignupEnabled = json.optBoolean("customerLocalSignupEnabled", true),
+                customerDailySignupLimitEnabled = json.optBoolean("customerDailySignupLimitEnabled", true),
+                maxLocalSignupsPerDay = json.optInt("maxLocalSignupsPerDay", 100).coerceAtLeast(1),
+                todayDateKey = json.optString("todayDateKey", ""),
+                todayLocalSignupCount = json.optInt("todayLocalSignupCount", 0).coerceAtLeast(0),
                 lastUpdatedByAdminId = json.optString("lastUpdatedByAdminId", "PR12"),
                 lastUpdatedByAdminName = json.optString("lastUpdatedByAdminName", "Main Admin"),
                 lastUpdatedAtFormatted = json.optString("lastUpdatedAtFormatted", "29 Oct 2026, 10:00 AM"),
-                version = json.optLong("version", 1L)
+                version = ver
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse registration config: ${e.message}", e)
@@ -750,6 +767,7 @@ class AppPersistenceManager(private val context: Context) {
                     put("description", r.description)
                     put("gstNumber", r.gstNumber)
                     put("passwordHash", r.passwordHash)
+                    put("shopkeeperPhotoUri", r.shopkeeperPhotoUri)
                     put("aadhaarNumberMasked", r.aadhaarNumberMasked)
                     put("aadhaarDocUri", r.aadhaarDocUri)
                     put("panNumber", r.panNumber)
@@ -792,6 +810,7 @@ class AppPersistenceManager(private val context: Context) {
                         description = o.optString("description"),
                         gstNumber = o.optString("gstNumber"),
                         passwordHash = o.optString("passwordHash"),
+                        shopkeeperPhotoUri = o.optString("shopkeeperPhotoUri"),
                         aadhaarNumberMasked = o.optString("aadhaarNumberMasked"),
                         aadhaarDocUri = o.optString("aadhaarDocUri"),
                         panNumber = o.optString("panNumber"),

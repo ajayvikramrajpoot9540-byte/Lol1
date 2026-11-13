@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
@@ -35,9 +36,11 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -94,12 +97,16 @@ fun VerifyDocumentsScreen(
     repository: FlashDropRepository,
     requestId: String,
     step1GstNumber: String,
+    isGstOptional: Boolean = step1GstNumber.isBlank(),
     initialAadhaarMasked: String = "",
     initialPanNumber: String = "",
     onDocumentsSubmitted: (ShopVerificationRequest) -> Unit,
-    onBackToStep1: () -> Unit
+    onBackToStep1: () -> Unit,
+    onOpenInstructions: (() -> Unit)? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
+
+    var shopkeeperPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
     var aadhaarInput by remember { mutableStateOf(initialAadhaarMasked) }
     var aadhaarUri by remember { mutableStateOf<Uri?>(null) }
@@ -113,11 +120,12 @@ fun VerifyDocumentsScreen(
     var isSubmitting by remember { mutableStateOf(false) }
 
     // Target tracking for camera capture
-    var activeCameraTarget by remember { mutableStateOf<String>("aadhaar") } // "aadhaar", "pan", "gst"
+    var activeCameraTarget by remember { mutableStateOf<String>("shopkeeper_photo") } // "shopkeeper_photo", "aadhaar", "pan", "gst"
 
     val cameraManager = rememberCameraManager(
         onImageCaptured = { uri ->
             when (activeCameraTarget) {
+                "shopkeeper_photo" -> shopkeeperPhotoUri = uri
                 "aadhaar" -> aadhaarUri = uri
                 "pan" -> panUri = uri
                 "gst" -> gstCertUri = uri
@@ -215,7 +223,34 @@ fun VerifyDocumentsScreen(
             // STEP PROGRESS HEADER
             RegistrationProgressHeader(currentStep = 2)
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Quick Accessible Button to View Shopkeeper Instructions
+            if (onOpenInstructions != null) {
+                OutlinedButton(
+                    onClick = onOpenInstructions,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("step2_shopkeeper_instructions_button"),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, OrangeSecondary)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                        contentDescription = null,
+                        tint = OrangeSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "View Shopkeeper Instructions & Verification Rules",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OrangeSecondary
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             // Information banner explaining lawful merchant verification
             Card(
@@ -243,7 +278,7 @@ fun VerifyDocumentsScreen(
                             color = TextDark
                         )
                         Text(
-                            text = "To safeguard consumers across Mahoba, FlashDrop requires business document verification. Sensitive document data is restricted to authorized Admin review and never publicly exposed.",
+                            text = "To safeguard consumers across Mahoba, FlashDrop requires a real-time photo of the shopkeeper and business document verification. Sensitive document data is restricted to authorized Admin review and never publicly exposed.",
                             fontSize = 11.sp,
                             color = TextMuted,
                             lineHeight = 16.sp,
@@ -274,6 +309,19 @@ fun VerifyDocumentsScreen(
                 }
                 Spacer(modifier = Modifier.height(14.dp))
             }
+
+            // MANDATORY STEP 2 ITEM: REAL-TIME PHOTO OF THE SHOPKEEPER
+            ShopkeeperRealTimePhotoCard(
+                selectedUri = shopkeeperPhotoUri,
+                cameraEnabled = !isSubmitting && !cameraManager.isLaunching,
+                onCaptureRealTimePhoto = {
+                    activeCameraTarget = "shopkeeper_photo"
+                    cameraManager.launchCamera()
+                },
+                onRemovePhoto = { shopkeeperPhotoUri = null }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // DOCUMENT 1: AADHAAR CARD
             DocumentSectionCard(
@@ -377,8 +425,11 @@ fun VerifyDocumentsScreen(
 
             // DOCUMENT 3: GST CERTIFICATE
             DocumentSectionCard(
-                title = "3. GST Registration Certificate",
-                subtitle = "Upload original GST Registration Certificate matching GSTIN entered in Step 1.",
+                title = if (isGstOptional) "3. GST Registration Certificate (Optional)" else "3. GST Registration Certificate",
+                subtitle = if (isGstOptional)
+                    "Optional for Printing Press shops — upload only if you have a GST Certificate."
+                else
+                    "Upload original GST Registration Certificate matching GSTIN entered in Step 1.",
                 icon = Icons.Default.Description,
                 selectedUri = gstCertUri,
                 onCameraClick = {
@@ -407,13 +458,13 @@ fun VerifyDocumentsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
                             Text(
-                                text = "Step 1 GSTIN: $step1GstNumber",
+                                text = if (step1GstNumber.isNotBlank()) "Step 1 GSTIN: $step1GstNumber" else "Step 1 GSTIN: Not Provided (Optional for Printing Press)",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
                                 color = TextDark
                             )
                             Text(
-                                text = "GST certificate image must match this GST registration number",
+                                text = if (isGstOptional) "GST certificate is optional for Printing Press category" else "GST certificate image must match this GST registration number",
                                 fontSize = 10.sp,
                                 color = TextMuted
                             )
@@ -428,6 +479,11 @@ fun VerifyDocumentsScreen(
             Button(
                 onClick = {
                     // Validations
+                    if (shopkeeperPhotoUri == null) {
+                        errorMessage = "Please capture a real-time photo of the shopkeeper—the person who will be operating the shop."
+                        return@Button
+                    }
+
                     val cleanAadhaar = aadhaarInput.replace(" ", "").replace("-", "").trim()
                     if (cleanAadhaar.length < 4) {
                         errorMessage = "Please enter your Aadhaar number (stored as masked record)."
@@ -449,7 +505,7 @@ fun VerifyDocumentsScreen(
                         return@Button
                     }
 
-                    if (gstCertUri == null) {
+                    if (!isGstOptional && gstCertUri == null) {
                         errorMessage = "Please capture or select your GST Registration Certificate photo."
                         return@Button
                     }
@@ -463,7 +519,9 @@ fun VerifyDocumentsScreen(
                             aadhaarDocUri = aadhaarUri.toString(),
                             panNumber = cleanPan,
                             panDocUri = panUri.toString(),
-                            gstCertificateDocUri = gstCertUri.toString()
+                            gstCertificateDocUri = gstCertUri?.toString() ?: "",
+                            shopkeeperPhotoUri = shopkeeperPhotoUri.toString(),
+                            requireShopkeeperPhoto = true
                         )
                         isSubmitting = false
                         if (result.isSuccess) {
@@ -777,6 +835,208 @@ fun DocumentSectionCard(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Gallery", fontSize = 12.sp, color = GreenPrimary, fontWeight = FontWeight.SemiBold)
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ShopkeeperRealTimePhotoCard(
+    selectedUri: Uri?,
+    cameraEnabled: Boolean,
+    onCaptureRealTimePhoto: () -> Unit,
+    onRemovePhoto: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("shopkeeper_realtime_photo_section_card"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, OrangeSecondary.copy(alpha = 0.6f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(PeachContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = OrangeDark,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Real-Time Photo of Shopkeeper *",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = TextDark
+                    )
+                    Text(
+                        text = "Live camera photo of the person who will be operating the shop",
+                        fontSize = 11.sp,
+                        color = TextMuted,
+                        lineHeight = 14.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Mandatory Policy Note about changing the shopkeeper in the future
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFFFFBEB))
+                    .border(1.dp, Color(0xFFD97706), RoundedCornerShape(10.dp))
+                    .padding(12.dp)
+                    .testTag("shopkeeper_photo_future_change_note")
+            ) {
+                Row(verticalAlignment = Alignment.Top) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFD97706),
+                        modifier = Modifier
+                            .padding(top = 1.dp)
+                            .size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "Future Shopkeeper Change Policy (Important Note)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = Color(0xFF92400E)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Note: If the shopkeeper needs to be changed in the future, permission must first be obtained from the Admin; only then can the shopkeeper's photo be updated.",
+                            fontSize = 11.sp,
+                            color = Color(0xFF78350F),
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (selectedUri != null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, GreenPrimary)
+                ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AsyncImage(
+                            model = selectedUri,
+                            contentDescription = "Real-Time Shopkeeper Photo Preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color.Black.copy(alpha = 0.7f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = GreenPrimary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    "Real-Time Photo Captured",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onCaptureRealTimePhoto,
+                        enabled = cameraEnabled,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("shopkeeper_photo_retake_button"),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = OrangeSecondary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Retake Real-Time Photo", fontSize = 12.sp, color = OrangeSecondary)
+                    }
+
+                    OutlinedButton(
+                        onClick = onRemovePhoto,
+                        modifier = Modifier.testTag("shopkeeper_photo_remove_button"),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.DeleteOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = Color.Red
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Remove", fontSize = 12.sp, color = Color.Red)
+                    }
+                }
+            } else {
+                Button(
+                    onClick = onCaptureRealTimePhoto,
+                    enabled = cameraEnabled,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("shopkeeper_photo_camera_button"),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                ) {
+                    Icon(
+                        Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Capture Real-Time Photo of Shopkeeper",
+                        fontSize = 13.sp,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }

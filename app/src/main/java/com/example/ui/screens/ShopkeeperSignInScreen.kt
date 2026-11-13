@@ -99,6 +99,7 @@ fun ShopkeeperSignInScreen(
     onPendingApproval: (Shop, ShopkeeperAccount?) -> Unit,
     onAccountStatus: (Shop, String, String) -> Unit, // shop, status, reason
     onRegisterShop: () -> Unit,
+    onOpenInstructions: (() -> Unit)? = null,
     onBack: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -620,6 +621,33 @@ fun ShopkeeperSignInScreen(
                     fontWeight = FontWeight.Bold,
                     color = OrangePrimary
                 )
+            }
+
+            if (onOpenInstructions != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onOpenInstructions,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .testTag("signin_shopkeeper_instructions_button"),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, ShieldGreen)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = null,
+                        tint = ShieldGreen,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Shopkeeper Instructions & Rules",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ShieldGreen
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(18.dp))

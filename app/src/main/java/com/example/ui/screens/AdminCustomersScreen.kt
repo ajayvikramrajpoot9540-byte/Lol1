@@ -328,6 +328,13 @@ fun AdminCustomersSection(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                AdminLocalCustomerSignupLimitCard(
+                    repository = repository,
+                    snackbarHostState = snackbarHostState
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 ResponsiveCustomerKpiGrid(
                     availableWidth = availableWidth,
                     totalCustomers = totalCustomersCount,
@@ -405,6 +412,15 @@ fun AdminCustomersSection(
                                                 }
                                             }
                                         },
+                                        onQuickRoleChange = { newRole ->
+                                            val res = repository.updatePersonRoleByAdmin(customer.id, newRole)
+                                            if (res.isSuccess) {
+                                                val roleLabel = CustomerRecord.roleDisplayName(newRole)
+                                                coroutineScope.launch {
+                                                    snackbarHostState.showSnackbar("${customer.fullName} role set to $roleLabel by Admin")
+                                                }
+                                            }
+                                        },
                                         onEditClick = { customerToEdit = customer }
                                     )
                                 }
@@ -437,6 +453,15 @@ fun AdminCustomersSection(
                                         if (repository.updateCustomerStatus(selectedCustomer.id, newStatus)) {
                                             coroutineScope.launch {
                                                 snackbarHostState.showSnackbar("${selectedCustomer.fullName} status updated to $newStatus")
+                                            }
+                                        }
+                                    },
+                                    onRoleChange = { newRole ->
+                                        val res = repository.updatePersonRoleByAdmin(selectedCustomer.id, newRole)
+                                        if (res.isSuccess) {
+                                            val roleLabel = CustomerRecord.roleDisplayName(newRole)
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("${selectedCustomer.fullName} role set to $roleLabel by Admin")
                                             }
                                         }
                                     },
@@ -486,6 +511,13 @@ fun AdminCustomersSection(
                         isEmbeddedInTab = isEmbeddedInTab,
                         onOpenFullPage = onOpenFullPage,
                         onAddCustomerClick = { showInternalAddDialog = true }
+                    )
+                }
+
+                item {
+                    AdminLocalCustomerSignupLimitCard(
+                        repository = repository,
+                        snackbarHostState = snackbarHostState
                     )
                 }
 
@@ -556,6 +588,15 @@ fun AdminCustomersSection(
                                                     }
                                                 }
                                             },
+                                            onQuickRoleChange = { newRole ->
+                                                val res = repository.updatePersonRoleByAdmin(customer.id, newRole)
+                                                if (res.isSuccess) {
+                                                    val roleLabel = CustomerRecord.roleDisplayName(newRole)
+                                                    coroutineScope.launch {
+                                                        snackbarHostState.showSnackbar("${customer.fullName} role set to $roleLabel by Admin")
+                                                    }
+                                                }
+                                            },
                                             onEditClick = { customerToEdit = customer }
                                         )
                                     }
@@ -575,6 +616,15 @@ fun AdminCustomersSection(
                                     if (repository.updateCustomerStatus(customer.id, newStatus)) {
                                         coroutineScope.launch {
                                             snackbarHostState.showSnackbar("${customer.fullName} marked as $newStatus")
+                                        }
+                                    }
+                                },
+                                onQuickRoleChange = { newRole ->
+                                    val res = repository.updatePersonRoleByAdmin(customer.id, newRole)
+                                    if (res.isSuccess) {
+                                        val roleLabel = CustomerRecord.roleDisplayName(newRole)
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("${customer.fullName} role set to $roleLabel by Admin")
                                         }
                                     }
                                 },
@@ -600,6 +650,15 @@ fun AdminCustomersSection(
                     }
                 }
             },
+            onRoleChange = { newRole ->
+                val res = repository.updatePersonRoleByAdmin(selectedCustomer.id, newRole)
+                if (res.isSuccess) {
+                    val roleLabel = CustomerRecord.roleDisplayName(newRole)
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("${selectedCustomer.fullName} role set to $roleLabel by Admin")
+                    }
+                }
+            },
             onEditCustomer = {
                 customerToEdit = selectedCustomer
             }
@@ -611,7 +670,7 @@ fun AdminCustomersSection(
         AdminEditCustomerDialog(
             customer = targetCustomer,
             onDismiss = { customerToEdit = null },
-            onSave = { fullName, phone, email, locality, address, status, notes ->
+            onSave = { fullName, phone, email, locality, address, status, role, notes ->
                 val result = repository.updateCustomerDetailsByAdmin(
                     customerId = targetCustomer.id,
                     fullName = fullName,
@@ -620,13 +679,15 @@ fun AdminCustomersSection(
                     locality = locality,
                     primaryAddress = address,
                     accountStatus = status,
-                    adminNotes = notes
+                    adminNotes = notes,
+                    assignedRole = role
                 )
                 result.fold(
                     onSuccess = {
                         customerToEdit = null
+                        val roleLabel = CustomerRecord.roleDisplayName(it.assignedRole)
                         coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Updated customer record for ${it.fullName}")
+                            snackbarHostState.showSnackbar("Updated ${it.fullName} (Role: $roleLabel)")
                         }
                     },
                     onFailure = { err ->
@@ -646,7 +707,7 @@ fun AdminCustomersSection(
                 showInternalAddDialog = false
                 onDismissExternalAddDialog()
             },
-            onAdd = { fullName, phone, email, locality, address, status, notes ->
+            onAdd = { fullName, phone, email, locality, address, status, role, notes ->
                 val result = repository.addCustomerByAdmin(
                     fullName = fullName,
                     phone = phone,
@@ -654,15 +715,17 @@ fun AdminCustomersSection(
                     locality = locality,
                     primaryAddress = address,
                     accountStatus = status,
-                    adminNotes = notes
+                    adminNotes = notes,
+                    assignedRole = role
                 )
                 result.fold(
                     onSuccess = { created ->
                         showInternalAddDialog = false
                         onDismissExternalAddDialog()
                         selectedCustomerId = created.id
+                        val roleLabel = CustomerRecord.roleDisplayName(created.assignedRole)
                         coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Customer '${created.fullName}' added to directory")
+                            snackbarHostState.showSnackbar("Added '${created.fullName}' with Role: $roleLabel")
                         }
                     },
                     onFailure = { err ->
@@ -1167,6 +1230,7 @@ private fun ResponsiveCustomerCard(
     isCompactPhone: Boolean,
     onClick: () -> Unit,
     onQuickStatusChange: (String) -> Unit,
+    onQuickRoleChange: (String) -> Unit,
     onEditClick: () -> Unit
 ) {
     val statusColor = when (customer.accountStatus.uppercase()) {
@@ -1178,6 +1242,13 @@ private fun ResponsiveCustomerCard(
         "VIP" -> Color(0xFFFEF3C7)
         "SUSPENDED" -> Color(0xFFFEE2E2)
         else -> Color(0xFFDCFCE7)
+    }
+    val roleLabel = CustomerRecord.roleDisplayName(customer.assignedRole)
+    val roleColor = when (customer.assignedRole.lowercase()) {
+        "main_admin", "admin" -> Color(0xFF6D28D9)
+        "shopkeeper" -> FlashDropOrange
+        "delivery_partner" -> Color(0xFF0284C7)
+        else -> TrustGreen
     }
 
     Card(
@@ -1196,7 +1267,7 @@ private fun ResponsiveCustomerCard(
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 3.dp else 1.dp)
     ) {
         Column(modifier = Modifier.padding(if (isCompactPhone) 12.dp else 15.dp)) {
-            // Top Row: Avatar, Name, ID, Status Badge
+            // Top Row: Avatar, Name, ID, Status Badge & Role Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -1239,8 +1310,9 @@ private fun ResponsiveCustomerCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "ID: ${customer.id} • ${customer.authMethod}",
-                        color = TextSecondary.copy(alpha = 0.8f),
+                        text = "ID: ${customer.id} • Role: $roleLabel",
+                        color = roleColor,
+                        fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -1261,11 +1333,18 @@ private fun ResponsiveCustomerCard(
                         )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = customer.lastActive,
-                        color = TextSecondary,
-                        fontSize = 10.sp
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = roleColor.copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            text = roleLabel.uppercase(),
+                            color = roleColor,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 9.sp,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
             }
 
@@ -1302,6 +1381,48 @@ private fun ResponsiveCustomerCard(
                     valueColor = Color(0xFF7C3AED),
                     modifier = Modifier.weight(1f)
                 )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Quick Admin Role Switcher Row on Card
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Set Role:",
+                    color = TextSecondary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                listOf(
+                    CustomerRecord.ROLE_CUSTOMER to "Customer",
+                    CustomerRecord.ROLE_SHOPKEEPER to "Shopkeeper",
+                    CustomerRecord.ROLE_DELIVERY_PARTNER to "Delivery Partner",
+                    CustomerRecord.ROLE_ADMIN to "Admin"
+                ).forEach { (roleCode, label) ->
+                    val isCurrentRole = customer.assignedRole.equals(roleCode, ignoreCase = true)
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (isCurrentRole) roleColor else Color(0xFFF3F4F6),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable { onQuickRoleChange(roleCode) }
+                            .testTag("set_role_${customer.id}_${roleCode.lowercase()}")
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (isCurrentRole) Color.White else TextPrimary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -1457,10 +1578,12 @@ fun CustomerDetailInspectorContent(
     customer: CustomerRecord,
     isCompactPhone: Boolean,
     onStatusChange: (String) -> Unit,
+    onRoleChange: (String) -> Unit,
     onEditCustomer: () -> Unit
 ) {
     val totalSpend = customer.totalSpentAmount.coerceAtLeast(0.0)
     val upiShare = if (totalSpend > 0) (customer.upiSpentAmount / totalSpend).toFloat().coerceIn(0f, 1f) else 0.6f
+    val currentRoleLabel = CustomerRecord.roleDisplayName(customer.assignedRole)
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -1510,9 +1633,10 @@ fun CustomerDetailInspectorContent(
                             }
                         }
                         Text(
-                            text = "Customer UID: ${customer.id} • Auth: ${customer.authMethod}",
-                            color = Color.White.copy(alpha = 0.78f),
-                            fontSize = 11.sp
+                            text = "UID: ${customer.id} • Role: $currentRoleLabel (Set by Admin)",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = "Joined: ${customer.joinedDate} • Last Active: ${customer.lastActive}",
@@ -1543,7 +1667,7 @@ fun CustomerDetailInspectorContent(
                     ) {
                         Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(5.dp))
-                        Text("Edit Profile & Notes", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Edit Profile & Role", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
 
                     listOf(
@@ -1568,6 +1692,80 @@ fun CustomerDetailInspectorContent(
                                 color = Color.White
                             )
                         }
+                    }
+                }
+            }
+        }
+
+        // 1B. Admin-Controlled Role Assignment Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F3FF)),
+            border = BorderStroke(1.dp, Color(0xFF6D28D9).copy(alpha = 0.35f))
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "PERSON ROLE (SET BY ADMIN)",
+                        color = Color(0xFF4C1D95),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFF6D28D9)
+                    ) {
+                        Text(
+                            text = currentRoleLabel.uppercase(),
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 9.sp,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = "Select the role for ${customer.fullName}. This role is controlled directly by the Admin (not the server).",
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        CustomerRecord.ROLE_CUSTOMER to "Customer",
+                        CustomerRecord.ROLE_SHOPKEEPER to "Shopkeeper",
+                        CustomerRecord.ROLE_DELIVERY_PARTNER to "Delivery Partner",
+                        CustomerRecord.ROLE_ADMIN to "Admin"
+                    ).forEach { (roleKey, roleTitle) ->
+                        val isSelectedRole = customer.assignedRole.equals(roleKey, ignoreCase = true)
+                        FilterChip(
+                            selected = isSelectedRole,
+                            onClick = { onRoleChange(roleKey) },
+                            label = {
+                                Text(
+                                    text = roleTitle,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelectedRole) FontWeight.ExtraBold else FontWeight.Medium
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF6D28D9),
+                                selectedLabelColor = Color.White
+                            ),
+                            modifier = Modifier.testTag("inspector_set_role_${roleKey.lowercase()}")
+                        )
                     }
                 }
             }
@@ -1997,6 +2195,7 @@ private fun CustomerDetailInspectorDialog(
     screenType: ScreenType,
     onDismiss: () -> Unit,
     onStatusChange: (String) -> Unit,
+    onRoleChange: (String) -> Unit,
     onEditCustomer: () -> Unit
 ) {
     val isCompactPhone = screenType == ScreenType.SMALL_MOBILE
@@ -2030,7 +2229,7 @@ private fun CustomerDetailInspectorDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Customer Data & History",
+                            text = "Customer Data & Role Control",
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 15.sp
@@ -2057,6 +2256,7 @@ private fun CustomerDetailInspectorDialog(
                         customer = customer,
                         isCompactPhone = isCompactPhone,
                         onStatusChange = onStatusChange,
+                        onRoleChange = onRoleChange,
                         onEditCustomer = onEditCustomer
                     )
                 }
@@ -2069,7 +2269,7 @@ private fun CustomerDetailInspectorDialog(
 private fun AdminEditCustomerDialog(
     customer: CustomerRecord,
     onDismiss: () -> Unit,
-    onSave: (fullName: String, phone: String, email: String, locality: String, address: String, status: String, notes: String) -> Unit
+    onSave: (fullName: String, phone: String, email: String, locality: String, address: String, status: String, role: String, notes: String) -> Unit
 ) {
     var fullName by remember(customer) { mutableStateOf(customer.fullName) }
     var phone by remember(customer) { mutableStateOf(customer.phone) }
@@ -2077,13 +2277,14 @@ private fun AdminEditCustomerDialog(
     var locality by remember(customer) { mutableStateOf(customer.locality) }
     var primaryAddress by remember(customer) { mutableStateOf(customer.primaryAddress) }
     var accountStatus by remember(customer) { mutableStateOf(customer.accountStatus) }
+    var assignedRole by remember(customer) { mutableStateOf(customer.assignedRole) }
     var adminNotes by remember(customer) { mutableStateOf(customer.adminNotes) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Edit Customer Data",
+                text = "Edit Person Data & Role",
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 17.sp
             )
@@ -2098,14 +2299,14 @@ private fun AdminEditCustomerDialog(
                 OutlinedTextField(
                     value = fullName,
                     onValueChange = { fullName = it },
-                    label = { Text("Customer Full Name") },
+                    label = { Text("Full Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
-                    label = { Text("Mobile Number") },
+                    label = { Text("Phone Number") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -2129,6 +2330,30 @@ private fun AdminEditCustomerDialog(
                     label = { Text("Primary Delivery Address") },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Text(
+                    text = "Person Role (Set by Admin)",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = Color(0xFF4C1D95)
+                )
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        CustomerRecord.ROLE_CUSTOMER to "Customer",
+                        CustomerRecord.ROLE_SHOPKEEPER to "Shopkeeper",
+                        CustomerRecord.ROLE_DELIVERY_PARTNER to "Delivery Partner",
+                        CustomerRecord.ROLE_ADMIN to "Admin"
+                    ).forEach { (roleOpt, roleLabel) ->
+                        FilterChip(
+                            selected = assignedRole.equals(roleOpt, ignoreCase = true),
+                            onClick = { assignedRole = roleOpt },
+                            label = { Text(roleLabel, fontSize = 12.sp) }
+                        )
+                    }
+                }
 
                 Text(
                     text = "Account Status",
@@ -2161,7 +2386,7 @@ private fun AdminEditCustomerDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    onSave(fullName, phone, email, locality, primaryAddress, accountStatus, adminNotes)
+                    onSave(fullName, phone, email, locality, primaryAddress, accountStatus, assignedRole, adminNotes)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = FlashDropOrange),
                 modifier = Modifier.testTag("save_customer_edit_button")
@@ -2180,7 +2405,7 @@ private fun AdminEditCustomerDialog(
 @Composable
 private fun AdminAddCustomerDialog(
     onDismiss: () -> Unit,
-    onAdd: (fullName: String, phone: String, email: String, locality: String, address: String, status: String, notes: String) -> Unit
+    onAdd: (fullName: String, phone: String, email: String, locality: String, address: String, status: String, role: String, notes: String) -> Unit
 ) {
     var fullName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("+91 ") }
@@ -2188,13 +2413,14 @@ private fun AdminAddCustomerDialog(
     var locality by remember { mutableStateOf("Alha Chowk") }
     var primaryAddress by remember { mutableStateOf("") }
     var accountStatus by remember { mutableStateOf(CustomerRecord.STATUS_ACTIVE) }
+    var assignedRole by remember { mutableStateOf(CustomerRecord.ROLE_CUSTOMER) }
     var adminNotes by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Add Customer to Directory",
+                text = "Add Person & Set Role",
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 17.sp
             )
@@ -2209,7 +2435,7 @@ private fun AdminAddCustomerDialog(
                 OutlinedTextField(
                     value = fullName,
                     onValueChange = { fullName = it },
-                    label = { Text("Customer Full Name *") },
+                    label = { Text("Full Name *") },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2218,7 +2444,7 @@ private fun AdminAddCustomerDialog(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
-                    label = { Text("10-Digit Mobile Number *") },
+                    label = { Text("10-Digit Phone Number *") },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2244,6 +2470,30 @@ private fun AdminAddCustomerDialog(
                     label = { Text("Complete Delivery Address") },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Text(
+                    text = "Assign Role (Set by Admin)",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = Color(0xFF4C1D95)
+                )
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        CustomerRecord.ROLE_CUSTOMER to "Customer",
+                        CustomerRecord.ROLE_SHOPKEEPER to "Shopkeeper",
+                        CustomerRecord.ROLE_DELIVERY_PARTNER to "Delivery Partner",
+                        CustomerRecord.ROLE_ADMIN to "Admin"
+                    ).forEach { (roleOpt, roleLabel) ->
+                        FilterChip(
+                            selected = assignedRole.equals(roleOpt, ignoreCase = true),
+                            onClick = { assignedRole = roleOpt },
+                            label = { Text(roleLabel, fontSize = 12.sp) }
+                        )
+                    }
+                }
 
                 Text(
                     text = "Initial Tier / Status",
@@ -2275,12 +2525,12 @@ private fun AdminAddCustomerDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    onAdd(fullName, phone, email, locality, primaryAddress, accountStatus, adminNotes)
+                    onAdd(fullName, phone, email, locality, primaryAddress, accountStatus, assignedRole, adminNotes)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = FlashDropOrange),
                 modifier = Modifier.testTag("confirm_add_customer_button")
             ) {
-                Text("Add Customer", fontWeight = FontWeight.Bold)
+                Text("Add Person", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -2335,3 +2585,382 @@ private fun EmptyCustomerFilterState(
         }
     }
 }
+
+/**
+ * Admin-Controlled Local Customer Daily Sign-Up Quota Card (Default: 100 customers per day).
+ * Gives Main Admins (PR12 & CD12) complete control to:
+ * - Enable / Pause local customer account sign-up
+ * - Enable / Disable the daily sign-up cap
+ * - Change the per-day customer limit (default 100, with quick presets or custom input)
+ * - View live today's sign-ups vs remaining quota and reset today's counter to 0
+ */
+@Composable
+fun AdminLocalCustomerSignupLimitCard(
+    repository: FlashDropRepository,
+    snackbarHostState: SnackbarHostState
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val regConfig by repository.shopRegistrationConfig.collectAsState()
+    val todayCount = remember(regConfig) { repository.getTodayLocalSignupCount() }
+    val maxPerDay = regConfig.maxLocalSignupsPerDay.coerceAtLeast(1)
+    val remainingToday = (maxPerDay - todayCount).coerceAtLeast(0)
+
+    var isExpanded by remember { mutableStateOf(false) }
+    var limitInput by remember(regConfig.maxLocalSignupsPerDay) {
+        mutableStateOf(regConfig.maxLocalSignupsPerDay.toString())
+    }
+    val presetLimits = listOf(25, 50, 100, 200, 500)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("admin_local_customer_signup_limit_card"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        border = BorderStroke(1.dp, Color(0xFF6D28D9).copy(alpha = 0.35f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFEDE9FE)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.HowToReg,
+                            contentDescription = null,
+                            tint = Color(0xFF6D28D9),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Local Customer Sign-Up Limit ($maxPerDay / Day)",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = if (!regConfig.customerLocalSignupEnabled) {
+                                "Paused by Admin • Today: $todayCount signed up"
+                            } else if (regConfig.customerDailySignupLimitEnabled) {
+                                "Today's Sign-Ups: $todayCount / $maxPerDay • $remainingToday spots remaining"
+                            } else {
+                                "Unlimited Daily Sign-Ups • Today: $todayCount signed up"
+                            },
+                            fontSize = 11.sp,
+                            color = TextSecondary
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        color = when {
+                            !regConfig.customerLocalSignupEnabled -> Color(0xFFFEE2E2)
+                            remainingToday == 0 && regConfig.customerDailySignupLimitEnabled -> Color(0xFFFEE2E2)
+                            else -> GreenLight
+                        },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = when {
+                                !regConfig.customerLocalSignupEnabled -> "PAUSED"
+                                regConfig.customerDailySignupLimitEnabled -> "$todayCount/$maxPerDay"
+                                else -> "OPEN"
+                            },
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = when {
+                                !regConfig.customerLocalSignupEnabled -> AlertRed
+                                remainingToday == 0 && regConfig.customerDailySignupLimitEnabled -> AlertRed
+                                else -> TrustGreen
+                            }
+                        )
+                    }
+
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = Color(0xFF6D28D9)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Live Progress Bar
+            LinearProgressIndicator(
+                progress = {
+                    if (regConfig.customerDailySignupLimitEnabled) {
+                        (todayCount.toFloat() / maxPerDay.toFloat()).coerceIn(0f, 1f)
+                    } else 0.1f
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(7.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = if (!regConfig.customerLocalSignupEnabled || (regConfig.customerDailySignupLimitEnabled && remainingToday == 0)) {
+                    AlertRed
+                } else {
+                    Color(0xFF6D28D9)
+                },
+                trackColor = Color(0xFFEDE9FE)
+            )
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column(modifier = Modifier.padding(top = 14.dp)) {
+                    HorizontalDivider(color = DividerGray)
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Toggle 1: Allow Local Customer Sign-Up
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = "Allow Local Customer Sign-Up",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Turn OFF to pause new local password registrations (Google Sign-In stays active)",
+                                fontSize = 11.sp,
+                                color = TextSecondary
+                            )
+                        }
+                        Switch(
+                            checked = regConfig.customerLocalSignupEnabled,
+                            onCheckedChange = { enabled ->
+                                val res = repository.updateCustomerDailySignupSettings(
+                                    localSignupEnabled = enabled,
+                                    dailyLimitEnabled = regConfig.customerDailySignupLimitEnabled,
+                                    maxPerDay = regConfig.maxLocalSignupsPerDay
+                                )
+                                res.onSuccess {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            if (enabled) "Local customer sign-up ENABLED"
+                                            else "Local customer sign-up PAUSED by Admin"
+                                        )
+                                    }
+                                }
+                            },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = TrustGreen),
+                            modifier = Modifier.testTag("toggle_customer_local_signup_switch")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Toggle 2: Enforce Daily Sign-Up Limit
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = "Enforce Per-Day Customer Limit",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Restrict local account creation to maximum $maxPerDay customers per day",
+                                fontSize = 11.sp,
+                                color = TextSecondary
+                            )
+                        }
+                        Switch(
+                            checked = regConfig.customerDailySignupLimitEnabled,
+                            onCheckedChange = { limitOn ->
+                                val res = repository.updateCustomerDailySignupSettings(
+                                    localSignupEnabled = regConfig.customerLocalSignupEnabled,
+                                    dailyLimitEnabled = limitOn,
+                                    maxPerDay = regConfig.maxLocalSignupsPerDay
+                                )
+                                res.onSuccess {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            if (limitOn) "Daily customer sign-up limit ($maxPerDay/day) ENABLED"
+                                            else "Daily customer sign-up limit DISABLED"
+                                        )
+                                    }
+                                }
+                            },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF6D28D9)),
+                            modifier = Modifier.testTag("toggle_customer_daily_limit_switch")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Quick Preset Chips (25, 50, 100, 200, 500)
+                    Text(
+                        text = "Quick Select Daily Customer Limit:",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        presetLimits.forEach { preset ->
+                            val isSelected = regConfig.maxLocalSignupsPerDay == preset
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) Color(0xFF6D28D9) else Color(0xFFF3F4F6))
+                                    .clickable {
+                                        limitInput = preset.toString()
+                                        repository.updateCustomerDailySignupSettings(
+                                            localSignupEnabled = regConfig.customerLocalSignupEnabled,
+                                            dailyLimitEnabled = true,
+                                            maxPerDay = preset
+                                        )
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Daily local sign-up limit set to $preset customers/day")
+                                        }
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 7.dp)
+                            ) {
+                                Text(
+                                    text = "$preset / day",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else TextPrimary
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Custom Daily Limit Input + Save + Reset Today Counter
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = limitInput,
+                            onValueChange = { input ->
+                                limitInput = input.filter { it.isDigit() }.take(6)
+                            },
+                            label = { Text("Max Customers / Day") },
+                            singleLine = true,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("admin_max_daily_signup_input"),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        Button(
+                            onClick = {
+                                val parsed = limitInput.toIntOrNull()
+                                if (parsed == null || parsed < 1) {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Enter a valid daily customer limit (minimum 1)")
+                                    }
+                                    return@Button
+                                }
+                                val res = repository.updateCustomerDailySignupSettings(
+                                    localSignupEnabled = regConfig.customerLocalSignupEnabled,
+                                    dailyLimitEnabled = regConfig.customerDailySignupLimitEnabled,
+                                    maxPerDay = parsed
+                                )
+                                res.onSuccess {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Saved daily local sign-up limit: $parsed customers/day")
+                                    }
+                                }.onFailure { err ->
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(err.message ?: "Failed to update limit")
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6D28D9)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .height(52.dp)
+                                .testTag("save_daily_signup_limit_button")
+                        ) {
+                            Text("Save Limit", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val safeAdminLabel = if (regConfig.lastUpdatedByAdminId.equals("CD12", ignoreCase = true)) "Main Admin 2 (Owner 2)" else "Main Admin 1 (Owner 1)"
+                        Text(
+                            text = "Updated by $safeAdminLabel",
+                            fontSize = 11.sp,
+                            color = TextSecondary,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                        )
+
+                        OutlinedButton(
+                            onClick = {
+                                repository.resetTodayLocalSignupCounter().onSuccess {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Today's local sign-up counter reset to 0 / $maxPerDay")
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, FlashDropOrange),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.testTag("reset_today_signup_counter_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = FlashDropOrange,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Reset Today (0/$maxPerDay)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = FlashDropOrange
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

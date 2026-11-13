@@ -90,13 +90,18 @@ fun EditAdminProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val currentProfile by repository.currentProfile.collectAsState()
 
-    // Enforce Main Admin authentication and identity
+    // Enforce Main Admin authentication and identity (keep internal ID for repo calls, hide personal names in UI)
     val currentLoginId = if (currentProfile.loginId.uppercase() == "CD12" || currentProfile.name.contains("Chanchal", ignoreCase = true)) "CD12" else "PR12"
     val ownerTitle = if (currentLoginId == "CD12") "Owner 2" else "Owner 1"
-    val defaultName = if (currentLoginId == "CD12") "Chanchal Didi" else "Pranjal Rajpoot"
+    val defaultName = if (currentLoginId == "CD12") "Main Admin 2" else "Main Admin 1"
+    val maskedInitialName = if (
+        currentProfile.name.isBlank() ||
+        currentProfile.name.contains("Pranjal", ignoreCase = true) ||
+        currentProfile.name.contains("Chanchal", ignoreCase = true)
+    ) defaultName else currentProfile.name
 
     var displayName by remember(currentProfile.name) {
-        mutableStateOf(currentProfile.name.ifBlank { defaultName })
+        mutableStateOf(maskedInitialName)
     }
     var phone by remember(currentProfile.phone) {
         mutableStateOf(currentProfile.phone.ifBlank { if (currentLoginId == "CD12") "+91 98765 00013" else "+91 98765 00012" })
@@ -152,7 +157,7 @@ fun EditAdminProfileScreen(
                                 fontSize = 17.sp
                             )
                             Text(
-                                text = "$displayName ($currentLoginId) • $ownerTitle",
+                                text = "$displayName • $ownerTitle",
                                 fontSize = 11.sp,
                                 color = adminColor,
                                 fontWeight = FontWeight.SemiBold
@@ -215,7 +220,7 @@ fun EditAdminProfileScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Pranjal Rajpoot (PR12) and Chanchal Didi (CD12) hold equal administrative rights. Security rules prevent cross-admin profile tampering.",
+                                text = "Main Admin 1 (Owner 1) and Main Admin 2 (Owner 2) hold equal administrative rights. Security rules prevent cross-admin profile tampering.",
                                 fontSize = 11.sp,
                                 color = TextDark,
                                 lineHeight = 16.sp
@@ -323,7 +328,7 @@ fun EditAdminProfileScreen(
                                 nameError = if (it.trim().isBlank()) "Display name cannot be blank" else null
                             },
                             label = { Text("Display Name *") },
-                            placeholder = { Text("Pranjal Rajpoot") },
+                            placeholder = { Text("Main Admin") },
                             isError = nameError != null,
                             supportingText = { if (nameError != null) Text(nameError ?: "", color = Color.Red, fontSize = 11.sp) },
                             singleLine = true,

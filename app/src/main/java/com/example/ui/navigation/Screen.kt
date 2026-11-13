@@ -35,4 +35,5 @@ sealed class Screen(val route: String) {
     object AdminAddShop : Screen("admin_add_shop")
     object ShopTimingSchedule : Screen("shop_timing_schedule")
     object AdminCustomers : Screen("admin_customers")
+    object ShopkeeperInstructions : Screen("shopkeeper_instructions")
 }

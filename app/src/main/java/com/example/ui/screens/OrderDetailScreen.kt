@@ -362,6 +362,61 @@ private fun HeaderStatusCard(order: Order, tracking: DeliveryTracking) {
                     color = if (isTomorrow) Color(0xFF1D4ED8) else GreenPrimary
                 )
             }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            if (order.status != "delivered" && order.status != "cancelled" && order.status != "rejected") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFEDE9FE))
+                        .border(1.dp, Color(0xFF6D28D9).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = "4-Digit Delivery Handover OTP",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF6D28D9)
+                        )
+                        Text(
+                            text = "Share this PIN with Shopkeeper / Rider only when receiving your parcel",
+                            fontSize = 11.sp,
+                            color = TextDark
+                        )
+                    }
+                    Surface(
+                        color = Color(0xFF6D28D9),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = order.resolvedDeliveryOtp,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                    }
+                }
+            } else if (order.status == "delivered") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(GreenLight)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "✓ Order Handover Verified with 4-Digit Delivery OTP (${order.resolvedDeliveryOtp})",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GreenPrimary
+                    )
+                }
+            }
         }
     }
 }

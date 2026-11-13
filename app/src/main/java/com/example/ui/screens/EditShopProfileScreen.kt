@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.VerifiedUser
@@ -123,8 +124,9 @@ fun EditShopProfileScreen(
     // Media states
     var selectedLogoUri by remember { mutableStateOf<Uri?>(null) }
     var selectedBannerUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedShopkeeperPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
-    var cameraTarget by remember { mutableStateOf<String>("logo") } // "logo" or "banner"
+    var cameraTarget by remember { mutableStateOf<String>("logo") } // "logo", "banner", or "shopkeeper_photo"
 
     var isSaving by remember { mutableStateOf(false) }
     var isUploadingMedia by remember { mutableStateOf(false) }
@@ -157,10 +159,23 @@ fun EditShopProfileScreen(
 
     val cameraManager = rememberCameraManager(
         onImageCaptured = { uri: Uri ->
-            if (cameraTarget == "banner") {
-                selectedBannerUri = uri
-            } else {
-                selectedLogoUri = uri
+            when (cameraTarget) {
+                "banner" -> selectedBannerUri = uri
+                "shopkeeper_photo" -> {
+                    selectedShopkeeperPhotoUri = uri
+                    coroutineScope.launch {
+                        val res = repository.updateShopkeeperRealTimePhoto(
+                            shopId = currentShop.id,
+                            newPhotoUrl = uri.toString()
+                        )
+                        res.onSuccess {
+                            snackbarHostState.showSnackbar("Shopkeeper real-time photo updated with Admin permission!")
+                        }.onFailure { err ->
+                            snackbarHostState.showSnackbar(err.message ?: "Permission from Admin is required.")
+                        }
+                    }
+                }
+                else -> selectedLogoUri = uri
             }
         },
         onError = { err: String ->
@@ -401,6 +416,182 @@ fun EditShopProfileScreen(
                                     Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("Capture Logo", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Real-Time Shopkeeper Photo (Person Operating the Shop) & Admin Permission Card
+            item {
+                val canUpdateShopkeeperPhoto = currentShop.shopkeeperPhotoChangeApprovedByAdmin || repository.isMainAdmin()
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("edit_shop_shopkeeper_photo_card"),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = OrangeSecondary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Shopkeeper Photo (Person Operating the Shop)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = TextDark
+                                )
+                                Text(
+                                    text = "Operator: ${currentShop.ownerName.ifBlank { "Verified Shopkeeper" }}",
+                                    fontSize = 11.sp,
+                                    color = TextMuted
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Mandatory Policy Note
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFFFFFBEB))
+                                .padding(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.Top) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = Color(0xFFD97706),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Note: If the shopkeeper needs to be changed in the future, permission must first be obtained from the Admin; only then can the shopkeeper's photo be updated.",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF78350F),
+                                    lineHeight = 16.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(OrangeLight),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val displayPhoto = selectedShopkeeperPhotoUri?.toString()
+                                    ?: currentShop.shopkeeperPhotoUrl.takeIf { it.isNotBlank() }
+                                if (displayPhoto != null) {
+                                    AsyncImage(
+                                        model = displayPhoto,
+                                        contentDescription = "Shopkeeper Real-Time Photo",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = OrangeSecondary,
+                                        modifier = Modifier.size(38.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (canUpdateShopkeeperPhoto) {
+                                    Text(
+                                        text = "Admin Permission Granted — You can now capture a new real-time shopkeeper photo.",
+                                        fontSize = 11.sp,
+                                        color = GreenPrimary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Button(
+                                        onClick = {
+                                            cameraTarget = "shopkeeper_photo"
+                                            cameraManager.launchCamera()
+                                        },
+                                        enabled = !cameraManager.isLaunching,
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("camera_shopkeeper_operator_button")
+                                    ) {
+                                        Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(15.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Update Real-Time Photo", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                } else {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Lock,
+                                            contentDescription = null,
+                                            tint = Color(0xFFD97706),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = if (currentShop.shopkeeperPhotoChangeRequested)
+                                                "Permission Request Sent to Admin"
+                                            else
+                                                "Photo Locked (Admin Permission Required)",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFD97706)
+                                        )
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            val res = repository.requestShopkeeperPhotoChangePermission(currentShop.id)
+                                            coroutineScope.launch {
+                                                if (res.isSuccess) {
+                                                    snackbarHostState.showSnackbar("Request sent to Main Admin for permission to update shopkeeper photo.")
+                                                } else {
+                                                    snackbarHostState.showSnackbar("Could not send request.")
+                                                }
+                                            }
+                                        },
+                                        enabled = !currentShop.shopkeeperPhotoChangeRequested,
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, OrangeSecondary),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("request_shopkeeper_photo_permission_button")
+                                    ) {
+                                        Text(
+                                            text = if (currentShop.shopkeeperPhotoChangeRequested)
+                                                "Awaiting Admin Permission..."
+                                            else
+                                                "Request Admin Permission",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = OrangeSecondary
+                                        )
+                                    }
                                 }
                             }
                         }

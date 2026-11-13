@@ -31,7 +31,8 @@ data class ShopVerificationRequest(
     val gstNumber: String = "",
     val passwordHash: String = "",
 
-    // Business Verification Documents
+    // Business Verification Documents & Real-Time Shopkeeper Photo
+    val shopkeeperPhotoUri: String = "",  // Real-time photo of the shopkeeper operating the shop
     val aadhaarNumberMasked: String = "", // Masked format only (e.g. XXXX-XXXX-1234)
     val aadhaarDocUri: String = "",       // Content or storage URI for Aadhaar card photo
     val panNumber: String = "",           // 10-character statutory format

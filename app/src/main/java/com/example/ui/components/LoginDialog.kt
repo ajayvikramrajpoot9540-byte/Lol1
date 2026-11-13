@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -43,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -96,7 +99,7 @@ fun LoginDialog(
                 )
                 Text(
                     text = when (selectedTab) {
-                        0 -> "Authorized Mahoba owners (PR12 / CD12)"
+                        0 -> "Authorized FlashDrop Main Admins"
                         1 -> "Authorized Mahoba shopkeeper login"
                         else -> "Sign in or register to shop in Mahoba"
                     },
@@ -160,9 +163,9 @@ fun LoginDialog(
 
                 when (selectedTab) {
                     0 -> {
-                        // Main Admin Login Form (PR12 or CD12)
+                        // Main Admin Login Form
                         Text(
-                            text = "Main Admin Owners: Enter PR12 (Pranjal) or CD12 (Chanchal)",
+                            text = "Main Admin Portal: Enter your authorized Admin Login ID",
                             fontSize = 11.sp,
                             color = Color(0xFF6D28D9),
                             fontWeight = FontWeight.SemiBold
@@ -175,7 +178,7 @@ fun LoginDialog(
                                 loginIdInput = it
                                 errorMessage = null
                             },
-                            label = { Text("Admin Login ID (e.g. PR12 or CD12)") },
+                            label = { Text("Admin Login ID") },
                             leadingIcon = { Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = Color(0xFF6D28D9)) },
                             singleLine = true,
                             modifier = Modifier
@@ -293,11 +296,16 @@ fun LoginDialog(
 
                         OutlinedTextField(
                             value = customerName,
-                            onValueChange = { customerName = it },
-                            label = { Text("Your Name") },
+                            onValueChange = {
+                                customerName = it
+                                errorMessage = null
+                            },
+                            label = { Text("Your Name *") },
                             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = GreenPrimary) },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("customer_dialog_name_input"),
                             shape = RoundedCornerShape(10.dp)
                         )
 
@@ -305,10 +313,18 @@ fun LoginDialog(
 
                         OutlinedTextField(
                             value = customerPhone,
-                            onValueChange = { customerPhone = it },
-                            label = { Text("Mobile Number (Optional)") },
+                            onValueChange = { input ->
+                                customerPhone = input.filter { it.isDigit() }.take(10)
+                                errorMessage = null
+                            },
+                            label = { Text("Mobile Number (Compulsory *)") },
+                            placeholder = { Text("10-digit mobile number") },
+                            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = GreenPrimary) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("customer_dialog_mobile_input"),
                             shape = RoundedCornerShape(10.dp)
                         )
                     }
@@ -347,9 +363,29 @@ fun LoginDialog(
                                 errorMessage = "This name is reserved for a FlashDrop Admin. Please choose another name."
                                 return@Button
                             }
+                            val mobileValidation = repository.validateAndFormatMobileNumber(customerPhone)
+                            if (mobileValidation.isFailure) {
+                                errorMessage = mobileValidation.exceptionOrNull()?.message
+                                    ?: "Mobile number is compulsory. Please enter your 10-digit mobile number."
+                                return@Button
+                            }
+                            val formattedPhone = mobileValidation.getOrThrow()
+                            val norm = repository.normalizeName(trimmedName)
+                            val isExisting = repository.registeredUsers.value.any {
+                                it.normalizedName == norm || it.fullName.equals(trimmedName, ignoreCase = true)
+                            } || repository.customers.value.any {
+                                it.fullName.equals(trimmedName, ignoreCase = true)
+                            }
+                            if (!isExisting) {
+                                val allowRes = repository.checkCustomerLocalSignupAllowed()
+                                if (allowRes.isFailure) {
+                                    errorMessage = allowRes.exceptionOrNull()?.message
+                                    return@Button
+                                }
+                            }
                             repository.loginAsCustomer(
                                 name = trimmedName,
-                                phone = customerPhone.ifBlank { "+91 98765 12345" }
+                                phone = formattedPhone
                             )
                             onLoginSuccess("customer")
                             onDismiss()

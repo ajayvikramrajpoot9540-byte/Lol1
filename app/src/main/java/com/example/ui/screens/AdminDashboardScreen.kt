@@ -161,9 +161,9 @@ fun AdminDashboardScreen(
     var minOrderInput by remember { mutableStateOf(deliveryConfig.minOrderAmount.toInt().toString()) }
     var freeThresholdInput by remember { mutableStateOf(deliveryConfig.freeDeliveryThreshold.toInt().toString()) }
 
-    // Display info for current Main Admin owner
-    val ownerName = if (currentProfile.loginId == "CD12") "Chanchal Didi" else "Pranjal Rajpoot"
-    val ownerId = if (currentProfile.loginId == "CD12") "CD12" else "PR12"
+    // Display info for current Main Admin owner (personal names hidden for privacy)
+    val ownerName = if (currentProfile.loginId == "CD12") "Main Admin 2" else "Main Admin 1"
+    val ownerId = if (currentProfile.loginId == "CD12") "ADMIN-2" else "ADMIN-1"
     val ownerTitle = if (currentProfile.loginId == "CD12") "Owner 2" else "Owner 1"
 
     val screenType = rememberScreenType()
@@ -318,13 +318,13 @@ fun AdminDashboardScreen(
                                                 color = Color(0xFF6D28D9)
                                             )
                                             Text(
-                                                text = "$ownerName ($ownerId) • Equal Admin Authority",
+                                                text = "$ownerName ($ownerTitle) • Equal Admin Authority",
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = TextDark
                                             )
                                             Text(
-                                                text = "Verified Co-Owner with Chanchal Didi & Pranjal Rajpoot",
+                                                text = "Verified FlashDrop Co-Owner Governance",
                                                 fontSize = 11.sp,
                                                 color = TextMuted
                                             )
@@ -362,7 +362,7 @@ fun AdminDashboardScreen(
                                                     )
                                                 } else {
                                                     Text(
-                                                        text = if (ownerId == "CD12") "CD" else "PR",
+                                                        text = if (currentProfile.loginId == "CD12") "A2" else "A1",
                                                         fontWeight = FontWeight.Bold,
                                                         color = Color.White,
                                                         fontSize = 15.sp
@@ -508,7 +508,7 @@ fun AdminDashboardScreen(
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "Owner 1: Pranjal Rajpoot (PR12) • Owner 2: Chanchal Didi (CD12)",
+                                        text = "Main Admin 1 (Owner 1) • Main Admin 2 (Owner 2)",
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 13.sp,
                                         color = TextDark
@@ -1196,7 +1196,7 @@ fun AdminDashboardScreen(
                                     }
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "High-impact actions (such as removing a Main Admin, modifying master security rules, or altering global commission rates) require mutual confirmation between Pranjal Rajpoot (PR12) and Chanchal Didi (CD12).",
+                                        text = "High-impact actions (such as removing a Main Admin, modifying master security rules, or altering global commission rates) require mutual confirmation between both authorized Main Admins (Owner 1 & Owner 2).",
                                         fontSize = 12.sp,
                                         color = TextDark,
                                         lineHeight = 17.sp
@@ -1287,7 +1287,8 @@ fun AdminDashboardScreen(
                                             Text(sk.shopkeeperName, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextDark)
                                             Text("Login ID: ${sk.loginId} • Shop: ${sk.shopName}", fontSize = 12.sp, color = Color(0xFF6D28D9), fontWeight = FontWeight.SemiBold)
                                             Text("Shop ID: ${sk.shopId} • Phone: ${sk.phone}", fontSize = 12.sp, color = TextMuted)
-                                            Text("Provisioned by: ${sk.assignedBy}", fontSize = 11.sp, color = TextMuted)
+                                            val safeAssignedBy = if (sk.assignedBy.uppercase() in listOf("PR12", "CD12", "PR", "CD")) "Main Admin" else sk.assignedBy
+                                            Text("Provisioned by: $safeAssignedBy", fontSize = 11.sp, color = TextMuted)
                                         }
 
                                         Column(horizontalAlignment = Alignment.End) {

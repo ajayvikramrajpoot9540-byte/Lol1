@@ -213,7 +213,7 @@ fun AdminLoginScreen(
                     )
 
                     Text(
-                        text = "Equal administrative authority for Pranjal Rajpoot and Chanchal Didi to govern the FlashDrop Mahoba marketplace.",
+                        text = "Equal administrative authority for authorized FlashDrop Main Admins to govern the Mahoba marketplace.",
                         fontSize = 12.sp,
                         color = TextMuted,
                         textAlign = TextAlign.Center,
@@ -221,7 +221,7 @@ fun AdminLoginScreen(
                         lineHeight = 16.sp
                     )
 
-                    // Development Mode Notice (Only shown in Development builds)
+                    // Development Mode Notice (Confidential — no admin names or passwords exposed)
                     if (isDevMode) {
                         Box(
                             modifier = Modifier
@@ -240,7 +240,7 @@ fun AdminLoginScreen(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "Development Demo Authentication Active",
+                                        text = "Protected Main Admin Portal",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp,
                                         color = Color(0xFFB45309)
@@ -248,7 +248,7 @@ fun AdminLoginScreen(
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "• Main Admin 1: Pranjal Rajpoot (ID: PR12 / Pass: PR12)\n• Main Admin 2: Chanchal Didi (ID: CD12 / Pass: CD12)",
+                                    text = "• Main Admin 1 & Main Admin 2 hold equal co-ownership authority.\n• Enter your confidential Admin ID and password to continue.",
                                     fontSize = 11.sp,
                                     color = Color(0xFF78350F),
                                     lineHeight = 15.sp
@@ -285,8 +285,8 @@ fun AdminLoginScreen(
                             loginId = it
                             errorMessage = null
                         },
-                        label = { Text("Login ID or Full Name") },
-                        placeholder = { Text("e.g. PR12 or Chanchal Didi") },
+                        label = { Text("Admin Login ID") },
+                        placeholder = { Text("Enter your confidential Admin ID") },
                         leadingIcon = {
                             Icon(
                                 Icons.Default.AdminPanelSettings,
@@ -525,10 +525,10 @@ fun AdminLoginScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "1. Owner Provisioning:\nCreate Firebase Auth accounts in Firebase Console for the two authorized owners (pranjal.owner@flashdrop.local and chanchal.owner@flashdrop.local).\n\n" +
-                                "2. Server-Side Role Assignment:\nSet Custom Claims (`{ role: 'MAIN_ADMIN' }`) via Firebase Admin SDK. Users cannot assign this role to themselves.\n\n" +
-                                "3. Zero Password Exposure:\nPasswords are never saved in Firestore or visible in client code. Demo credentials are automatically disabled in release builds (`BuildConfig.DEBUG == false`).\n\n" +
-                                "4. Firebase Security Rules:\nAll admin read/writes in firestore.rules require `request.auth.token.role == 'MAIN_ADMIN'` or verified owner credentials.",
+                        text = "1. Owner Provisioning:\nMain Admin accounts are verified via authorized credentials.\n\n" +
+                                "2. Admin-Controlled Role Assignment:\nA person's role (Customer, Shopkeeper, Delivery Partner, or Admin) is set directly by the Main Admin from the Admin Panel — never automatically by the server.\n\n" +
+                                "3. Zero Password Exposure:\nPasswords are never exposed in client UI.\n\n" +
+                                "4. Role Synchronization:\nWhen the Main Admin updates a person's role in the Admin Panel, their access permissions and portal role update immediately.",
                         fontSize = 12.sp,
                         color = TextDark,
                         lineHeight = 18.sp

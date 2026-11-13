@@ -321,7 +321,7 @@ fun ShopkeeperPendingApprovalScreen(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "To ensure consumer safety, FlashDrop Main Admins (Pranjal Rajpoot & Chanchal Didi) personally review all new shop registrations. Verification typically completes within 24 hours.",
+                        text = "To ensure consumer safety, FlashDrop Main Admins personally review all new shop registrations. Verification typically completes within 24 hours.",
                         fontSize = 12.sp,
                         color = Color(0xFF7C2D12),
                         lineHeight = 17.sp

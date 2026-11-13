@@ -30,6 +30,9 @@ data class Shop(
     val phone: String = "+91 98765 43210",
     val imageUrl: String = "",
     val bannerUrl: String = "",
+    val shopkeeperPhotoUrl: String = "",
+    val shopkeeperPhotoChangeApprovedByAdmin: Boolean = false,
+    val shopkeeperPhotoChangeRequested: Boolean = false,
     val openingHours: String = "08:00 AM - 10:00 PM",
     val pendingGstNumber: String = "",
     val gstApprovalStatus: String = "verified", // "verified", "pending_approval"

@@ -129,7 +129,7 @@ class FlashDropRepository(
 
     // Global Shop Registration Mode Configuration (Admin-Controlled 3-Step System)
     // Persistently stored at appSettings/shopRegistration/threeStepEnabled
-    private val _shopRegistrationConfig = MutableStateFlow(ShopRegistrationConfig(threeStepEnabled = false))
+    private val _shopRegistrationConfig = MutableStateFlow(ShopRegistrationConfig(threeStepEnabled = true))
     val shopRegistrationConfig: StateFlow<ShopRegistrationConfig> = _shopRegistrationConfig.asStateFlow()
 
     // Shopkeeper Business Verification Requests (Step 1-3 applications & Admin Review)
@@ -146,6 +146,7 @@ class FlashDropRepository(
                 description = "Farm-fresh organic vegetables, local seasonal fruits, and pure desi cow milk in Mahoba.",
                 gstNumber = "09AABCB1234F1Z8",
                 passwordHash = hashPassword("Mahoba@123"),
+                shopkeeperPhotoUri = "content://media/external/images/media/sample_shopkeeper_photo",
                 aadhaarNumberMasked = "XXXX-XXXX-6789",
                 aadhaarDocUri = "content://media/external/images/media/sample_aadhaar",
                 panNumber = "AABCB1234F",
@@ -469,60 +470,98 @@ class FlashDropRepository(
         }
     }
 
+    /**
+     * Resolves the role and shop assignment set by the Main Admin for a person.
+     * Roles are controlled by the Admin (not hardcoded by the server).
+     */
+    fun resolveAdminAssignedProfile(baseProfile: UserProfile): UserProfile {
+        val normName = normalizeName(baseProfile.name)
+        val inputTenDigits = extractTenDigitMobile(baseProfile.phone)
+        val customerMatch = _customers.value.find {
+            (baseProfile.id.isNotBlank() && it.id == baseProfile.id) ||
+            (baseProfile.email.isNotBlank() && it.email.equals(baseProfile.email, ignoreCase = true)) ||
+            (inputTenDigits.length == 10 && extractTenDigitMobile(it.phone) == inputTenDigits) ||
+            normalizeName(it.fullName) == normName
+        }
+        val registeredMatch = _registeredUsers.value.find {
+            (baseProfile.id.isNotBlank() && it.id == baseProfile.id) ||
+            (baseProfile.email.isNotBlank() && it.email.equals(baseProfile.email, ignoreCase = true)) ||
+            (inputTenDigits.length == 10 && extractTenDigitMobile(it.phone) == inputTenDigits) ||
+            it.normalizedName == normName
+        }
+
+        val adminSetRole = customerMatch?.assignedRole?.takeIf { it.isNotBlank() }
+            ?: registeredMatch?.role?.takeIf { it.isNotBlank() }
+            ?: baseProfile.role.ifBlank { CustomerRecord.ROLE_CUSTOMER }
+
+        val resolvedRole = when (adminSetRole.lowercase()) {
+            "main_admin", "admin" -> CustomerRecord.ROLE_ADMIN
+            "shopkeeper" -> CustomerRecord.ROLE_SHOPKEEPER
+            "delivery_partner" -> CustomerRecord.ROLE_DELIVERY_PARTNER
+            else -> CustomerRecord.ROLE_CUSTOMER
+        }
+
+        val resolvedShopId = customerMatch?.assignedShopId?.takeIf { it.isNotBlank() }
+            ?: registeredMatch?.assignedShopId?.takeIf { it.isNotBlank() }
+            ?: baseProfile.shopId.ifBlank {
+                if (resolvedRole == CustomerRecord.ROLE_SHOPKEEPER) {
+                    _shops.value.firstOrNull()?.id ?: "sharma_general"
+                } else ""
+            }
+        val resolvedShopName = customerMatch?.assignedShopName?.takeIf { it.isNotBlank() }
+            ?: registeredMatch?.assignedShopName?.takeIf { it.isNotBlank() }
+            ?: baseProfile.shopName.ifBlank {
+                if (resolvedRole == CustomerRecord.ROLE_SHOPKEEPER) {
+                    _shops.value.find { it.id == resolvedShopId }?.name ?: "Mahoba Store"
+                } else ""
+            }
+
+        return baseProfile.copy(
+            role = resolvedRole,
+            loginId = when (resolvedRole) {
+                CustomerRecord.ROLE_ADMIN -> baseProfile.loginId.ifBlank { "ADMIN" }
+                CustomerRecord.ROLE_SHOPKEEPER -> baseProfile.loginId.ifBlank { "SK_${resolvedShopId.uppercase().take(6)}" }
+                CustomerRecord.ROLE_DELIVERY_PARTNER -> baseProfile.loginId.ifBlank { "DP_MAHOBA" }
+                else -> "CUST"
+            },
+            ownerTitle = if (resolvedRole == CustomerRecord.ROLE_ADMIN) baseProfile.ownerTitle.ifBlank { "Admin" } else "",
+            shopId = if (resolvedRole == CustomerRecord.ROLE_SHOPKEEPER) resolvedShopId else "",
+            shopName = if (resolvedRole == CustomerRecord.ROLE_SHOPKEEPER) resolvedShopName else "",
+            isVerifiedAdmin = resolvedRole == CustomerRecord.ROLE_ADMIN,
+            isVerifiedShopkeeper = resolvedRole == CustomerRecord.ROLE_SHOPKEEPER
+        )
+    }
+
     private fun loadUserProfileForFirebaseUser(user: com.google.firebase.auth.FirebaseUser) {
         repoScope.launch {
             _isProfileLoading.value = true
             try {
-                val userEmail = user.email ?: ""
-                val isOwner1 = userEmail.equals("pranjal.owner@flashdrop.local", ignoreCase = true) ||
-                        userEmail.equals("ajayvikramrajpoot9540@gmail.com", ignoreCase = true)
-                val isOwner2 = userEmail.equals("chanchal.owner@flashdrop.local", ignoreCase = true)
-                if (isOwner1 || isOwner2) {
-                    val adminProfile = UserProfile(
-                        id = user.uid,
-                        name = if (isOwner1) "Pranjal Rajpoot" else "Chanchal Didi",
-                        email = user.email ?: (if (isOwner1) "pranjal.owner@flashdrop.local" else "chanchal.owner@flashdrop.local"),
-                        phone = user.phoneNumber ?: (if (isOwner1) "+91 98765 00012" else "+91 98765 00013"),
-                        role = "MAIN_ADMIN",
-                        loginId = if (isOwner1) "PR12" else "CD12",
-                        ownerTitle = if (isOwner1) "Owner 1" else "Owner 2",
-                        isVerifiedAdmin = true,
-                        isVerifiedShopkeeper = false,
-                        isAuthenticated = true,
-                        address = "FlashDrop Mahoba Office, Subhash Chowk",
-                        locality = "Subhash Chowk",
-                        city = "Mahoba",
-                        state = "Uttar Pradesh",
-                        pinCode = "210427"
-                    )
-                    _currentProfile.value = adminProfile
-                    saveSessionToPrefs(adminProfile)
-                } else {
-                    val userDoc = firestore.collection("users").document(user.uid).get().await()
-                    if (userDoc.exists()) {
-                        val firestoreProfile = userDoc.toObject(UserProfile::class.java)
-                        if (firestoreProfile != null) {
-                            val resolvedName = firestoreProfile.name.takeIf { it.isNotBlank() && it != "Guest" }
-                                ?: user.displayName?.takeIf { it.isNotBlank() }
-                                ?: user.email?.substringBefore("@")
-                                ?: "Customer"
-                            val resolvedPhoto = user.photoUrl?.toString()?.takeIf { it.isNotBlank() }
-                                ?: firestoreProfile.photoUrl
-                            val merged = firestoreProfile.copy(
+                val userDoc = firestore.collection("users").document(user.uid).get().await()
+                if (userDoc.exists()) {
+                    val firestoreProfile = userDoc.toObject(UserProfile::class.java)
+                    if (firestoreProfile != null) {
+                        val resolvedName = firestoreProfile.name.takeIf { it.isNotBlank() && it != "Guest" }
+                            ?: user.displayName?.takeIf { it.isNotBlank() }
+                            ?: user.email?.substringBefore("@")
+                            ?: "Customer"
+                        val resolvedPhoto = user.photoUrl?.toString()?.takeIf { it.isNotBlank() }
+                            ?: firestoreProfile.photoUrl
+                        val merged = resolveAdminAssignedProfile(
+                            firestoreProfile.copy(
                                 id = user.uid,
                                 name = resolvedName,
                                 email = user.email ?: firestoreProfile.email,
                                 photoUrl = resolvedPhoto,
                                 isAuthenticated = true
                             )
-                            _currentProfile.value = merged
-                            saveSessionToPrefs(merged)
-                        } else {
-                            createAndSetFirebaseUserProfile(user)
-                        }
+                        )
+                        _currentProfile.value = merged
+                        saveSessionToPrefs(merged)
                     } else {
                         createAndSetFirebaseUserProfile(user)
                     }
+                } else {
+                    createAndSetFirebaseUserProfile(user)
                 }
                 syncWithFirestore()
             } catch (e: Exception) {
@@ -530,22 +569,24 @@ class FlashDropRepository(
                 val fallbackName = user.displayName?.takeIf { it.isNotBlank() }
                     ?: user.email?.substringBefore("@")
                     ?: "Customer"
-                val profile = UserProfile(
-                    id = user.uid,
-                    name = fallbackName,
-                    email = user.email ?: "",
-                    phone = user.phoneNumber ?: "",
-                    role = "customer",
-                    loginId = "CUST",
-                    isVerifiedAdmin = false,
-                    isVerifiedShopkeeper = false,
-                    isAuthenticated = true,
-                    photoUrl = user.photoUrl?.toString() ?: "",
-                    address = "Subhash Chowk, Chhatarpur Road",
-                    locality = "Alha Chowk",
-                    pinCode = "210427",
-                    city = "Mahoba",
-                    state = "Uttar Pradesh"
+                val profile = resolveAdminAssignedProfile(
+                    UserProfile(
+                        id = user.uid,
+                        name = fallbackName,
+                        email = user.email ?: "",
+                        phone = user.phoneNumber ?: "",
+                        role = CustomerRecord.ROLE_CUSTOMER,
+                        loginId = "CUST",
+                        isVerifiedAdmin = false,
+                        isVerifiedShopkeeper = false,
+                        isAuthenticated = true,
+                        photoUrl = user.photoUrl?.toString() ?: "",
+                        address = "Subhash Chowk, Chhatarpur Road",
+                        locality = "Alha Chowk",
+                        pinCode = "210427",
+                        city = "Mahoba",
+                        state = "Uttar Pradesh"
+                    )
                 )
                 _currentProfile.value = profile
                 saveSessionToPrefs(profile)
@@ -559,22 +600,24 @@ class FlashDropRepository(
         val registeredName = user.displayName?.takeIf { it.isNotBlank() }
             ?: user.email?.substringBefore("@")
             ?: "Customer"
-        val profile = UserProfile(
-            id = user.uid,
-            name = registeredName,
-            email = user.email ?: "",
-            phone = user.phoneNumber ?: "",
-            role = "customer",
-            loginId = "CUST",
-            isVerifiedAdmin = false,
-            isVerifiedShopkeeper = false,
-            isAuthenticated = true,
-            photoUrl = user.photoUrl?.toString() ?: "",
-            address = "Subhash Chowk, Chhatarpur Road",
-            locality = "Alha Chowk",
-            pinCode = "210427",
-            city = "Mahoba",
-            state = "Uttar Pradesh"
+        val profile = resolveAdminAssignedProfile(
+            UserProfile(
+                id = user.uid,
+                name = registeredName,
+                email = user.email ?: "",
+                phone = user.phoneNumber ?: "",
+                role = CustomerRecord.ROLE_CUSTOMER,
+                loginId = "CUST",
+                isVerifiedAdmin = false,
+                isVerifiedShopkeeper = false,
+                isAuthenticated = true,
+                photoUrl = user.photoUrl?.toString() ?: "",
+                address = "Subhash Chowk, Chhatarpur Road",
+                locality = "Alha Chowk",
+                pinCode = "210427",
+                city = "Mahoba",
+                state = "Uttar Pradesh"
+            )
         )
         _currentProfile.value = profile
         saveSessionToPrefs(profile)
@@ -926,8 +969,8 @@ class FlashDropRepository(
      * and persists it locally so the Admin Customers page always reflects real-time customer data.
      */
     fun upsertCustomerFromProfile(profile: UserProfile, authMethodOverride: String? = null) {
-        if (!profile.role.equals("customer", ignoreCase = true)) return
         if (profile.name.isBlank() || profile.name.equals("Guest", ignoreCase = true) || profile.id.equals("guest", ignoreCase = true)) return
+        if (isReservedAdminName(profile.name)) return
 
         val existingList = _customers.value.toMutableList()
         val matchIndex = existingList.indexOfFirst {
@@ -960,6 +1003,9 @@ class FlashDropRepository(
                 state = profile.state.ifBlank { prev.state },
                 savedAddresses = if (profile.savedAddresses.isNotEmpty()) profile.savedAddresses else prev.savedAddresses,
                 authMethod = authMethodOverride ?: prev.authMethod,
+                assignedRole = prev.assignedRole.ifBlank { profile.role.ifBlank { CustomerRecord.ROLE_CUSTOMER } },
+                assignedShopId = prev.assignedShopId.ifBlank { profile.shopId },
+                assignedShopName = prev.assignedShopName.ifBlank { profile.shopName },
                 lastActive = "Just now",
                 isVerified = true
             )
@@ -990,6 +1036,9 @@ class FlashDropRepository(
                 phone = profile.phone.ifBlank { "+91 98765 12345" },
                 photoUrl = profile.photoUrl,
                 accountStatus = CustomerRecord.STATUS_ACTIVE,
+                assignedRole = profile.role.ifBlank { CustomerRecord.ROLE_CUSTOMER },
+                assignedShopId = profile.shopId,
+                assignedShopName = profile.shopName,
                 authMethod = authMethodOverride ?: "Password",
                 joinedDate = nowDate,
                 lastActive = "Just now",
@@ -1013,6 +1062,109 @@ class FlashDropRepository(
     }
 
     /**
+     * Admin Role Management: Set the role of a person directly from the Admin Panel (not by the server).
+     * Supported roles: "customer", "shopkeeper", "delivery_partner", "MAIN_ADMIN".
+     */
+    fun updatePersonRoleByAdmin(
+        customerId: String,
+        newRole: String,
+        assignedShopId: String = ""
+    ): Result<CustomerRecord> {
+        if (!isMainAdmin()) {
+            return Result.failure(SecurityException("Only authorized Main Admins can assign user roles."))
+        }
+        val target = _customers.value.find { it.id == customerId }
+            ?: return Result.failure(IllegalArgumentException("User record not found."))
+
+        val canonicalRole = when (newRole.lowercase()) {
+            "main_admin", "admin" -> CustomerRecord.ROLE_ADMIN
+            "shopkeeper" -> CustomerRecord.ROLE_SHOPKEEPER
+            "delivery_partner" -> CustomerRecord.ROLE_DELIVERY_PARTNER
+            else -> CustomerRecord.ROLE_CUSTOMER
+        }
+
+        val resolvedShop = if (canonicalRole == CustomerRecord.ROLE_SHOPKEEPER) {
+            val chosenShopId = assignedShopId.ifBlank { target.assignedShopId.ifBlank { _shops.value.firstOrNull()?.id ?: "sharma_general" } }
+            _shops.value.find { it.id == chosenShopId } ?: _shops.value.firstOrNull()
+        } else null
+
+        val updatedRecord = target.copy(
+            assignedRole = canonicalRole,
+            assignedShopId = resolvedShop?.id ?: "",
+            assignedShopName = resolvedShop?.name ?: ""
+        )
+
+        _customers.value = _customers.value.map { if (it.id == customerId) updatedRecord else it }
+        persistence.saveCustomers(_customers.value)
+
+        // Sync role to local RegisteredAccount list as well
+        val targetNormName = normalizeName(target.fullName)
+        val targetTenDigits = extractTenDigitMobile(target.phone)
+        _registeredUsers.value = _registeredUsers.value.map { reg ->
+            if (reg.id == customerId ||
+                reg.normalizedName == targetNormName ||
+                (targetTenDigits.length == 10 && extractTenDigitMobile(reg.phone) == targetTenDigits)
+            ) {
+                reg.copy(
+                    role = canonicalRole,
+                    assignedShopId = updatedRecord.assignedShopId,
+                    assignedShopName = updatedRecord.assignedShopName
+                )
+            } else reg
+        }
+        persistence.saveRegisteredUsers(_registeredUsers.value)
+
+        // If Shopkeeper role is assigned, ensure a ShopkeeperAccount is active for them
+        if (canonicalRole == CustomerRecord.ROLE_SHOPKEEPER && resolvedShop != null) {
+            val existingSk = _shopkeepers.value.find {
+                it.id == customerId || it.phone == target.phone || it.shopkeeperName.equals(target.fullName, ignoreCase = true)
+            }
+            if (existingSk == null) {
+                val newSk = ShopkeeperAccount(
+                    id = customerId,
+                    loginId = "SK_${target.fullName.filter { it.isLetter() }.uppercase().take(6).ifBlank { "USER" }}",
+                    shopkeeperName = target.fullName,
+                    shopId = resolvedShop.id,
+                    shopName = resolvedShop.name,
+                    phone = target.phone,
+                    email = target.email,
+                    password = "password123",
+                    isActive = true,
+                    assignedBy = "Main Admin"
+                )
+                _shopkeepers.value = _shopkeepers.value + newSk
+                persistence.saveShopkeepers(_shopkeepers.value)
+            }
+        }
+
+        // If this user is currently logged in, update their active session immediately
+        if (_currentProfile.value.id == customerId || _currentProfile.value.name.equals(target.fullName, ignoreCase = true)) {
+            val syncedProfile = resolveAdminAssignedProfile(_currentProfile.value)
+            _currentProfile.value = syncedProfile
+            saveSessionToPrefs(syncedProfile)
+        }
+
+        // Sync role change to Firestore user document
+        repoScope.launch {
+            try {
+                firestore.collection("users").document(customerId).update(
+                    mapOf(
+                        "role" to canonicalRole,
+                        "shopId" to updatedRecord.assignedShopId,
+                        "shopName" to updatedRecord.assignedShopName,
+                        "isVerifiedAdmin" to (canonicalRole == CustomerRecord.ROLE_ADMIN),
+                        "isVerifiedShopkeeper" to (canonicalRole == CustomerRecord.ROLE_SHOPKEEPER)
+                    )
+                ).await()
+            } catch (e: Exception) {
+                Log.w("FlashDropRepo", "Admin role sync to Firestore deferred: ${e.message}")
+            }
+        }
+
+        return Result.success(updatedRecord)
+    }
+
+    /**
      * Admin Customer Management: Update customer status (Active, VIP, Suspended) and optional notes.
      */
     fun updateCustomerStatus(customerId: String, newStatus: String, adminNotes: String? = null): Boolean {
@@ -1033,7 +1185,7 @@ class FlashDropRepository(
     }
 
     /**
-     * Admin Customer Management: Edit customer profile & governance details from Admin Portal.
+     * Admin Customer Management: Edit customer profile, role & governance details from Admin Portal.
      */
     fun updateCustomerDetailsByAdmin(
         customerId: String,
@@ -1043,7 +1195,9 @@ class FlashDropRepository(
         locality: String,
         primaryAddress: String,
         accountStatus: String,
-        adminNotes: String
+        adminNotes: String,
+        assignedRole: String? = null,
+        assignedShopId: String? = null
     ): Result<CustomerRecord> {
         if (!isMainAdmin()) {
             return Result.failure(SecurityException("Only authorized Main Admins can modify customer records."))
@@ -1061,6 +1215,7 @@ class FlashDropRepository(
             ?: return Result.failure(IllegalArgumentException("Customer record not found."))
 
         val formattedPhone = if (cleanPhone.startsWith("+91")) cleanPhone else "+91 ${cleanPhone.filter { it.isDigit() }.takeLast(10)}"
+        val resolvedRole = assignedRole?.takeIf { it.isNotBlank() } ?: target.assignedRole
         val updated = target.copy(
             fullName = trimmedName,
             phone = formattedPhone,
@@ -1074,22 +1229,34 @@ class FlashDropRepository(
         _customers.value = _customers.value.map { if (it.id == customerId) updated else it }
         persistence.saveCustomers(_customers.value)
 
+        if (assignedRole != null) {
+            updatePersonRoleByAdmin(
+                customerId = customerId,
+                newRole = resolvedRole,
+                assignedShopId = assignedShopId ?: target.assignedShopId
+            )
+        }
+
+        val finalRecord = _customers.value.find { it.id == customerId } ?: updated
+
         if (_currentProfile.value.id == customerId) {
-            val syncedProfile = _currentProfile.value.copy(
-                name = updated.fullName,
-                phone = updated.phone,
-                email = updated.email,
-                locality = updated.locality,
-                address = updated.primaryAddress
+            val syncedProfile = resolveAdminAssignedProfile(
+                _currentProfile.value.copy(
+                    name = finalRecord.fullName,
+                    phone = finalRecord.phone,
+                    email = finalRecord.email,
+                    locality = finalRecord.locality,
+                    address = finalRecord.primaryAddress
+                )
             )
             _currentProfile.value = syncedProfile
             saveSessionToPrefs(syncedProfile)
         }
-        return Result.success(updated)
+        return Result.success(finalRecord)
     }
 
     /**
-     * Admin Customer Management: Add a new customer record directly from the Admin Portal.
+     * Admin Customer Management: Add a new customer/person record directly from the Admin Portal with Admin-set role.
      */
     fun addCustomerByAdmin(
         fullName: String,
@@ -1098,7 +1265,9 @@ class FlashDropRepository(
         locality: String,
         primaryAddress: String,
         accountStatus: String = CustomerRecord.STATUS_ACTIVE,
-        adminNotes: String = ""
+        adminNotes: String = "",
+        assignedRole: String = CustomerRecord.ROLE_CUSTOMER,
+        assignedShopId: String = ""
     ): Result<CustomerRecord> {
         if (!isMainAdmin()) {
             return Result.failure(SecurityException("Only authorized Main Admins can add customer records."))
@@ -1118,6 +1287,17 @@ class FlashDropRepository(
         val resolvedLocality = locality.trim().ifBlank { "Alha Chowk" }
         val resolvedAddress = primaryAddress.trim().ifBlank { "$resolvedLocality, Mahoba" }
         val nowDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())
+
+        val canonicalRole = when (assignedRole.lowercase()) {
+            "main_admin", "admin" -> CustomerRecord.ROLE_ADMIN
+            "shopkeeper" -> CustomerRecord.ROLE_SHOPKEEPER
+            "delivery_partner" -> CustomerRecord.ROLE_DELIVERY_PARTNER
+            else -> CustomerRecord.ROLE_CUSTOMER
+        }
+        val resolvedShop = if (canonicalRole == CustomerRecord.ROLE_SHOPKEEPER) {
+            val shopIdToFind = assignedShopId.ifBlank { _shops.value.firstOrNull()?.id ?: "sharma_general" }
+            _shops.value.find { it.id == shopIdToFind } ?: _shops.value.firstOrNull()
+        } else null
 
         val defaultDeliveryAddr = DeliveryAddress(
             id = "addr_${UUID.randomUUID().toString().take(6)}",
@@ -1139,6 +1319,9 @@ class FlashDropRepository(
             email = resolvedEmail,
             phone = formattedPhone,
             accountStatus = accountStatus,
+            assignedRole = canonicalRole,
+            assignedShopId = resolvedShop?.id ?: "",
+            assignedShopName = resolvedShop?.name ?: "",
             authMethod = "Admin Onboarded",
             joinedDate = nowDate,
             lastActive = "Just now",
@@ -1154,7 +1337,12 @@ class FlashDropRepository(
 
         _customers.value = listOf(newRecord) + _customers.value
         persistence.saveCustomers(_customers.value)
-        return Result.success(newRecord)
+
+        if (canonicalRole != CustomerRecord.ROLE_CUSTOMER) {
+            updatePersonRoleByAdmin(newId, canonicalRole, resolvedShop?.id ?: "")
+        }
+
+        return Result.success(_customers.value.find { it.id == newId } ?: newRecord)
     }
 
     // Helper functions for user registration
@@ -1278,21 +1466,116 @@ class FlashDropRepository(
         return Result.success(adminProfile)
     }
 
-    fun registerNewUser(fullName: String, password: String): Result<UserProfile> {
+    fun currentSignupDateKey(): String {
+        return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    }
+
+    fun getTodayLocalSignupCount(): Int {
+        val cfg = _shopRegistrationConfig.value
+        val todayKey = currentSignupDateKey()
+        return if (cfg.todayDateKey == todayKey) {
+            cfg.todayLocalSignupCount.coerceAtLeast(0)
+        } else {
+            0
+        }
+    }
+
+    fun getRemainingDailyLocalSignups(): Int {
+        val cfg = _shopRegistrationConfig.value
+        return (cfg.maxLocalSignupsPerDay - getTodayLocalSignupCount()).coerceAtLeast(0)
+    }
+
+    fun checkCustomerLocalSignupAllowed(): Result<Unit> {
+        val cfg = _shopRegistrationConfig.value
+        if (!cfg.customerLocalSignupEnabled) {
+            return Result.failure(
+                IllegalStateException("Local customer sign-up is currently paused by Main Admin. Please use 'Continue with Google' or try again later.")
+            )
+        }
+        val todayCount = getTodayLocalSignupCount()
+        if (cfg.customerDailySignupLimitEnabled && todayCount >= cfg.maxLocalSignupsPerDay) {
+            return Result.failure(
+                IllegalStateException("Daily local sign-up limit reached ($todayCount/${cfg.maxLocalSignupsPerDay} customer accounts created today). Only ${cfg.maxLocalSignupsPerDay} customers per day can create a local account. Please sign in with Google or try again tomorrow.")
+            )
+        }
+        return Result.success(Unit)
+    }
+
+    private fun incrementTodayLocalSignupCount() {
+        val cfg = _shopRegistrationConfig.value
+        val todayKey = currentSignupDateKey()
+        val currentCount = if (cfg.todayDateKey == todayKey) cfg.todayLocalSignupCount else 0
+        val updated = cfg.copy(
+            todayDateKey = todayKey,
+            todayLocalSignupCount = currentCount + 1
+        )
+        _shopRegistrationConfig.value = updated
+        persistence.saveShopRegistrationConfig(updated)
+        repoScope.launch {
+            try {
+                firestore.collection("appSettings").document("shopRegistration").set(updated).await()
+            } catch (e: Exception) {
+                Log.w("FlashDropRepo", "Local signup counter firestore sync deferred: ${e.message}")
+            }
+        }
+    }
+
+    fun extractTenDigitMobile(rawMobile: String): String {
+        val digitsOnly = rawMobile.filter { it.isDigit() }
+        return when {
+            digitsOnly.length == 12 && digitsOnly.startsWith("91") -> digitsOnly.drop(2)
+            digitsOnly.length == 11 && digitsOnly.startsWith("0") -> digitsOnly.drop(1)
+            else -> digitsOnly
+        }
+    }
+
+    fun validateAndFormatMobileNumber(rawMobile: String): Result<String> {
+        val trimmed = rawMobile.trim()
+        if (trimmed.isEmpty()) {
+            return Result.failure(
+                IllegalArgumentException("Mobile number is compulsory. Please enter your 10-digit mobile number.")
+            )
+        }
+        val digits = extractTenDigitMobile(trimmed)
+        if (digits.length != 10 || digits.first() !in '6'..'9') {
+            return Result.failure(
+                IllegalArgumentException("Please enter a valid 10-digit mobile number (starting with 6, 7, 8, or 9).")
+            )
+        }
+        val formatted = "+91 ${digits.take(5)} ${digits.drop(5)}"
+        return Result.success(formatted)
+    }
+
+    fun registerNewUser(
+        fullName: String,
+        password: String,
+        mobileNumber: String = ""
+    ): Result<UserProfile> {
         val trimmed = fullName.trim()
         if (trimmed.isEmpty()) {
             return Result.failure(IllegalArgumentException("Please enter your full name."))
         }
-        if (password.length < 4) {
-            return Result.failure(IllegalArgumentException("Password must be at least 4 characters."))
-        }
 
-        // Strict validation: Reject reserved FlashDrop Admin names with exact prompt message
+        // For both Main Admins, Phone Number is not compulsory: if valid Admin Name + Password are provided, sign in as Main Admin
         if (isReservedAdminName(trimmed)) {
+            val adminAuth = loginAsMainAdmin(trimmed, password)
+            if (adminAuth.isSuccess) {
+                return adminAuth
+            }
             return Result.failure(
                 IllegalArgumentException("This name is reserved for a FlashDrop Admin. Please choose another name.")
             )
         }
+
+        if (password.length < 4) {
+            return Result.failure(IllegalArgumentException("Password must be at least 4 characters."))
+        }
+
+        // Compulsory Mobile Number validation for regular users
+        val formattedPhone = validateAndFormatMobileNumber(mobileNumber).getOrElse { phoneErr ->
+            return Result.failure(phoneErr)
+        }
+        val enteredTenDigits = extractTenDigitMobile(mobileNumber)
 
         val normalized = normalizeName(trimmed)
 
@@ -1304,6 +1587,22 @@ class FlashDropRepository(
             )
         }
 
+        // Duplicate mobile number validation (ignoring legacy seed placeholder 9876512345)
+        val duplicatePhone = _registeredUsers.value.any {
+            val existingDigits = extractTenDigitMobile(it.phone)
+            existingDigits == enteredTenDigits && existingDigits != "9876512345"
+        }
+        if (duplicatePhone) {
+            return Result.failure(
+                IllegalArgumentException("An account with mobile number $formattedPhone already exists. Please sign in or use another number.")
+            )
+        }
+
+        // Enforce Admin-controlled Daily Local Customer Sign-Up Limit (default 100/day)
+        checkCustomerLocalSignupAllowed().onFailure { limitErr ->
+            return Result.failure(limitErr)
+        }
+
         val newId = "cust_${UUID.randomUUID().toString().take(6)}"
         val safeEmail = "${normalized.replace(" ", ".")}@flashdrop.local"
         val newAccount = RegisteredAccount(
@@ -1312,17 +1611,20 @@ class FlashDropRepository(
             normalizedName = normalized,
             passwordHash = hashPassword(password),
             role = "customer",
-            phone = "+91 98765 12345",
+            phone = formattedPhone,
             email = safeEmail
         )
         _registeredUsers.value = _registeredUsers.value + newAccount
         persistence.saveRegisteredUsers(_registeredUsers.value)
 
+        // Increment today's local customer sign-up counter
+        incrementTodayLocalSignupCount()
+
         val profile = UserProfile(
             id = newId,
             name = trimmed,
             email = safeEmail,
-            phone = "+91 98765 12345",
+            phone = formattedPhone,
             role = "customer",
             loginId = "CUST",
             isVerifiedAdmin = false,
@@ -1377,23 +1679,27 @@ class FlashDropRepository(
             return loginAsShopkeeper(sk.loginId, password)
         }
 
-        // Check registered Customer accounts
+        // Check registered Customer accounts (by Full Name, Email, or 10-digit Mobile Number)
+        val inputTenDigits = extractTenDigitMobile(trimmed)
         val customer = _registeredUsers.value.find {
             it.normalizedName == norm ||
             it.fullName.equals(trimmed, ignoreCase = true) ||
-            it.email.equals(trimmed, ignoreCase = true)
+            it.email.equals(trimmed, ignoreCase = true) ||
+            (inputTenDigits.length == 10 && extractTenDigitMobile(it.phone) == inputTenDigits)
         }
         if (customer != null) {
             if (verifyPassword(trimmedPass, customer.passwordHash)) {
-                val profile = UserProfile(
+                val baseProfile = UserProfile(
                     id = customer.id,
                     name = customer.fullName,
                     email = customer.email,
                     phone = customer.phone,
-                    role = "customer",
+                    role = customer.role,
                     loginId = "CUST",
-                    isVerifiedAdmin = false,
-                    isVerifiedShopkeeper = false,
+                    shopId = customer.assignedShopId,
+                    shopName = customer.assignedShopName,
+                    isVerifiedAdmin = customer.role.equals(CustomerRecord.ROLE_ADMIN, ignoreCase = true),
+                    isVerifiedShopkeeper = customer.role.equals(CustomerRecord.ROLE_SHOPKEEPER, ignoreCase = true),
                     isAuthenticated = true,
                     address = "Subhash Chowk, Chhatarpur Road",
                     locality = "Alha Chowk",
@@ -1401,6 +1707,7 @@ class FlashDropRepository(
                     city = "Mahoba",
                     state = "Uttar Pradesh"
                 )
+                val profile = resolveAdminAssignedProfile(baseProfile)
                 _currentProfile.value = profile
                 saveSessionToPrefs(profile)
                 upsertCustomerFromProfile(profile, authMethodOverride = "Password")
@@ -1423,7 +1730,7 @@ class FlashDropRepository(
         val norm = normalizeName(trimmed)
         if (norm == "pr" || norm == "pr12" || norm.contains("pranjal") ||
             norm == "cd" || norm == "cd12" || norm.contains("chanchal")) {
-            return Result.success("Admin password reset request logged. Temporary credentials PR12 / CD12 are maintained for development mode.")
+            return Result.success("Admin password reset request logged. Please use your confidential Main Admin credentials.")
         }
         val exists = _registeredUsers.value.any { it.normalizedName == norm || it.email.equals(trimmed, ignoreCase = true) } ||
                      _shopkeepers.value.any { it.shopkeeperName.equals(trimmed, ignoreCase = true) || it.email.equals(trimmed, ignoreCase = true) }
@@ -1444,7 +1751,7 @@ class FlashDropRepository(
         }
 
         if (sk == null) {
-            return Result.failure(IllegalArgumentException("Shopkeeper Login ID or Phone not found. Contact Main Admin (PR12 / CD12) or register your shop."))
+            return Result.failure(IllegalArgumentException("Shopkeeper Login ID or Phone not found. Contact Main Admin or register your shop."))
         }
 
         if (!sk.isActive) {
@@ -1715,23 +2022,33 @@ class FlashDropRepository(
             setGuestMode()
             return
         }
-        val newId = "cust_${UUID.randomUUID().toString().take(6)}"
-        val safeEmail = "${normalizeName(trimmed).replace(" ", ".")}@flashdrop.local"
-        val profile = UserProfile(
-            id = newId,
-            name = trimmed,
-            email = safeEmail,
-            phone = phone.ifBlank { "+91 98765 12345" },
-            role = "customer",
-            loginId = "CUST",
-            isVerifiedAdmin = false,
-            isVerifiedShopkeeper = false,
-            isAuthenticated = true,
-            address = "Subhash Chowk, Chhatarpur Road",
-            locality = "Alha Chowk",
-            pinCode = "210427",
-            city = "Mahoba",
-            state = "Uttar Pradesh"
+        val norm = normalizeName(trimmed)
+        val isExistingCustomer = _registeredUsers.value.any { it.normalizedName == norm || it.fullName.equals(trimmed, ignoreCase = true) } ||
+                _customers.value.any { it.fullName.equals(trimmed, ignoreCase = true) }
+        if (!isExistingCustomer) {
+            incrementTodayLocalSignupCount()
+        }
+        val existingId = _customers.value.find { it.fullName.equals(trimmed, ignoreCase = true) }?.id
+            ?: _registeredUsers.value.find { it.normalizedName == norm }?.id
+        val newId = existingId ?: "cust_${UUID.randomUUID().toString().take(6)}"
+        val safeEmail = "${norm.replace(" ", ".")}@flashdrop.local"
+        val profile = resolveAdminAssignedProfile(
+            UserProfile(
+                id = newId,
+                name = trimmed,
+                email = safeEmail,
+                phone = phone.ifBlank { "+91 98765 12345" },
+                role = "customer",
+                loginId = "CUST",
+                isVerifiedAdmin = false,
+                isVerifiedShopkeeper = false,
+                isAuthenticated = true,
+                address = "Subhash Chowk, Chhatarpur Road",
+                locality = "Alha Chowk",
+                pinCode = "210427",
+                city = "Mahoba",
+                state = "Uttar Pradesh"
+            )
         )
         _currentProfile.value = profile
         saveSessionToPrefs(profile)
@@ -1769,22 +2086,24 @@ class FlashDropRepository(
             val resolvedName = user.displayName?.takeIf { it.isNotBlank() }
                 ?: user.email?.substringBefore("@")
                 ?: "Customer"
-            val immediateProfile = UserProfile(
-                id = user.uid,
-                name = resolvedName,
-                email = user.email ?: "",
-                phone = user.phoneNumber?.takeIf { it.isNotBlank() } ?: _currentProfile.value.phone.ifBlank { "+91 98765 12345" },
-                role = "customer",
-                loginId = "CUST",
-                isVerifiedAdmin = false,
-                isVerifiedShopkeeper = false,
-                isAuthenticated = true,
-                photoUrl = user.photoUrl?.toString() ?: "",
-                address = _currentProfile.value.address.ifBlank { "Subhash Chowk, Chhatarpur Road" },
-                locality = _currentProfile.value.locality.ifBlank { "Alha Chowk" },
-                pinCode = _currentProfile.value.pinCode.ifBlank { "210427" },
-                city = "Mahoba",
-                state = "Uttar Pradesh"
+            val immediateProfile = resolveAdminAssignedProfile(
+                UserProfile(
+                    id = user.uid,
+                    name = resolvedName,
+                    email = user.email ?: "",
+                    phone = user.phoneNumber?.takeIf { it.isNotBlank() } ?: _currentProfile.value.phone.ifBlank { "+91 98765 12345" },
+                    role = "customer",
+                    loginId = "CUST",
+                    isVerifiedAdmin = false,
+                    isVerifiedShopkeeper = false,
+                    isAuthenticated = true,
+                    photoUrl = user.photoUrl?.toString() ?: "",
+                    address = _currentProfile.value.address.ifBlank { "Subhash Chowk, Chhatarpur Road" },
+                    locality = _currentProfile.value.locality.ifBlank { "Alha Chowk" },
+                    pinCode = _currentProfile.value.pinCode.ifBlank { "210427" },
+                    city = "Mahoba",
+                    state = "Uttar Pradesh"
+                )
             )
             _currentProfile.value = immediateProfile
             saveSessionToPrefs(immediateProfile)
@@ -1810,22 +2129,24 @@ class FlashDropRepository(
         val resolvedName = displayName.trim().ifBlank {
             email.substringBefore("@").ifBlank { "Customer" }
         }
-        val profile = UserProfile(
-            id = cleanUid,
-            name = resolvedName,
-            email = email.trim(),
-            phone = phone.ifBlank { "+91 98765 12345" },
-            role = "customer",
-            loginId = "CUST",
-            isVerifiedAdmin = false,
-            isVerifiedShopkeeper = false,
-            isAuthenticated = true,
-            photoUrl = photoUrl.trim(),
-            address = _currentProfile.value.address.ifBlank { "Subhash Chowk, Chhatarpur Road" },
-            locality = _currentProfile.value.locality.ifBlank { "Alha Chowk" },
-            pinCode = _currentProfile.value.pinCode.ifBlank { "210427" },
-            city = "Mahoba",
-            state = "Uttar Pradesh"
+        val profile = resolveAdminAssignedProfile(
+            UserProfile(
+                id = cleanUid,
+                name = resolvedName,
+                email = email.trim(),
+                phone = phone.ifBlank { "+91 98765 12345" },
+                role = "customer",
+                loginId = "CUST",
+                isVerifiedAdmin = false,
+                isVerifiedShopkeeper = false,
+                isAuthenticated = true,
+                photoUrl = photoUrl.trim(),
+                address = _currentProfile.value.address.ifBlank { "Subhash Chowk, Chhatarpur Road" },
+                locality = _currentProfile.value.locality.ifBlank { "Alha Chowk" },
+                pinCode = _currentProfile.value.pinCode.ifBlank { "210427" },
+                city = "Mahoba",
+                state = "Uttar Pradesh"
+            )
         )
         _currentProfile.value = profile
         saveSessionToPrefs(profile)
@@ -2109,11 +2430,12 @@ class FlashDropRepository(
             return Result.failure(IllegalArgumentException("Physical Shop Address is required."))
         }
 
-        if (cleanGst.isEmpty()) {
+        val isPrintingPress = isPrintingPressCategory(trimmedCategory)
+        if (!isPrintingPress && cleanGst.isEmpty()) {
             return Result.failure(IllegalArgumentException("GST Number is required."))
         }
         val gstRegex = Regex("^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$")
-        if (!gstRegex.matches(cleanGst)) {
+        if (cleanGst.isNotEmpty() && !gstRegex.matches(cleanGst)) {
             return Result.failure(IllegalArgumentException("Please enter a valid 15-character Indian GSTIN (e.g. 09AABCU9603R1ZV)."))
         }
 
@@ -2125,10 +2447,12 @@ class FlashDropRepository(
         }
 
         // 3. Uniqueness checks according to app rules
-        val isDuplicateGst = _shops.value.any { it.gstNumber.equals(cleanGst, ignoreCase = true) } ||
-                             _shopkeepers.value.any { it.gstNumber.equals(cleanGst, ignoreCase = true) }
-        if (isDuplicateGst) {
-            return Result.failure(IllegalArgumentException("A shop with GSTIN $cleanGst already exists. Duplicate GST is not allowed."))
+        if (cleanGst.isNotEmpty()) {
+            val isDuplicateGst = _shops.value.any { it.gstNumber.isNotBlank() && it.gstNumber.equals(cleanGst, ignoreCase = true) } ||
+                                 _shopkeepers.value.any { it.gstNumber.isNotBlank() && it.gstNumber.equals(cleanGst, ignoreCase = true) }
+            if (isDuplicateGst) {
+                return Result.failure(IllegalArgumentException("A shop with GSTIN $cleanGst already exists. Duplicate GST is not allowed."))
+            }
         }
 
         val isDuplicatePhone = _shops.value.any { it.phone.replace("+91", "").replace(" ", "").replace("-", "").trim() == cleanPhone } ||
@@ -2212,6 +2536,11 @@ class FlashDropRepository(
         )
     }
 
+    fun isPrintingPressCategory(category: String): Boolean {
+        val norm = category.trim()
+        return norm.equals("Printing Press", ignoreCase = true) || norm.contains("Printing", ignoreCase = true)
+    }
+
     // Submit new shopkeeper shop registration (saves with pending approval status)
     fun submitShopRegistration(
         name: String,
@@ -2230,26 +2559,29 @@ class FlashDropRepository(
         val trimmedAddress = address.trim()
         val trimmedGst = gstNumber.trim().uppercase()
         val trimmedPassword = password.trim()
+        val isPrintingPress = isPrintingPressCategory(trimmedCategory)
 
-        if (trimmedGst.isEmpty()) {
+        if (!isPrintingPress && trimmedGst.isEmpty()) {
             return Result.failure(IllegalArgumentException("GST Number is mandatory for shopkeeper registration."))
         }
 
-        // Validate 15-character Indian GSTIN format
-        val gstRegex = Regex("^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$")
-        if (!gstRegex.matches(trimmedGst)) {
-            return Result.failure(
-                IllegalArgumentException("Invalid GST Number format. Must be a 15-character Indian GSTIN (e.g. 09AABCU9603R1ZV).")
-            )
-        }
+        if (trimmedGst.isNotEmpty()) {
+            // Validate 15-character Indian GSTIN format
+            val gstRegex = Regex("^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$")
+            if (!gstRegex.matches(trimmedGst)) {
+                return Result.failure(
+                    IllegalArgumentException("Invalid GST Number format. Must be a 15-character Indian GSTIN (e.g. 09AABCU9603R1ZV).")
+                )
+            }
 
-        // Enforce GST uniqueness
-        val isDuplicateGst = _shops.value.any { it.gstNumber.equals(trimmedGst, ignoreCase = true) } ||
-                             _shopkeepers.value.any { it.gstNumber.equals(trimmedGst, ignoreCase = true) }
-        if (isDuplicateGst) {
-            return Result.failure(
-                IllegalArgumentException("A registered shop with GSTIN $trimmedGst already exists. Please sign in.")
-            )
+            // Enforce GST uniqueness
+            val isDuplicateGst = _shops.value.any { it.gstNumber.isNotBlank() && it.gstNumber.equals(trimmedGst, ignoreCase = true) } ||
+                                 _shopkeepers.value.any { it.gstNumber.isNotBlank() && it.gstNumber.equals(trimmedGst, ignoreCase = true) }
+            if (isDuplicateGst) {
+                return Result.failure(
+                    IllegalArgumentException("A registered shop with GSTIN $trimmedGst already exists. Please sign in.")
+                )
+            }
         }
 
         if (trimmedName.isEmpty()) {
@@ -2543,6 +2875,96 @@ class FlashDropRepository(
     }
 
     /**
+     * Admin Control: Updates Local Customer Sign-Up Daily Quota (default 100/day) and enable/disable toggles.
+     * Both Main Admins (PR12 & CD12) have equal authority.
+     */
+    fun updateCustomerDailySignupSettings(
+        localSignupEnabled: Boolean,
+        dailyLimitEnabled: Boolean,
+        maxPerDay: Int
+    ): Result<ShopRegistrationConfig> {
+        if (!isMainAdmin()) {
+            return Result.failure(
+                SecurityException("Access Denied: Only authorized Main Admins can modify Customer Local Sign-Up settings.")
+            )
+        }
+        if (maxPerDay < 1 || maxPerDay > 100_000) {
+            return Result.failure(
+                IllegalArgumentException("Daily customer sign-up limit must be between 1 and 100,000.")
+            )
+        }
+
+        val adminName = if (_currentProfile.value.loginId.uppercase() == "CD12") "Chanchal Didi" else "Pranjal Rajpoot"
+        val adminId = if (_currentProfile.value.loginId.uppercase() == "CD12") "CD12" else "PR12"
+        val nowFormatted = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
+        val todayKey = currentSignupDateKey()
+        val currentCount = getTodayLocalSignupCount()
+
+        val updated = _shopRegistrationConfig.value.copy(
+            customerLocalSignupEnabled = localSignupEnabled,
+            customerDailySignupLimitEnabled = dailyLimitEnabled,
+            maxLocalSignupsPerDay = maxPerDay,
+            todayDateKey = todayKey,
+            todayLocalSignupCount = currentCount,
+            lastUpdatedByAdminId = adminId,
+            lastUpdatedByAdminName = adminName,
+            lastUpdatedAtFormatted = nowFormatted,
+            version = _shopRegistrationConfig.value.version + 1
+        )
+
+        _shopRegistrationConfig.value = updated
+        persistence.saveShopRegistrationConfig(updated)
+
+        repoScope.launch {
+            try {
+                firestore.collection("appSettings").document("shopRegistration").set(updated).await()
+            } catch (e: Exception) {
+                Log.w("FlashDropRepo", "Customer daily signup config firestore sync deferred: ${e.message}")
+            }
+        }
+
+        return Result.success(updated)
+    }
+
+    /**
+     * Admin Control: Resets today's local customer sign-up counter back to 0 so new customers can sign up immediately.
+     */
+    fun resetTodayLocalSignupCounter(): Result<ShopRegistrationConfig> {
+        if (!isMainAdmin()) {
+            return Result.failure(
+                SecurityException("Access Denied: Only authorized Main Admins can reset the daily sign-up counter.")
+            )
+        }
+
+        val adminName = if (_currentProfile.value.loginId.uppercase() == "CD12") "Chanchal Didi" else "Pranjal Rajpoot"
+        val adminId = if (_currentProfile.value.loginId.uppercase() == "CD12") "CD12" else "PR12"
+        val nowFormatted = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
+        val todayKey = currentSignupDateKey()
+
+        val updated = _shopRegistrationConfig.value.copy(
+            todayDateKey = todayKey,
+            todayLocalSignupCount = 0,
+            lastUpdatedByAdminId = adminId,
+            lastUpdatedByAdminName = adminName,
+            lastUpdatedAtFormatted = nowFormatted,
+            version = _shopRegistrationConfig.value.version + 1
+        )
+
+        _shopRegistrationConfig.value = updated
+        persistence.saveShopRegistrationConfig(updated)
+
+        repoScope.launch {
+            try {
+                firestore.collection("appSettings").document("shopRegistration").set(updated).await()
+            } catch (e: Exception) {
+                Log.w("FlashDropRepo", "Reset daily signup counter firestore sync deferred: ${e.message}")
+            }
+        }
+
+        return Result.success(updated)
+    }
+
+    /**
      * Step 1: Validates and saves/updates initial store registration information.
      */
     fun submitShopRegistrationStep1(
@@ -2566,24 +2988,27 @@ class FlashDropRepository(
         val trimmedPassword = password.trim()
         val trimmedConfirm = confirmPassword.trim()
 
-        if (trimmedGst.isEmpty()) {
+        val isPrintingPress = isPrintingPressCategory(trimmedCategory)
+        if (!isPrintingPress && trimmedGst.isEmpty()) {
             return Result.failure(IllegalArgumentException("GST Number is mandatory for shopkeeper registration."))
         }
-        val gstRegex = Regex("^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$")
-        if (!gstRegex.matches(trimmedGst)) {
-            return Result.failure(
-                IllegalArgumentException("Invalid GST Number format. Must be a 15-character Indian GSTIN (e.g. 09AABCU9603R1ZV).")
-            )
-        }
+        if (trimmedGst.isNotEmpty()) {
+            val gstRegex = Regex("^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$")
+            if (!gstRegex.matches(trimmedGst)) {
+                return Result.failure(
+                    IllegalArgumentException("Invalid GST Number format. Must be a 15-character Indian GSTIN (e.g. 09AABCU9603R1ZV).")
+                )
+            }
 
-        // Uniqueness check
-        val isDuplicateGst = _shops.value.any { it.gstNumber.equals(trimmedGst, ignoreCase = true) } ||
-                             _shopkeepers.value.any { it.gstNumber.equals(trimmedGst, ignoreCase = true) } ||
-                             _shopVerificationRequests.value.any { it.id != existingRequestId && it.gstNumber.equals(trimmedGst, ignoreCase = true) && it.status != ShopVerificationRequest.STATUS_REJECTED }
-        if (isDuplicateGst) {
-            return Result.failure(
-                IllegalArgumentException("A registered shop with GSTIN $trimmedGst already exists. Please sign in.")
-            )
+            // Uniqueness check
+            val isDuplicateGst = _shops.value.any { it.gstNumber.isNotBlank() && it.gstNumber.equals(trimmedGst, ignoreCase = true) } ||
+                                 _shopkeepers.value.any { it.gstNumber.isNotBlank() && it.gstNumber.equals(trimmedGst, ignoreCase = true) } ||
+                                 _shopVerificationRequests.value.any { it.id != existingRequestId && it.gstNumber.isNotBlank() && it.gstNumber.equals(trimmedGst, ignoreCase = true) && it.status != ShopVerificationRequest.STATUS_REJECTED }
+            if (isDuplicateGst) {
+                return Result.failure(
+                    IllegalArgumentException("A registered shop with GSTIN $trimmedGst already exists. Please sign in.")
+                )
+            }
         }
 
         if (trimmedName.isEmpty()) return Result.failure(IllegalArgumentException("Please enter the shop name."))
@@ -2645,7 +3070,7 @@ class FlashDropRepository(
     }
 
     /**
-     * Step 2: Validates and saves submitted business verification documents.
+     * Step 2: Validates and saves submitted business verification documents and real-time shopkeeper photo.
      */
     fun submitShopRegistrationStep2(
         requestId: String,
@@ -2653,10 +3078,18 @@ class FlashDropRepository(
         aadhaarDocUri: String,
         panNumber: String,
         panDocUri: String,
-        gstCertificateDocUri: String
+        gstCertificateDocUri: String,
+        shopkeeperPhotoUri: String = "",
+        requireShopkeeperPhoto: Boolean = false
     ): Result<ShopVerificationRequest> {
         val existing = _shopVerificationRequests.value.find { it.id == requestId }
             ?: return Result.failure(IllegalArgumentException("Registration session not found. Please restart Step 1."))
+
+        if (requireShopkeeperPhoto && shopkeeperPhotoUri.isBlank()) {
+            return Result.failure(
+                IllegalArgumentException("Please capture a real-time photo of the shopkeeper—the person who will be operating the shop.")
+            )
+        }
 
         // PAN validation: statutory 10-character Indian PAN format: 5 letters, 4 digits, 1 letter
         val cleanPan = panNumber.trim().uppercase()
@@ -2685,7 +3118,8 @@ class FlashDropRepository(
         if (panDocUri.isBlank()) {
             return Result.failure(IllegalArgumentException("Please upload or capture a photo of your PAN card."))
         }
-        if (gstCertificateDocUri.isBlank()) {
+        val isPrintingPress = isPrintingPressCategory(existing.category)
+        if (!isPrintingPress && gstCertificateDocUri.isBlank()) {
             return Result.failure(IllegalArgumentException("Please upload or capture a photo of your GST Registration Certificate."))
         }
 
@@ -2693,6 +3127,7 @@ class FlashDropRepository(
         val nowFormatted = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
         val updated = existing.copy(
             shopId = assignedShopId,
+            shopkeeperPhotoUri = shopkeeperPhotoUri,
             aadhaarNumberMasked = maskedAadhaar,
             aadhaarDocUri = aadhaarDocUri,
             panNumber = cleanPan,
@@ -2725,7 +3160,10 @@ class FlashDropRepository(
             deliveryAvailable = true,
             deliveryFee = 20.0,
             minOrder = 100.0,
-            imageUrl = ""
+            imageUrl = "",
+            shopkeeperPhotoUrl = shopkeeperPhotoUri,
+            shopkeeperPhotoChangeApprovedByAdmin = false,
+            shopkeeperPhotoChangeRequested = false
         )
         val provisionalAccount = ShopkeeperAccount(
             id = "sk_${assignedShopId.lowercase().replace("-", "_")}",
@@ -2744,8 +3182,8 @@ class FlashDropRepository(
             createdAt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         )
 
-        _shops.value = listOf(provisionalShop) + _shops.value.filter { it.id != assignedShopId && !it.gstNumber.equals(existing.gstNumber, ignoreCase = true) }
-        _shopkeepers.value = listOf(provisionalAccount) + _shopkeepers.value.filter { it.shopId != assignedShopId && !it.gstNumber.equals(existing.gstNumber, ignoreCase = true) }
+        _shops.value = listOf(provisionalShop) + _shops.value.filter { it.id != assignedShopId && (existing.gstNumber.isBlank() || !it.gstNumber.equals(existing.gstNumber, ignoreCase = true)) }
+        _shopkeepers.value = listOf(provisionalAccount) + _shopkeepers.value.filter { it.shopId != assignedShopId && (existing.gstNumber.isBlank() || !it.gstNumber.equals(existing.gstNumber, ignoreCase = true)) }
         _shopVerificationRequests.value = listOf(updated) + _shopVerificationRequests.value.filter { it.id != requestId }
         persistence.saveShops(_shops.value)
         persistence.saveShopkeepers(_shopkeepers.value)
@@ -2761,6 +3199,99 @@ class FlashDropRepository(
             }
         }
 
+        return Result.success(updated)
+    }
+
+    /**
+     * Shopkeeper requests Admin permission to change the shopkeeper (operator) and update their real-time photo.
+     */
+    fun requestShopkeeperPhotoChangePermission(shopId: String): Result<Shop> {
+        val shop = _shops.value.find { it.id == shopId }
+            ?: return Result.failure(IllegalArgumentException("Shop not found."))
+        val updated = shop.copy(shopkeeperPhotoChangeRequested = true)
+        _shops.value = _shops.value.map { if (it.id == shopId) updated else it }
+        persistence.saveShops(_shops.value)
+        repoScope.launch {
+            try {
+                firestore.collection("shops").document(shopId).set(updated).await()
+            } catch (e: Exception) {
+                Log.w("FlashDropRepo", "requestShopkeeperPhotoChangePermission sync deferred: ${e.message}")
+            }
+        }
+        return Result.success(updated)
+    }
+
+    /**
+     * Main Admin grants permission for a shopkeeper to change the person operating the shop and update their real-time photo.
+     */
+    fun grantShopkeeperPhotoChangePermission(shopId: String): Result<Shop> {
+        if (!isMainAdmin()) {
+            return Result.failure(SecurityException("Only the Main Admin can grant permission to change the shopkeeper or update the shopkeeper's photo."))
+        }
+        val shop = _shops.value.find { it.id == shopId }
+            ?: return Result.failure(IllegalArgumentException("Shop not found."))
+        val updated = shop.copy(
+            shopkeeperPhotoChangeApprovedByAdmin = true,
+            shopkeeperPhotoChangeRequested = false
+        )
+        _shops.value = _shops.value.map { if (it.id == shopId) updated else it }
+        persistence.saveShops(_shops.value)
+        repoScope.launch {
+            try {
+                firestore.collection("shops").document(shopId).set(updated).await()
+            } catch (e: Exception) {
+                Log.w("FlashDropRepo", "grantShopkeeperPhotoChangePermission sync deferred: ${e.message}")
+            }
+        }
+        return Result.success(updated)
+    }
+
+    /**
+     * Updates the real-time photo of the shopkeeper operating the shop.
+     * Requires prior Admin permission (`shopkeeperPhotoChangeApprovedByAdmin == true`) unless performed directly by a Main Admin.
+     */
+    fun updateShopkeeperRealTimePhoto(
+        shopId: String,
+        newPhotoUrl: String,
+        newOperatorName: String? = null
+    ): Result<Shop> {
+        val shop = _shops.value.find { it.id == shopId }
+            ?: return Result.failure(IllegalArgumentException("Shop not found."))
+        if (newPhotoUrl.isBlank()) {
+            return Result.failure(IllegalArgumentException("Please capture a valid real-time photo of the shopkeeper."))
+        }
+        if (!isMainAdmin() && !shop.shopkeeperPhotoChangeApprovedByAdmin) {
+            return Result.failure(
+                SecurityException("If the shopkeeper needs to be changed in the future, permission must first be obtained from the Admin; only then can the shopkeeper's photo be updated.")
+            )
+        }
+        val updated = shop.copy(
+            shopkeeperPhotoUrl = newPhotoUrl,
+            ownerName = newOperatorName?.takeIf { it.isNotBlank() } ?: shop.ownerName,
+            shopkeeperPhotoChangeApprovedByAdmin = false,
+            shopkeeperPhotoChangeRequested = false
+        )
+        _shops.value = _shops.value.map { if (it.id == shopId) updated else it }
+        persistence.saveShops(_shops.value)
+
+        // Also sync to any corresponding ShopVerificationRequest
+        _shopVerificationRequests.value = _shopVerificationRequests.value.map { req ->
+            if (req.shopId == shopId) {
+                req.copy(
+                    shopkeeperPhotoUri = newPhotoUrl,
+                    ownerName = updated.ownerName
+                )
+            } else req
+        }
+        persistence.saveShopVerificationRequests(_shopVerificationRequests.value)
+
+        repoScope.launch {
+            try {
+                firestore.collection("shops").document(shopId).set(updated).await()
+            } catch (e: Exception) {
+                Log.w("FlashDropRepo", "updateShopkeeperRealTimePhoto sync deferred: ${e.message}")
+            }
+        }
         return Result.success(updated)
     }
 
@@ -2915,17 +3446,17 @@ class FlashDropRepository(
 
         // Activate Shop & Account
         _shops.value = _shops.value.map { shop ->
-            if (shop.id == request.shopId || shop.gstNumber == request.gstNumber) {
+            if (shop.id == request.shopId || (request.gstNumber.isNotBlank() && shop.gstNumber == request.gstNumber)) {
                 shop.copy(status = "approved", isOpen = true, rejectionReason = "", suspensionReason = "")
             } else shop
         }
         _shopkeepers.value = _shopkeepers.value.map { sk ->
-            if (sk.shopId == request.shopId || sk.gstNumber == request.gstNumber) {
+            if (sk.shopId == request.shopId || (request.gstNumber.isNotBlank() && sk.gstNumber == request.gstNumber)) {
                 sk.copy(isActive = true, status = "APPROVED", rejectionReason = "", suspensionReason = "")
             } else sk
         }
 
-        val approvedShop = _shops.value.find { it.id == request.shopId || it.gstNumber == request.gstNumber }
+        val approvedShop = _shops.value.find { it.id == request.shopId || (request.gstNumber.isNotBlank() && it.gstNumber == request.gstNumber) }
         persistence.saveShopVerificationRequests(_shopVerificationRequests.value)
         persistence.saveShops(_shops.value)
         persistence.saveShopkeepers(_shopkeepers.value)
@@ -2980,12 +3511,12 @@ class FlashDropRepository(
         }
 
         _shops.value = _shops.value.map { shop ->
-            if (shop.id == request.shopId || shop.gstNumber == request.gstNumber) {
+            if (shop.id == request.shopId || (request.gstNumber.isNotBlank() && shop.gstNumber == request.gstNumber)) {
                 shop.copy(status = "rejected", isOpen = false, rejectionReason = reason)
             } else shop
         }
         _shopkeepers.value = _shopkeepers.value.map { sk ->
-            if (sk.shopId == request.shopId || sk.gstNumber == request.gstNumber) {
+            if (sk.shopId == request.shopId || (request.gstNumber.isNotBlank() && sk.gstNumber == request.gstNumber)) {
                 sk.copy(isActive = false, status = "REJECTED", rejectionReason = reason)
             } else sk
         }
@@ -3038,12 +3569,12 @@ class FlashDropRepository(
         }
 
         _shops.value = _shops.value.map { shop ->
-            if (shop.id == request.shopId || shop.gstNumber == request.gstNumber) {
+            if (shop.id == request.shopId || (request.gstNumber.isNotBlank() && shop.gstNumber == request.gstNumber)) {
                 shop.copy(status = "documents_required", isOpen = false, rejectionReason = notes)
             } else shop
         }
         _shopkeepers.value = _shopkeepers.value.map { sk ->
-            if (sk.shopId == request.shopId || sk.gstNumber == request.gstNumber) {
+            if (sk.shopId == request.shopId || (request.gstNumber.isNotBlank() && sk.gstNumber == request.gstNumber)) {
                 sk.copy(isActive = false, status = "DOCUMENTS_REQUIRED", rejectionReason = notes)
             } else sk
         }
@@ -4499,11 +5030,54 @@ class FlashDropRepository(
         }
     }
 
+    fun verifyOrderDeliveryOtp(orderId: String, enteredOtp: String): Boolean {
+        val cleanOtp = enteredOtp.trim()
+        val targetOrder = _orders.value.find { it.id == orderId } ?: return false
+        if (cleanOtp != targetOrder.resolvedDeliveryOtp) {
+            return false
+        }
+        val updated = _orders.value.map { order ->
+            if (order.id == orderId) {
+                order.copy(
+                    status = "delivered",
+                    statusNote = "Order delivered & verified with 4-digit OTP ($cleanOtp)",
+                    paymentStatus = "paid",
+                    deliveryOtp = targetOrder.resolvedDeliveryOtp,
+                    isDeliveryOtpVerified = true
+                )
+            } else order
+        }
+        _orders.value = updated
+        persistence.saveOrders(_orders.value)
+
+        // Update customer record
+        _customers.value = _customers.value.map { cust ->
+            if (cust.id == targetOrder.userId || cust.recentOrders.any { it.orderId == orderId }) {
+                val updatedRecent = cust.recentOrders.map { ro ->
+                    if (ro.orderId == orderId) ro.copy(orderStatus = "delivered") else ro
+                }
+                cust.copy(
+                    completedOrdersCount = cust.completedOrdersCount + 1,
+                    recentOrders = updatedRecent
+                )
+            } else cust
+        }
+        persistence.saveCustomers(_customers.value)
+
+        return true
+    }
+
+    fun getShopSettlementOtp(shopId: String): String {
+        val hash = kotlin.math.abs(shopId.ifBlank { "default_shop" }.hashCode())
+        return (1000 + (hash % 9000)).toString()
+    }
+
     // Two-Owner Confirmation Safeguard: Triggers a simulated or recorded mutual owner approval
     fun submitSensitiveAdminChange(actionDescription: String): String {
         val currentOwner = _currentProfile.value.loginId.ifBlank { "PR12" }
-        val otherOwner = if (currentOwner == "PR12") "CD12 (Chanchal Didi)" else "PR12 (Pranjal Rajpoot)"
-        val entry = "[$actionDescription] initiated by $currentOwner — Requires mutual approval by $otherOwner"
+        val currentLabel = if (currentOwner == "CD12") "Main Admin 2 (Owner 2)" else "Main Admin 1 (Owner 1)"
+        val otherOwner = if (currentOwner == "CD12") "Main Admin 1 (Owner 1)" else "Main Admin 2 (Owner 2)"
+        val entry = "[$actionDescription] initiated by $currentLabel — Requires mutual approval by $otherOwner"
         _pendingAdminActions.value = listOf(entry) + _pendingAdminActions.value
         return entry
     }
@@ -4668,7 +5242,7 @@ class FlashDropRepository(
     fun updateGlobalDeliveryConfig(config: DeliveryConfig): Result<DeliveryConfig> {
         if (!isAuthorizedMainAdmin()) {
             return Result.failure(
-                SecurityException("Access Denied: Only authorized Main Admins (Pranjal Rajpoot & Chanchal Didi) can modify global delivery settings.")
+                SecurityException("Access Denied: Only authorized FlashDrop Main Admins can modify global delivery settings.")
             )
         }
 
@@ -4875,7 +5449,7 @@ class FlashDropRepository(
                 txn.copy(
                     status = nextStatus,
                     shopkeeperSettlementStatus = "Settled",
-                    verificationProof = "Shopkeeper Payout Settled by Main Admin (${_currentProfile.value.loginId.ifBlank { "PR12" }})"
+                    verificationProof = "Shopkeeper Payout Settled by Main Admin"
                 )
             } else {
                 txn
@@ -4899,7 +5473,7 @@ class FlashDropRepository(
                 txn.copy(
                     status = newStatus,
                     shopkeeperSettlementStatus = if (newStatus == "Paid") "Settled" else txn.shopkeeperSettlementStatus,
-                    verificationProof = "Online Payment Issue Resolved by Admin (${_currentProfile.value.loginId.ifBlank { "PR12" }})",
+                    verificationProof = "Online Payment Issue Resolved by Main Admin",
                     failureReason = if (txn.failureReason.isNotBlank()) "${txn.failureReason} (Resolved)" else "Resolved by Admin"
                 )
             } else {

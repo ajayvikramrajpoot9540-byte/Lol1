@@ -99,6 +99,7 @@ fun ShopRegistrationScreen(
     repository: FlashDropRepository,
     onRegistrationSuccess: (com.example.data.model.Shop) -> Unit,
     onSignInAsShopkeeper: () -> Unit,
+    onOpenInstructions: (() -> Unit)? = null,
     onBack: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -128,18 +129,22 @@ fun ShopRegistrationScreen(
     var isSubmitting by remember { mutableStateOf(false) }
     var registeredShopResult by remember { mutableStateOf<com.example.data.model.Shop?>(null) }
 
+    val isPrintingPressCategory = category.equals("Printing Press", ignoreCase = true)
+
     // If 3-step mode is active and user is on Step 2
     if (isThreeStepMode && currentStep == 2 && currentRequestId != null) {
         VerifyDocumentsScreen(
             repository = repository,
             requestId = currentRequestId!!,
             step1GstNumber = gstNumber,
+            isGstOptional = isPrintingPressCategory,
             onDocumentsSubmitted = { _ ->
                 currentStep = 3
             },
             onBackToStep1 = {
                 currentStep = 1
-            }
+            },
+            onOpenInstructions = onOpenInstructions
         )
         return
     }
@@ -232,7 +237,34 @@ fun ShopRegistrationScreen(
 
             if (isThreeStepMode) {
                 RegistrationProgressHeader(currentStep = 1)
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            if (onOpenInstructions != null) {
+                OutlinedButton(
+                    onClick = onOpenInstructions,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 640.dp)
+                        .testTag("step1_shopkeeper_instructions_button"),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, GreenPrimary)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = null,
+                        tint = GreenPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Read Shopkeeper Instructions & Verification Rules",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GreenPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
             if (draftSavedNotice != null) {
@@ -476,7 +508,7 @@ fun ShopRegistrationScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // GST Number / GSTIN (Mandatory)
+                    // GST Number / GSTIN (Optional for Printing Press, Mandatory for other categories)
                     OutlinedTextField(
                         value = gstNumber,
                         onValueChange = { input ->
@@ -485,8 +517,18 @@ fun ShopRegistrationScreen(
                                 errorMessage = null
                             }
                         },
-                        label = { Text("GST Number *") },
-                        placeholder = { Text("15-character GSTIN (e.g. 09AABCU9603R1ZV)") },
+                        label = {
+                            Text(
+                                if (isPrintingPressCategory) "GST Number (Optional for Printing Press)"
+                                else "GST Number *"
+                            )
+                        },
+                        placeholder = {
+                            Text(
+                                if (isPrintingPressCategory) "Optional 15-character GSTIN (leave blank if none)"
+                                else "15-character GSTIN (e.g. 09AABCU9603R1ZV)"
+                            )
+                        },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.ReceiptLong,
@@ -507,7 +549,14 @@ fun ShopRegistrationScreen(
                             focusedLabelColor = OrangeSecondary
                         ),
                         supportingText = {
-                            Text("Mandatory for seller verification & tax compliance", fontSize = 11.sp, color = TextMuted)
+                            Text(
+                                text = if (isPrintingPressCategory)
+                                    "Optional for Printing Press shops — leave blank if you don't have a GST number"
+                                else
+                                    "Mandatory for seller verification & tax compliance",
+                                fontSize = 11.sp,
+                                color = if (isPrintingPressCategory) GreenPrimary else TextMuted
+                            )
                         }
                     )
 
@@ -615,12 +664,12 @@ fun ShopRegistrationScreen(
                         // 3-STEP MODE BUTTONS: "Continue to Step 2: Documents" and "Save Draft"
                         Button(
                             onClick = {
-                                if (gstNumber.isBlank()) {
+                                if (!isPrintingPressCategory && gstNumber.isBlank()) {
                                     errorMessage = "GST Number is required for shopkeeper registration."
                                     return@Button
                                 }
                                 val gstinPattern = "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$".toRegex()
-                                if (!gstNumber.trim().matches(gstinPattern)) {
+                                if (gstNumber.trim().isNotEmpty() && !gstNumber.trim().matches(gstinPattern)) {
                                     errorMessage = "Please enter a valid 15-character Indian GSTIN (e.g. 09AABCU9603R1ZV)."
                                     return@Button
                                 }
@@ -722,7 +771,7 @@ fun ShopRegistrationScreen(
                                         category = category,
                                         address = address.ifBlank { "Mahoba" },
                                         description = description,
-                                        gstNumber = gstNumber.trim().ifBlank { "09AABCU9603R1ZV" },
+                                        gstNumber = if (isPrintingPressCategory) gstNumber.trim() else gstNumber.trim().ifBlank { "09AABCU9603R1ZV" },
                                         password = password.trim().ifBlank { "DraftPass123" },
                                         confirmPassword = confirmPassword.trim().ifBlank { "DraftPass123" },
                                         existingRequestId = currentRequestId
@@ -750,15 +799,15 @@ fun ShopRegistrationScreen(
                             )
                         }
                     } else {
-                        // STANDARD NORMAL REGISTRATION BUTTON (Unchanged)
+                        // STANDARD NORMAL REGISTRATION BUTTON
                         Button(
                             onClick = {
-                                if (gstNumber.isBlank()) {
+                                if (!isPrintingPressCategory && gstNumber.isBlank()) {
                                     errorMessage = "GST Number is required for shopkeeper registration."
                                     return@Button
                                 }
                                 val gstinPattern = "^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$".toRegex()
-                                if (!gstNumber.trim().matches(gstinPattern)) {
+                                if (gstNumber.trim().isNotEmpty() && !gstNumber.trim().matches(gstinPattern)) {
                                     errorMessage = "Please enter a valid 15-character Indian GSTIN (e.g. 09AABCU9603R1ZV)."
                                     return@Button
                                 }
@@ -906,7 +955,7 @@ fun ShopRegistrationScreen(
 
                     Text(
                         text = "• All shop registrations are submitted with 'Pending' approval status.\n" +
-                               "• FlashDrop Main Admins (Pranjal Rajpoot & Chanchal Didi) verify shop details before approving.\n" +
+                               "• FlashDrop Main Admins verify shop details before approving.\n" +
                                "• Only verified and approved stores are displayed to Mahoba customers.\n" +
                                "• Once approved, you will be issued your shopkeeper credentials to manage products and orders.",
                         fontSize = 11.sp,
@@ -945,7 +994,7 @@ fun ShopRegistrationScreen(
             text = {
                 Text(
                     text = "Dhanyawaad! Your shop '$shopName' has been registered with pending status.\n\n" +
-                           "Your shop registration is awaiting Admin approval. FlashDrop Main Admins (Pranjal Rajpoot & Chanchal Didi) will verify your details before activating your shopkeeper portal.",
+                           "Your shop registration is awaiting Admin approval. FlashDrop Main Admins will verify your details before activating your shopkeeper portal.",
                     fontSize = 13.sp,
                     color = TextMuted,
                     lineHeight = 18.sp,

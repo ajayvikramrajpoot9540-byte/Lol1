@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Fastfood
 import androidx.compose.material.icons.filled.GridView
@@ -59,6 +61,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -703,6 +706,7 @@ fun HomeScreen(
                     isCountError = shopCountError,
                     onRegisterShopClick = { onNavigate(Screen.ShopRegistration.route) },
                     onSignInClick = { onNavigate(Screen.ShopkeeperSignIn.route) },
+                    onInstructionsClick = { onNavigate(Screen.ShopkeeperInstructions.route) },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                 )
             }
@@ -1230,6 +1234,7 @@ fun BecomeShopkeeperCard(
     isCountError: Boolean,
     onRegisterShopClick: () -> Unit,
     onSignInClick: () -> Unit,
+    onInstructionsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -1381,6 +1386,34 @@ fun BecomeShopkeeperCard(
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
+            }
+
+            // Shopkeeper Instructions Page Button (Accessible)
+            if (onInstructionsClick != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onInstructionsClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .testTag("home_shopkeeper_instructions_button"),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, GreenPrimary)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = null,
+                        tint = GreenPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Shopkeeper Instructions & Rules",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GreenPrimary
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(4.dp))

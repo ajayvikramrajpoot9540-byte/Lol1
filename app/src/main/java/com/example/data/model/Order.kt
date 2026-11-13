@@ -93,8 +93,19 @@ data class Order(
     val scheduledForTomorrow: Boolean = false,
     val status: String = "pending", // "pending", "accepted", "preparing", "out_for_delivery", "delivered", "cancelled", "rejected"
     val statusNote: String = "Order received by shopkeeper",
+    val deliveryOtp: String = "",
+    val isDeliveryOtpVerified: Boolean = false,
     // Immutable snapshot of applied delivery charges & billing calculation
     val billingSnapshot: OrderBillingSnapshot? = null,
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null
-)
+) {
+    val resolvedDeliveryOtp: String
+        get() {
+            if (deliveryOtp.length == 4 && deliveryOtp.all { it.isDigit() }) return deliveryOtp
+            val seed = (orderNumber.ifBlank { id }).hashCode()
+            val pin = (kotlin.math.abs(seed) % 9000) + 1000
+            return pin.toString()
+        }
+}
+

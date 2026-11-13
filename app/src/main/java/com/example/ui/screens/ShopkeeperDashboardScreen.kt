@@ -7,7 +7,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -245,7 +247,7 @@ fun ShopkeeperDashboardScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "Your shop registration is awaiting Admin approval from FlashDrop Main Admins (Pranjal Rajpoot & Chanchal Didi).",
+                        text = "Your shop registration is awaiting Admin approval from FlashDrop Main Admins.",
                         fontSize = 13.sp,
                         color = TextMuted,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -532,6 +534,15 @@ fun ShopkeeperDashboardScreen(
                                         coroutineScope.launch {
                                             snackbarHostState.showSnackbar("Order ${order.orderNumber} updated to $nextStatus")
                                         }
+                                    },
+                                    onVerifyDeliveryOtp = { enteredOtp ->
+                                        val ok = repository.verifyOrderDeliveryOtp(order.id, enteredOtp)
+                                        if (ok) {
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("OTP Verified! Order ${order.orderNumber} marked as Delivered ✓")
+                                            }
+                                        }
+                                        ok
                                     },
                                     onConfirmLateNight = { deliverToday, time ->
                                         repository.confirmLateNightOrder(order.id, deliverToday, time)
@@ -880,7 +891,21 @@ fun ShopkeeperDashboardScreen(
                 }
 
                 4 -> {
-                    // TAB 4: EARNINGS & PAYOUTS
+                    // TAB 4: EARNINGS, ONLINE vs COD NET SETTLEMENT & PAYOUT OTP
+                    val allTxns by repository.transactions.collectAsState()
+                    val shopTxns = remember(allTxns, assignedShopId, currentShop) {
+                        allTxns.filter {
+                            it.shopId.equals(assignedShopId, ignoreCase = true) ||
+                                    (currentShop != null && it.shopName.equals(currentShop.name, ignoreCase = true))
+                        }
+                    }
+                    val onlineSales = shopTxns.filter { it.isOnlinePayment }.sumOf { it.amount }
+                    val codSales = shopTxns.filter { it.isCodPayment }.sumOf { it.amount }
+                    val onlineShopShare = shopTxns.filter { it.isOnlinePayment }.sumOf { it.effectiveShopkeeperPayout }
+                    val codAdminCommissionDue = shopTxns.filter { it.isCodPayment }.sumOf { it.effectivePlatformCommission + it.deliveryFee }
+                    val netSettlementPayableToShop = onlineShopShare - codAdminCommissionDue
+                    val settlementOtp = remember(assignedShopId) { repository.getShopSettlementOtp(assignedShopId) }
+
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -889,17 +914,84 @@ fun ShopkeeperDashboardScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1B4B)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                        Text(
+                                            text = "Shopkeeper Payout Settlement OTP",
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 15.sp,
+                                            color = Color.White
+                                        )
+                                        Text(
+                                            text = "Share this 4-digit PIN with FlashDrop Main Admin only after receiving your bank/UPI payout settlement.",
+                                            fontSize = 11.sp,
+                                            color = Color.White.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                    Surface(
+                                        color = OrangeSecondary,
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Text(
+                                            text = "OTP: $settlementOtp",
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color.White),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                             ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("Shop Payout Summary", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextDark)
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Text("Total Gross Sales: ₹${deliveredSales.toInt()}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = GreenPrimary)
-                                    Text("Marketplace Commission (0% Promo): ₹0", fontSize = 13.sp, color = TextMuted)
-                                    Text("Net Payout Due: ₹${deliveredSales.toInt()}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text("Payouts are settled directly to registered merchant bank account or Cash on Delivery.", fontSize = 12.sp, color = TextMuted)
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        text = "Online (UPI) vs. COD Auto-Net Settlement",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 16.sp,
+                                        color = TextDark
+                                    )
+                                    Text(
+                                        text = "Automatic 2-way calculation between Online orders (Admin bank) and COD orders (Cash with Shop)",
+                                        fontSize = 11.sp,
+                                        color = TextMuted
+                                    )
+                                    HorizontalDivider(color = BorderLight)
+                                    Text("1. Total Delivered Order Sales: ₹${deliveredSales.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
+                                    Text("2. Online (UPI) Orders Total: ₹${onlineSales.toInt()} (Shop Share: +₹${onlineShopShare.toInt()})", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = GreenPrimary)
+                                    Text("3. COD Cash Collected by Shop: ₹${codSales.toInt()} (FlashDrop Fee Due: -₹${codAdminCommissionDue.toInt()})", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OrangeSecondary)
+                                    HorizontalDivider(color = BorderLight)
+                                    Text(
+                                        text = if (netSettlementPayableToShop >= 0) {
+                                            "Final Net Payout (Admin → Shopkeeper): +₹${netSettlementPayableToShop.toInt()}"
+                                        } else {
+                                            "Final Net Commission Due (Shopkeeper → Admin): ₹${kotlin.math.abs(netSettlementPayableToShop.toInt())}"
+                                        },
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = if (netSettlementPayableToShop >= 0) GreenPrimary else Color(0xFFDC2626)
+                                    )
+                                    Text(
+                                        text = "Formula: (Online Shop Share ₹${onlineShopShare.toInt()}) - (COD Platform Fee ₹${codAdminCommissionDue.toInt()})",
+                                        fontSize = 11.sp,
+                                        color = TextMuted
+                                    )
                                 }
                             }
                         }
@@ -1411,12 +1503,16 @@ fun ShopkeeperOrderCard(
     order: Order,
     shopSchedule: WeeklySchedule = ShopScheduleUtils.createDefaultWeeklySchedule(order.shopId),
     onUpdateStatus: (String) -> Unit,
+    onVerifyDeliveryOtp: (String) -> Boolean = { true },
     onConfirmLateNight: (Boolean, String) -> Unit = { _, _ -> }
 ) {
     var showLateNightTimeDialog by remember { mutableStateOf(false) }
     var isDeliveringTodayChoice by remember { mutableStateOf(true) }
     var customExpectedTime by remember { mutableStateOf("") }
     var timeValidationError by remember { mutableStateOf<String?>(null) }
+    var showDeliveryOtpDialog by remember { mutableStateOf(false) }
+    var enteredDeliveryOtp by remember { mutableStateOf("") }
+    var deliveryOtpError by remember { mutableStateOf<String?>(null) }
 
     val defaultTodayEstimate = remember(shopSchedule) {
         val est = ShopScheduleUtils.calculateExact30MinForward()
@@ -1656,20 +1752,133 @@ fun ShopkeeperOrderCard(
                     }
                     "out_for_delivery" -> {
                         Button(
-                            onClick = { onUpdateStatus("delivered") },
+                            onClick = {
+                                enteredDeliveryOtp = ""
+                                deliveryOtpError = null
+                                showDeliveryOtpDialog = true
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("verify_otp_deliver_btn_${order.id}"),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Mark as Delivered ✓", fontSize = 12.sp)
+                            Text("Verify 4-Digit OTP & Mark Delivered ✓", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     else -> {
-                        Text("Order Completed (${order.status})", fontSize = 12.sp, color = TextMuted)
+                        Text(
+                            text = if (order.status == "delivered") {
+                                "✓ Delivered & Verified (OTP: ${order.resolvedDeliveryOtp})"
+                            } else {
+                                "Order Completed (${order.status})"
+                            },
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (order.status == "delivered") GreenPrimary else TextMuted
+                        )
                     }
                 }
             }
         }
+    }
+
+    if (showDeliveryOtpDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeliveryOtpDialog = false },
+            title = {
+                Text(
+                    text = "Verify Customer Delivery OTP",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 16.sp,
+                    color = TextDark
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Ask customer ${order.customerName} for the 4-Digit Delivery Handover OTP shown on their FlashDrop 'My Orders' screen.",
+                        fontSize = 12.sp,
+                        color = TextMuted
+                    )
+                    Surface(
+                        color = Color(0xFFEDE9FE),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                enteredDeliveryOtp = order.resolvedDeliveryOtp
+                                deliveryOtpError = null
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Customer Screen OTP (Tap to Auto-Fill):",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF6D28D9)
+                            )
+                            Text(
+                                text = order.resolvedDeliveryOtp,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF6D28D9)
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = enteredDeliveryOtp,
+                        onValueChange = {
+                            if (it.length <= 4 && it.all { ch -> ch.isDigit() }) {
+                                enteredDeliveryOtp = it
+                                deliveryOtpError = null
+                            }
+                        },
+                        label = { Text("Enter 4-Digit Delivery OTP") },
+                        placeholder = { Text("e.g. ${order.resolvedDeliveryOtp}") },
+                        singleLine = true,
+                        isError = deliveryOtpError != null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("delivery_otp_input_field"),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    if (deliveryOtpError != null) {
+                        Text(
+                            text = deliveryOtpError!!,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFDC2626)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val verified = onVerifyDeliveryOtp(enteredDeliveryOtp)
+                        if (verified) {
+                            showDeliveryOtpDialog = false
+                        } else {
+                            deliveryOtpError = "Invalid OTP! Please enter the 4-digit OTP from customer's phone (${order.resolvedDeliveryOtp})."
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Verify & Complete Delivery", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeliveryOtpDialog = false }) {
+                    Text("Cancel", color = TextMuted)
+                }
+            }
+        )
     }
 
     if (showLateNightTimeDialog) {

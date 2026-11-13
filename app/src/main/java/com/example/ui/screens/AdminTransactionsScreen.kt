@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -40,9 +41,13 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.LocalMall
 import androidx.compose.material.icons.filled.Payments
@@ -65,6 +70,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -263,6 +270,14 @@ fun AdminPaymentsAnalyticsSection(
     var showReportPreviewDialog by remember { mutableStateOf(false) }
     var activeReportExportType by remember { mutableStateOf(ReportExportType.TOTAL_PAYMENTS) }
     var pendingSafExportFormat by remember { mutableStateOf("PDF") } // "PDF" or "CSV"
+
+    // 7. Drop-down Expand/Collapse state for sections after Payments Overview
+    var isShopBreakdownExpanded by remember { mutableStateOf(true) }
+    var isProfitLossExpanded by remember { mutableStateOf(false) }
+    var isTotalSummaryExpanded by remember { mutableStateOf(false) }
+    var isOnlineProblemsExpanded by remember { mutableStateOf(false) }
+    var isTxnHistoryExpanded by remember { mutableStateOf(false) }
+    var selectedDropdownSectionLabel by remember { mutableStateOf("Shop-wise Orders & Settlements") }
 
     // Precomputed analytics for the active period & shop filter
     val currentSummary = remember(transactions, selectedPeriod, selectedShopId, selectedShopName) {
@@ -676,6 +691,7 @@ fun AdminPaymentsAnalyticsSection(
                         isSelected = selectedShopPartFocus == 4,
                         onClick = {
                             selectedShopPartFocus = if (selectedShopPartFocus == 4) 0 else 4
+                            isShopBreakdownExpanded = true
                         }
                     )
                 }
@@ -694,272 +710,397 @@ fun AdminPaymentsAnalyticsSection(
         }
 
         // =========================================================================
-        // SECTION D: SHOP SELECTOR & SHOP-SPECIFIC DOWNLOAD + SHOP-WISE PART IN
-        // ORDERS, ONLINE PAYMENTS, COD, AND PENDING PAYMENTS (WITH SHOPKEEPER PAYOUT)
+        // SECTION C.2: DROP-DOWN SELECTOR BAR RIGHT AFTER PAYMENTS OVERVIEW
+        // (Select Shop Drop-Down + Section View Drop-Down)
         // =========================================================================
         item {
-            ShopWiseContributionAndSettlementCard(
-                shops = shops,
+            PostOverviewDropdownControlBar(
                 shopBreakdowns = shopBreakdowns,
-                selectedPeriod = selectedPeriod,
                 selectedShopId = selectedShopId,
                 selectedShopName = selectedShopName,
-                selectedShopPartFocus = selectedShopPartFocus,
-                onSelectShopFilter = { newShopId -> selectedShopId = newShopId },
-                onSelectFocus = { focusIdx -> selectedShopPartFocus = focusIdx },
-                onPreviewShopReport = { shopId ->
+                selectedPeriod = selectedPeriod,
+                selectedSectionLabel = selectedDropdownSectionLabel,
+                onSelectShop = { shopId ->
                     selectedShopId = shopId
-                    activeReportExportType = ReportExportType.SHOP_SPECIFIC
-                    showReportPreviewDialog = true
+                    isShopBreakdownExpanded = true
                 },
-                onDownloadShopPdf = { shopId ->
-                    selectedShopId = shopId
-                    triggerQuickDownload(ReportExportType.SHOP_SPECIFIC, "PDF")
-                },
-                onDownloadShopCsv = { shopId ->
-                    selectedShopId = shopId
-                    triggerQuickDownload(ReportExportType.SHOP_SPECIFIC, "CSV")
-                },
-                onSettleShopPayout = { shopId, shopTitle ->
-                    val settledCount = repository.settleShopkeeperPendingPayments(shopId)
-                    coroutineScope.launch {
-                        if (settledCount > 0) {
-                            snackbarHostState.showSnackbar("Settled $settledCount pending payment(s) for $shopTitle")
-                        } else {
-                            snackbarHostState.showSnackbar("All payments for $shopTitle are already settled")
+                onSelectSectionOption = { option ->
+                    selectedDropdownSectionLabel = option
+                    when (option) {
+                        "Expand All Sections" -> {
+                            isShopBreakdownExpanded = true
+                            isProfitLossExpanded = true
+                            isTotalSummaryExpanded = true
+                            isOnlineProblemsExpanded = true
+                            isTxnHistoryExpanded = true
+                        }
+                        "Collapse All Sections" -> {
+                            isShopBreakdownExpanded = false
+                            isProfitLossExpanded = false
+                            isTotalSummaryExpanded = false
+                            isOnlineProblemsExpanded = false
+                            isTxnHistoryExpanded = false
+                        }
+                        "Shop-wise Orders & Settlements" -> {
+                            isShopBreakdownExpanded = true
+                            isProfitLossExpanded = false
+                            isTotalSummaryExpanded = false
+                            isOnlineProblemsExpanded = false
+                            isTxnHistoryExpanded = false
+                        }
+                        "Profit & Loss (P&L) Statement" -> {
+                            isShopBreakdownExpanded = false
+                            isProfitLossExpanded = true
+                            isTotalSummaryExpanded = false
+                            isOnlineProblemsExpanded = false
+                            isTxnHistoryExpanded = false
+                        }
+                        "Total Summary (1D • 7D • 1M • 6M • 1Y)" -> {
+                            isShopBreakdownExpanded = false
+                            isProfitLossExpanded = false
+                            isTotalSummaryExpanded = true
+                            isOnlineProblemsExpanded = false
+                            isTxnHistoryExpanded = false
+                        }
+                        "Online Payment Problems Tracker" -> {
+                            isShopBreakdownExpanded = false
+                            isProfitLossExpanded = false
+                            isTotalSummaryExpanded = false
+                            isOnlineProblemsExpanded = true
+                            isTxnHistoryExpanded = false
+                        }
+                        "Shop ↔ Customer Transaction History" -> {
+                            isShopBreakdownExpanded = false
+                            isProfitLossExpanded = false
+                            isTotalSummaryExpanded = false
+                            isOnlineProblemsExpanded = false
+                            isTxnHistoryExpanded = true
                         }
                     }
-                }
-            )
-        }
-
-        // =========================================================================
-        // SECTION E: PROFIT & LOSS (P&L) ANALYTICS IN 1D, 7D, 1M, 6M, 1Y + PDF/CSV EXPORT
-        // =========================================================================
-        item {
-            ProfitAndLossAnalyticsCard(
-                currentSummary = currentSummary,
-                allPeriodSummaries = allPeriodSummaries,
-                shopBreakdowns = shopBreakdowns,
-                selectedPeriod = selectedPeriod,
-                onSelectPeriod = { selectedPeriod = it },
-                onPreviewPnlReport = {
-                    activeReportExportType = ReportExportType.PROFIT_AND_LOSS
-                    showReportPreviewDialog = true
                 },
-                onDownloadPnlPdf = {
-                    triggerQuickDownload(ReportExportType.PROFIT_AND_LOSS, "PDF")
-                },
-                onDownloadPnlCsv = {
-                    triggerQuickDownload(ReportExportType.PROFIT_AND_LOSS, "CSV")
-                }
-            )
-        }
-
-        // =========================================================================
-        // SECTION F: TOTAL SUMMARY ACROSS 1 DAY, 7 DAYS, 1 MONTH, 6 MONTHS & 1 YEAR
-        // =========================================================================
-        item {
-            MultiPeriodTotalSummaryCard(
-                allPeriodSummaries = allPeriodSummaries,
-                selectedPeriod = selectedPeriod,
-                selectedShopName = selectedShopName,
-                onSelectPeriod = { selectedPeriod = it },
-                onPreviewPeriodReport = { period ->
-                    selectedPeriod = period
-                    activeReportExportType = ReportExportType.TOTAL_PAYMENTS
-                    showReportPreviewDialog = true
-                },
-                onDownloadPeriodPdf = { period ->
-                    selectedPeriod = period
-                    triggerQuickDownload(ReportExportType.TOTAL_PAYMENTS, "PDF")
-                },
-                onDownloadPeriodCsv = { period ->
-                    selectedPeriod = period
-                    triggerQuickDownload(ReportExportType.TOTAL_PAYMENTS, "CSV")
-                }
-            )
-        }
-
-        // =========================================================================
-        // SECTION G: ONLINE PAYMENT PROBLEMS TRACKER (WHICH SHOP & WHICH CUSTOMER)
-        // =========================================================================
-        item {
-            OnlinePaymentProblemsTrackerCard(
-                selectedPeriod = selectedPeriod,
-                totalProblemOccurrences = currentSummary.onlineProblemOccurrences,
-                problemsByShop = problemsByShop,
-                problemsByCustomer = problemsByCustomer,
-                problemTransactions = problemTransactions,
-                selectedTab = selectedProblemViewTab,
-                onSelectTab = { selectedProblemViewTab = it },
-                onResolveIssue = { txn ->
-                    val resolved = repository.resolveOnlinePaymentIssue(txn.id, "Paid")
-                    if (resolved) {
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Resolved online payment for ${txn.orderNumber} (${txn.customerName})")
-                        }
-                    }
-                }
-            )
-        }
-
-        // =========================================================================
-        // SECTION H: SHOP <-> CUSTOMER PAYMENT & TRANSACTION HISTORY LEDGER
-        // =========================================================================
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("shop_customer_transaction_history_card"),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 8.dp)
-                        ) {
-                            Text(
-                                text = "Shop ↔ Customer Payment & Transaction History",
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 16.sp,
-                                color = TextDark
-                            )
-                            Text(
-                                text = "Complete payment trail between customers and shops (${displayedTransactions.size} records in ${selectedPeriod.shortLabel})",
-                                fontSize = 11.sp,
-                                color = TextMuted
-                            )
-                        }
-                        if (isEmbeddedInDashboard && onOpenFullLedgerScreen != null) {
-                            TextButton(onClick = onOpenFullLedgerScreen) {
-                                Text("Full Page", color = GreenPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Search Bar
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("admin_txn_search_input"),
-                        placeholder = {
-                            Text(
-                                "Search by Customer, Shop, Order ID, or Txn ID...",
-                                color = TextMuted,
-                                fontSize = 12.sp
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = "Search", tint = GreenPrimary)
-                        },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = TextMuted)
-                                }
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF8FAFC),
-                            unfocusedContainerColor = Color(0xFFF8FAFC),
-                            focusedBorderColor = GreenPrimary,
-                            unfocusedBorderColor = BorderLight
-                        ),
-                        singleLine = true
+                onDownloadSelectedShopPdf = {
+                    triggerQuickDownload(
+                        if (selectedShopId == "ALL") ReportExportType.TOTAL_PAYMENTS else ReportExportType.SHOP_SPECIFIC,
+                        "PDF"
                     )
+                },
+                onDownloadSelectedShopCsv = {
+                    triggerQuickDownload(
+                        if (selectedShopId == "ALL") ReportExportType.TOTAL_PAYMENTS else ReportExportType.SHOP_SPECIFIC,
+                        "CSV"
+                    )
+                }
+            )
+        }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Filter Tabs
-                    ScrollableTabRow(
-                        selectedTabIndex = selectedTxnFilterIndex,
-                        containerColor = Color.White,
-                        edgePadding = 0.dp,
-                        indicator = { tabPositions ->
-                            if (selectedTxnFilterIndex < tabPositions.size) {
-                                TabRowDefaults.SecondaryIndicator(
-                                    Modifier.tabIndicatorOffset(tabPositions[selectedTxnFilterIndex]),
-                                    color = GreenPrimary
-                                )
+        // =========================================================================
+        // SECTION D (DROP-DOWN 1): SHOP SELECTOR & SHOP-SPECIFIC DOWNLOAD + SHOP-WISE
+        // PART IN ORDERS, ONLINE PAYMENTS, COD, AND PENDING PAYMENTS
+        // =========================================================================
+        item {
+            PaymentSectionDropdownContainer(
+                title = "1. Shop-wise Orders, Online, COD & Pending Settlements",
+                subtitle = "See which shop gets most orders, settle shopkeeper payouts & download shop statements",
+                badgeText = "${shopBreakdowns.size} Shops • Due ₹${formatInr(currentSummary.shopkeeperPendingPayout)}",
+                badgeColor = AdminPurple,
+                badgeBg = AdminPurpleLight,
+                icon = Icons.Default.Storefront,
+                isExpanded = isShopBreakdownExpanded,
+                onToggleExpand = { isShopBreakdownExpanded = !isShopBreakdownExpanded },
+                testTag = "dropdown_section_shop_wise"
+            ) {
+                ShopWiseContributionAndSettlementCard(
+                    shops = shops,
+                    shopBreakdowns = shopBreakdowns,
+                    selectedPeriod = selectedPeriod,
+                    selectedShopId = selectedShopId,
+                    selectedShopName = selectedShopName,
+                    selectedShopPartFocus = selectedShopPartFocus,
+                    onSelectShopFilter = { newShopId -> selectedShopId = newShopId },
+                    onSelectFocus = { focusIdx -> selectedShopPartFocus = focusIdx },
+                    onPreviewShopReport = { shopId ->
+                        selectedShopId = shopId
+                        activeReportExportType = ReportExportType.SHOP_SPECIFIC
+                        showReportPreviewDialog = true
+                    },
+                    onDownloadShopPdf = { shopId ->
+                        selectedShopId = shopId
+                        triggerQuickDownload(ReportExportType.SHOP_SPECIFIC, "PDF")
+                    },
+                    onDownloadShopCsv = { shopId ->
+                        selectedShopId = shopId
+                        triggerQuickDownload(ReportExportType.SHOP_SPECIFIC, "CSV")
+                    },
+                    onSettleShopPayout = { shopId, shopTitle ->
+                        val settledCount = repository.settleShopkeeperPendingPayments(shopId)
+                        coroutineScope.launch {
+                            if (settledCount > 0) {
+                                snackbarHostState.showSnackbar("Settled $settledCount pending payment(s) for $shopTitle")
+                            } else {
+                                snackbarHostState.showSnackbar("All payments for $shopTitle are already settled")
                             }
-                        }
-                    ) {
-                        txnFilterTabs.forEachIndexed { index, label ->
-                            val count = when (index) {
-                                0 -> periodFilteredTxns.size
-                                1 -> periodFilteredTxns.count { it.isOnlinePayment }
-                                2 -> periodFilteredTxns.count { it.isCodPayment }
-                                3 -> periodFilteredTxns.count { it.isPendingPayment }
-                                4 -> periodFilteredTxns.count { it.hasOnlinePaymentProblem }
-                                5 -> periodFilteredTxns.count { it.status.equals("Refunded", ignoreCase = true) }
-                                else -> 0
-                            }
-                            Tab(
-                                selected = selectedTxnFilterIndex == index,
-                                onClick = { selectedTxnFilterIndex = index },
-                                text = {
-                                    Text(
-                                        text = "$label ($count)",
-                                        fontWeight = if (selectedTxnFilterIndex == index) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (selectedTxnFilterIndex == index) GreenPrimary else TextMuted,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            )
                         }
                     }
+                )
+            }
+        }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+        // =========================================================================
+        // SECTION E (DROP-DOWN 2): PROFIT & LOSS (P&L) ANALYTICS IN 1D, 7D, 1M, 6M, 1Y
+        // =========================================================================
+        item {
+            val isProfit = currentSummary.netProfitOrLoss >= 0
+            PaymentSectionDropdownContainer(
+                title = "2. Profit & Loss (P&L) Earnings Statement",
+                subtitle = "Commissions, delivery fees, subsidies & net profit/loss in 1D, 7D, 1M, 6M & 1Y",
+                badgeText = if (isProfit) "+₹${currentSummary.netProfitOrLoss.toInt()} Profit" else "-₹${abs(currentSummary.netProfitOrLoss.toInt())} Loss",
+                badgeColor = if (isProfit) GreenPrimary else CrimsonRed,
+                badgeBg = if (isProfit) GreenLight else CrimsonRedLight,
+                icon = if (isProfit) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                isExpanded = isProfitLossExpanded,
+                onToggleExpand = { isProfitLossExpanded = !isProfitLossExpanded },
+                testTag = "dropdown_section_profit_loss"
+            ) {
+                ProfitAndLossAnalyticsCard(
+                    currentSummary = currentSummary,
+                    allPeriodSummaries = allPeriodSummaries,
+                    shopBreakdowns = shopBreakdowns,
+                    selectedPeriod = selectedPeriod,
+                    onSelectPeriod = { selectedPeriod = it },
+                    onPreviewPnlReport = {
+                        activeReportExportType = ReportExportType.PROFIT_AND_LOSS
+                        showReportPreviewDialog = true
+                    },
+                    onDownloadPnlPdf = {
+                        triggerQuickDownload(ReportExportType.PROFIT_AND_LOSS, "PDF")
+                    },
+                    onDownloadPnlCsv = {
+                        triggerQuickDownload(ReportExportType.PROFIT_AND_LOSS, "CSV")
+                    }
+                )
+            }
+        }
 
-                    if (displayedTransactions.isEmpty()) {
-                        Box(
+        // =========================================================================
+        // SECTION F (DROP-DOWN 3): TOTAL SUMMARY ACROSS 1 DAY, 7 DAYS, 1 MONTH, 6 MONTHS & 1 YEAR
+        // =========================================================================
+        item {
+            PaymentSectionDropdownContainer(
+                title = "3. Total Summary (1 Day • 7 Days • 1 Month • 6 Months • 1 Year)",
+                subtitle = "Multi-period side-by-side comparison for $selectedShopName with PDF & CSV download",
+                badgeText = "5 Horizons",
+                badgeColor = RoyalBlue,
+                badgeBg = RoyalBlueLight,
+                icon = Icons.Default.Analytics,
+                isExpanded = isTotalSummaryExpanded,
+                onToggleExpand = { isTotalSummaryExpanded = !isTotalSummaryExpanded },
+                testTag = "dropdown_section_total_summary"
+            ) {
+                MultiPeriodTotalSummaryCard(
+                    allPeriodSummaries = allPeriodSummaries,
+                    selectedPeriod = selectedPeriod,
+                    selectedShopName = selectedShopName,
+                    onSelectPeriod = { selectedPeriod = it },
+                    onPreviewPeriodReport = { period ->
+                        selectedPeriod = period
+                        activeReportExportType = ReportExportType.TOTAL_PAYMENTS
+                        showReportPreviewDialog = true
+                    },
+                    onDownloadPeriodPdf = { period ->
+                        selectedPeriod = period
+                        triggerQuickDownload(ReportExportType.TOTAL_PAYMENTS, "PDF")
+                    },
+                    onDownloadPeriodCsv = { period ->
+                        selectedPeriod = period
+                        triggerQuickDownload(ReportExportType.TOTAL_PAYMENTS, "CSV")
+                    }
+                )
+            }
+        }
+
+        // =========================================================================
+        // SECTION G (DROP-DOWN 4): ONLINE PAYMENT PROBLEMS TRACKER (WHICH SHOP & CUSTOMER)
+        // =========================================================================
+        item {
+            PaymentSectionDropdownContainer(
+                title = "4. Online Payment Problems & Failure Tracker",
+                subtitle = "See how many times online payment problems occurred in which Shop & Customer",
+                badgeText = "${currentSummary.onlineProblemOccurrences} Issues",
+                badgeColor = CrimsonRed,
+                badgeBg = CrimsonRedLight,
+                icon = Icons.Default.Warning,
+                isExpanded = isOnlineProblemsExpanded,
+                onToggleExpand = { isOnlineProblemsExpanded = !isOnlineProblemsExpanded },
+                testTag = "dropdown_section_online_problems"
+            ) {
+                OnlinePaymentProblemsTrackerCard(
+                    selectedPeriod = selectedPeriod,
+                    totalProblemOccurrences = currentSummary.onlineProblemOccurrences,
+                    problemsByShop = problemsByShop,
+                    problemsByCustomer = problemsByCustomer,
+                    problemTransactions = problemTransactions,
+                    selectedTab = selectedProblemViewTab,
+                    onSelectTab = { selectedProblemViewTab = it },
+                    onResolveIssue = { txn ->
+                        val resolved = repository.resolveOnlinePaymentIssue(txn.id, "Paid")
+                        if (resolved) {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Resolved online payment for ${txn.orderNumber} (${txn.customerName})")
+                            }
+                        }
+                    }
+                )
+            }
+        }
+
+        // =========================================================================
+        // SECTION H (DROP-DOWN 5): SHOP <-> CUSTOMER PAYMENT & TRANSACTION HISTORY LEDGER
+        // =========================================================================
+        item {
+            PaymentSectionDropdownContainer(
+                title = "5. Shop ↔ Customer Payment & Transaction History",
+                subtitle = "Complete payment trail between customers and shops (${displayedTransactions.size} records in ${selectedPeriod.shortLabel})",
+                badgeText = "${displayedTransactions.size} Txns",
+                badgeColor = GreenPrimary,
+                badgeBg = GreenLight,
+                icon = Icons.Default.ReceiptLong,
+                isExpanded = isTxnHistoryExpanded,
+                onToggleExpand = { isTxnHistoryExpanded = !isTxnHistoryExpanded },
+                testTag = "dropdown_section_txn_history"
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("shop_customer_transaction_history_card"),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        if (isEmbeddedInDashboard && onOpenFullLedgerScreen != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = onOpenFullLedgerScreen) {
+                                    Text("Open Full Ledger Page", color = GreenPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+
+                        // Search Bar
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 28.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.Payments,
-                                    contentDescription = null,
-                                    tint = TextMuted,
-                                    modifier = Modifier.size(44.dp)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                .testTag("admin_txn_search_input"),
+                            placeholder = {
                                 Text(
-                                    text = "No matching transactions in ${selectedPeriod.shortLabel}",
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextDark,
-                                    fontSize = 14.sp
-                                )
-                                Text(
-                                    text = "Try selecting '1 Year' or clearing the search filter.",
+                                    "Search by Customer, Shop, Order ID, or Txn ID...",
                                     color = TextMuted,
                                     fontSize = 12.sp
                                 )
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, contentDescription = "Search", tint = GreenPrimary)
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = TextMuted)
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFFF8FAFC),
+                                unfocusedContainerColor = Color(0xFFF8FAFC),
+                                focusedBorderColor = GreenPrimary,
+                                unfocusedBorderColor = BorderLight
+                            ),
+                            singleLine = true
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Filter Tabs
+                        ScrollableTabRow(
+                            selectedTabIndex = selectedTxnFilterIndex,
+                            containerColor = Color.White,
+                            edgePadding = 0.dp,
+                            indicator = { tabPositions ->
+                                if (selectedTxnFilterIndex < tabPositions.size) {
+                                    TabRowDefaults.SecondaryIndicator(
+                                        Modifier.tabIndicatorOffset(tabPositions[selectedTxnFilterIndex]),
+                                        color = GreenPrimary
+                                    )
+                                }
+                            }
+                        ) {
+                            txnFilterTabs.forEachIndexed { index, label ->
+                                val count = when (index) {
+                                    0 -> periodFilteredTxns.size
+                                    1 -> periodFilteredTxns.count { it.isOnlinePayment }
+                                    2 -> periodFilteredTxns.count { it.isCodPayment }
+                                    3 -> periodFilteredTxns.count { it.isPendingPayment }
+                                    4 -> periodFilteredTxns.count { it.hasOnlinePaymentProblem }
+                                    5 -> periodFilteredTxns.count { it.status.equals("Refunded", ignoreCase = true) }
+                                    else -> 0
+                                }
+                                Tab(
+                                    selected = selectedTxnFilterIndex == index,
+                                    onClick = { selectedTxnFilterIndex = index },
+                                    text = {
+                                        Text(
+                                            text = "$label ($count)",
+                                            fontWeight = if (selectedTxnFilterIndex == index) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (selectedTxnFilterIndex == index) GreenPrimary else TextMuted,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                )
                             }
                         }
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            displayedTransactions.forEach { txn ->
-                                ShopCustomerTransactionCard(
-                                    transaction = txn,
-                                    onClick = { inspectingTransaction = txn }
-                                )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        if (displayedTransactions.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 28.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.Payments,
+                                        contentDescription = null,
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(44.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "No matching transactions in ${selectedPeriod.shortLabel}",
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextDark,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = "Try selecting '1 Year' or clearing the search filter.",
+                                        color = TextMuted,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                displayedTransactions.forEach { txn ->
+                                    ShopCustomerTransactionCard(
+                                        transaction = txn,
+                                        onClick = { inspectingTransaction = txn }
+                                    )
+                                }
                             }
                         }
                     }
@@ -1477,6 +1618,427 @@ private fun CircleLegendRow(
 }
 
 /**
+ * Interactive Drop-Down Control Bar placed directly after Payments Overview (Circle Breakdown).
+ * Lets the admin select any Shop from a Drop-Down menu and select/expand/collapse sections after Payments Overview.
+ */
+@Composable
+private fun PostOverviewDropdownControlBar(
+    shopBreakdowns: List<ShopPaymentBreakdown>,
+    selectedShopId: String,
+    selectedShopName: String,
+    selectedPeriod: PaymentReportPeriod,
+    selectedSectionLabel: String,
+    onSelectShop: (String) -> Unit,
+    onSelectSectionOption: (String) -> Unit,
+    onDownloadSelectedShopPdf: () -> Unit,
+    onDownloadSelectedShopCsv: () -> Unit
+) {
+    var shopMenuExpanded by remember { mutableStateOf(false) }
+    var sectionMenuExpanded by remember { mutableStateOf(false) }
+
+    val sectionOptions = listOf(
+        "Shop-wise Orders & Settlements",
+        "Profit & Loss (P&L) Statement",
+        "Total Summary (1D • 7D • 1M • 6M • 1Y)",
+        "Online Payment Problems Tracker",
+        "Shop ↔ Customer Transaction History",
+        "Expand All Sections",
+        "Collapse All Sections"
+    )
+
+    val selectedShopStat = remember(shopBreakdowns, selectedShopId) {
+        shopBreakdowns.find { it.shopId == selectedShopId }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("post_overview_dropdown_control_bar"),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, AdminPurple.copy(alpha = 0.25f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(
+                        text = "Quick Filter & Section Drop-Downs",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 15.sp,
+                        color = TextDark
+                    )
+                    Text(
+                        text = "Choose a Shop or Analytics Section below Payments Overview (${selectedPeriod.shortLabel})",
+                        fontSize = 11.sp,
+                        color = TextMuted
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.FilterList,
+                    contentDescription = null,
+                    tint = AdminPurple
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 1. Select Shop Drop-Down
+            Text(
+                text = "Select Shop (Orders, Online, COD & Pending):",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextDark
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { shopMenuExpanded = true }
+                        .testTag("post_overview_shop_dropdown_button"),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, AdminPurple)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Storefront,
+                                contentDescription = null,
+                                tint = AdminPurple,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (selectedShopId == "ALL") {
+                                    "All Shops (${shopBreakdowns.sumOf { it.totalOrdersCount }} Orders)"
+                                } else {
+                                    "$selectedShopName (${selectedShopStat?.totalOrdersCount ?: 0} Orders • ₹${formatInr(selectedShopStat?.totalOrdersAmount ?: 0.0)})"
+                                },
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Icon(
+                            imageVector = if (shopMenuExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Open Shop Drop-Down",
+                            tint = AdminPurple
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = shopMenuExpanded,
+                    onDismissRequest = { shopMenuExpanded = false },
+                    modifier = Modifier
+                        .fillMaxWidth(0.88f)
+                        .background(Color.White)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(
+                                    text = "All Shops (${shopBreakdowns.sumOf { it.totalOrdersCount }} Orders)",
+                                    fontWeight = if (selectedShopId == "ALL") FontWeight.ExtraBold else FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                    color = if (selectedShopId == "ALL") AdminPurple else TextDark
+                                )
+                                Text(
+                                    text = "View combined orders, online UPI, COD & pending payouts",
+                                    fontSize = 11.sp,
+                                    color = TextMuted
+                                )
+                            }
+                        },
+                        onClick = {
+                            onSelectShop("ALL")
+                            shopMenuExpanded = false
+                        }
+                    )
+                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                    shopBreakdowns.forEach { sb ->
+                        val isChosen = selectedShopId == sb.shopId
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(
+                                        text = "${sb.shopName} (${sb.totalOrdersCount} Orders)",
+                                        fontWeight = if (isChosen) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                        fontSize = 13.sp,
+                                        color = if (isChosen) AdminPurple else TextDark
+                                    )
+                                    Text(
+                                        text = "GMV: ₹${sb.totalOrdersAmount.toInt()} • Online: ₹${sb.onlineAmount.toInt()} • COD: ₹${sb.codAmount.toInt()} • Due: ₹${sb.shopkeeperPayoutDue.toInt()}",
+                                        fontSize = 11.sp,
+                                        color = TextMuted
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onSelectShop(sb.shopId)
+                                shopMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 2. Select Analytics Section Drop-Down
+            Text(
+                text = "Jump to / Open Section Drop-Down:",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextDark
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { sectionMenuExpanded = true }
+                        .testTag("post_overview_section_dropdown_button"),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, GreenPrimary)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Analytics,
+                                contentDescription = null,
+                                tint = GreenPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = selectedSectionLabel,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Icon(
+                            imageVector = if (sectionMenuExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Open Section Drop-Down",
+                            tint = GreenPrimary
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = sectionMenuExpanded,
+                    onDismissRequest = { sectionMenuExpanded = false },
+                    modifier = Modifier
+                        .fillMaxWidth(0.88f)
+                        .background(Color.White)
+                ) {
+                    sectionOptions.forEach { option ->
+                        val isChosen = selectedSectionLabel == option
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = option,
+                                    fontWeight = if (isChosen) FontWeight.ExtraBold else FontWeight.Medium,
+                                    fontSize = 13.sp,
+                                    color = if (isChosen) GreenPrimary else TextDark
+                                )
+                            },
+                            onClick = {
+                                onSelectSectionOption(option)
+                                sectionMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Quick Download Row for the Selected Shop / Scope
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onDownloadSelectedShopPdf,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = AdminPurple),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(15.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (selectedShopId == "ALL") "Download All PDF" else "Download Shop PDF",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+                OutlinedButton(
+                    onClick = onDownloadSelectedShopCsv,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, GreenPrimary),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Icon(Icons.Default.TableChart, contentDescription = null, tint = GreenPrimary, modifier = Modifier.size(15.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (selectedShopId == "ALL") "Download All CSV" else "Download Shop CSV",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GreenPrimary,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Reusable Collapsible Drop-Down Section Container for all cards below Payments Overview.
+ */
+@Composable
+private fun PaymentSectionDropdownContainer(
+    title: String,
+    subtitle: String,
+    badgeText: String,
+    badgeColor: Color,
+    badgeBg: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    testTag: String,
+    content: @Composable () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggleExpand() }
+                .testTag(testTag),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isExpanded) Color(0xFF1E1B4B) else Color.White
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            border = BorderStroke(
+                1.dp,
+                if (isExpanded) Color(0xFF1E1B4B) else BorderLight
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isExpanded) Color.White.copy(alpha = 0.16f) else badgeBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = if (isExpanded) Color.White else badgeColor,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = title,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 14.sp,
+                            color = if (isExpanded) Color.White else TextDark
+                        )
+                        Text(
+                            text = subtitle,
+                            fontSize = 11.sp,
+                            color = if (isExpanded) Color.White.copy(alpha = 0.78f) else TextMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        color = if (isExpanded) Color.White.copy(alpha = 0.18f) else badgeBg,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = badgeText,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isExpanded) Color.White else badgeColor,
+                            maxLines = 1
+                        )
+                    }
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (isExpanded) "Collapse section" else "Expand section",
+                        tint = if (isExpanded) Color.White else TextDark
+                    )
+                }
+            }
+        }
+
+        AnimatedVisibility(visible = isExpanded) {
+            Column {
+                Spacer(modifier = Modifier.height(8.dp))
+                content()
+            }
+        }
+    }
+}
+
+/**
  * Requirements #1 & #6:
  * - Shows which shop participates in Total Orders, Online Payments, COD Payments, and Pending Payments
  * - Highlights which shop gets the most orders
@@ -1498,6 +2060,7 @@ private fun ShopWiseContributionAndSettlementCard(
     onDownloadShopCsv: (String) -> Unit,
     onSettleShopPayout: (String, String) -> Unit
 ) {
+    var innerShopDropdownExpanded by remember { mutableStateOf(false) }
     val focusLabels = listOf(
         "All Metrics",
         "Most Orders",
@@ -1542,7 +2105,7 @@ private fun ShopWiseContributionAndSettlementCard(
                         color = TextDark
                     )
                     Text(
-                        text = "Select a shop to view & download its COD, Online, Total Orders & Pending Payouts",
+                        text = "Select a shop from the drop-down to view & download its COD, Online, Total Orders & Pending Payouts",
                         fontSize = 11.sp,
                         color = TextMuted
                     )
@@ -1597,13 +2160,86 @@ private fun ShopWiseContributionAndSettlementCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Requirement #6: Select Shop Name Chip Bar for Shop-Specific Statement Download
+            // Requirement #6: Select Shop Drop-Down + Chip Bar for Shop-Specific Statement Download
             Text(
-                text = "Select Shop to Filter & Download Shop Payment Statement:",
+                text = "Select Shop Drop-Down to Filter & Download Statement:",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDark
             )
+            Spacer(modifier = Modifier.height(6.dp))
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { innerShopDropdownExpanded = true }
+                        .testTag("shop_wise_dropdown_selector"),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, AdminPurple)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (selectedShopId == "ALL") {
+                                "All Shops (${shopBreakdowns.sumOf { it.totalOrdersCount }} Orders)"
+                            } else {
+                                selectedShopName
+                            },
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark
+                        )
+                        Icon(
+                            imageVector = if (innerShopDropdownExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Select Shop",
+                            tint = AdminPurple
+                        )
+                    }
+                }
+                DropdownMenu(
+                    expanded = innerShopDropdownExpanded,
+                    onDismissRequest = { innerShopDropdownExpanded = false },
+                    modifier = Modifier
+                        .fillMaxWidth(0.86f)
+                        .background(Color.White)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "All Shops (${shopBreakdowns.sumOf { it.totalOrdersCount }} Orders)",
+                                fontWeight = if (selectedShopId == "ALL") FontWeight.ExtraBold else FontWeight.Medium,
+                                color = if (selectedShopId == "ALL") AdminPurple else TextDark
+                            )
+                        },
+                        onClick = {
+                            onSelectShopFilter("ALL")
+                            innerShopDropdownExpanded = false
+                        }
+                    )
+                    shopBreakdowns.forEach { sb ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "${sb.shopName} (${sb.totalOrdersCount} orders • ₹${sb.totalOrdersAmount.toInt()})",
+                                    fontWeight = if (selectedShopId == sb.shopId) FontWeight.ExtraBold else FontWeight.Medium,
+                                    color = if (selectedShopId == sb.shopId) AdminPurple else TextDark
+                                )
+                            },
+                            onClick = {
+                                onSelectShopFilter(sb.shopId)
+                                innerShopDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

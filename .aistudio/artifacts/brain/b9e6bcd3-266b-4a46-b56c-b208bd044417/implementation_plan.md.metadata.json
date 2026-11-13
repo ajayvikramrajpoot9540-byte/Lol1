@@ -1,6 +1,0 @@
-{
-  "summary": "Comprehensive implementation plan for FlashDrop's Advanced Smart Delivery & Shop Schedule Management System as specified in the 6-page instructions PDF. Covers accurate 30-minute IST delivery calculations, late-night order routing within 30 minutes of closing, a dedicated 'Shop Schedule & Auto Opening/Closing' page with master settings and custom 7-day weekly schedule tables, customer-side availability gates, and Firestore security rules.",
-  "updatedAt": "2026-11-05T08:34:18.004659216Z",
-  "requestFeedback": true,
-  "userFacing": true
-}
